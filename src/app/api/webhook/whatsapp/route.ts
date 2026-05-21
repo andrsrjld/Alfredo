@@ -19,16 +19,17 @@ function isWithinActiveHours(): boolean {
   return current >= start && current <= end
 }
 
-function extractMessage(body: any): { from: string; text: string } | null {
+function extractMessage(body: unknown): { from: string; text: string } | null {
   try {
-    const entry = body.entry?.[0]
-    const change = entry?.changes?.[0]
-    const value = change?.value
-    const message = value?.messages?.[0]
+    const b = body as Record<string, unknown>
+    const entry = (b.entry as Record<string, unknown>[] | undefined)?.[0]
+    const change = (entry?.changes as Record<string, unknown>[] | undefined)?.[0]
+    const value = change?.value as Record<string, unknown> | undefined
+    const message = (value?.messages as Record<string, unknown>[] | undefined)?.[0]
     if (!message || message.type !== 'text') return null
     return {
-      from: message.from,
-      text: message.text?.body || '',
+      from: message.from as string,
+      text: ((message.text as Record<string, unknown> | undefined)?.body as string) || '',
     }
   } catch {
     return null

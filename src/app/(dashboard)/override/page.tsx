@@ -19,9 +19,9 @@ type Server = {
 export default function OverridePage() {
   const [servers, setServers] = useState<Server[]>([])
   const [editNote, setEditNote] = useState<Record<string, string>>({})
-  const supabase = createClient()
 
   useEffect(() => {
+    const supabase = createClient()
     async function fetchServers() {
       const { data } = await supabase.from('server_status').select('*').order('last_ping', { ascending: false })
       if (data) {
@@ -32,9 +32,10 @@ export default function OverridePage() {
       }
     }
     fetchServers()
-  }, [supabase])
+  }, [])
 
   async function handleUpdate(id: string) {
+    const supabase = createClient()
     const { error } = await supabase
       .from('server_status')
       .update({ notes: editNote[id] || null })

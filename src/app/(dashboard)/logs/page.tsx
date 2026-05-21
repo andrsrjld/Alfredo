@@ -23,9 +23,9 @@ type ChatLog = {
 export default function LogsPage() {
   const [logs, setLogs] = useState<ChatLog[]>([])
   const [search, setSearch] = useState('')
-  const supabase = createClient()
 
   useEffect(() => {
+    const supabase = createClient()
     async function fetchLogs() {
       const { data, error } = await supabase
         .from('chat_logs')
@@ -35,7 +35,7 @@ export default function LogsPage() {
       if (!error && data) setLogs(data)
     }
     fetchLogs()
-  }, [supabase])
+  }, [])
 
   const filtered = logs.filter(
     (l) =>

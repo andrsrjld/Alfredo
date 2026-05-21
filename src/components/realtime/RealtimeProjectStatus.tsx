@@ -26,9 +26,9 @@ type Project = {
 export default function RealtimeProjectStatus() {
   const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
-  const supabase = createClient()
 
   useEffect(() => {
+    const supabase = createClient()
     async function fetchProjects() {
       const { data } = await supabase.from('project_status').select('*').order('last_updated', { ascending: false })
       if (data) setProjects(data)
@@ -45,7 +45,7 @@ export default function RealtimeProjectStatus() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase])
+  }, [])
 
   const statusVariant: Record<string, 'default' | 'destructive' | 'secondary' | 'outline'> = {
     success: 'default',

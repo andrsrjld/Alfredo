@@ -2,7 +2,7 @@ import { createAdminClient } from './supabase/admin'
 
 interface SearchResult {
   type: 'project' | 'server'
-  data: Record<string, any>
+  data: Record<string, string | null | undefined>
   score: number
 }
 

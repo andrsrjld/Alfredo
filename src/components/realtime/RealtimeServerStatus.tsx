@@ -16,9 +16,9 @@ type Server = {
 
 export default function RealtimeServerStatus() {
   const [servers, setServers] = useState<Server[]>([])
-  const supabase = createClient()
 
   useEffect(() => {
+    const supabase = createClient()
     async function fetchServers() {
       const { data } = await supabase.from('server_status').select('*').order('last_ping', { ascending: false })
       if (data) setServers(data)
@@ -27,7 +27,7 @@ export default function RealtimeServerStatus() {
 
     const channel = supabase
       .channel('server_status_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'server_status' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'server_status' }, () => {
         fetchServers()
       })
       .subscribe()
@@ -35,7 +35,7 @@ export default function RealtimeServerStatus() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [supabase])
+  }, [])
 
   const statusColor: Record<string, string> = {
     online: 'bg-green-500',
