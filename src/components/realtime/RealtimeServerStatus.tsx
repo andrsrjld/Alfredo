@@ -25,7 +25,7 @@ type Server = {
 }
 
 const MOBILE_PAGE_SIZE = 4
-const DESKTOP_PAGE_SIZE = 8
+const DESKTOP_PAGE_SIZE = 6
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app'
 
@@ -218,6 +218,7 @@ export default function RealtimeServerStatus() {
     <div className="space-y-3">
       {/* Mobile: horizontal slider */}
       <div
+        data-server-mobile
         className="snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth md:hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex"
         ref={(el) => {
           if (!el) return
@@ -238,22 +239,24 @@ export default function RealtimeServerStatus() {
           <p className="py-6 text-center text-sm text-muted-foreground">No servers reporting.</p>
         )}
       </div>
-      <ArrowPagination
-        page={mobilePage}
-        total={mobileTotalPages}
-        onPrev={() => {
-          const p = Math.max(0, mobilePage - 1)
-          setMobilePage(p)
-          const el = document.querySelector('[data-server-mobile]') as HTMLDivElement
-          el?.scrollTo({ left: p * el.offsetWidth, behavior: 'smooth' })
-        }}
-        onNext={() => {
-          const p = Math.min(mobileTotalPages - 1, mobilePage + 1)
-          setMobilePage(p)
-          const el = document.querySelector('[data-server-mobile]') as HTMLDivElement
-          el?.scrollTo({ left: p * el.offsetWidth, behavior: 'smooth' })
-        }}
-      />
+      <div className="md:hidden">
+        <ArrowPagination
+          page={mobilePage}
+          total={mobileTotalPages}
+          onPrev={() => {
+            const p = Math.max(0, mobilePage - 1)
+            setMobilePage(p)
+            const el = document.querySelector('[data-server-mobile]') as HTMLDivElement
+            el?.scrollTo({ left: p * el.offsetWidth, behavior: 'smooth' })
+          }}
+          onNext={() => {
+            const p = Math.min(mobileTotalPages - 1, mobilePage + 1)
+            setMobilePage(p)
+            const el = document.querySelector('[data-server-mobile]') as HTMLDivElement
+            el?.scrollTo({ left: p * el.offsetWidth, behavior: 'smooth' })
+          }}
+        />
+      </div>
 
       {/* Desktop: paginated grid */}
       <div className="hidden md:block">
@@ -264,12 +267,14 @@ export default function RealtimeServerStatus() {
           <p className="py-6 text-center text-sm text-muted-foreground">No servers reporting.</p>
         )}
       </div>
-      <ArrowPagination
-        page={desktopPage}
-        total={desktopTotalPages}
-        onPrev={() => setDesktopPage(p => Math.max(0, p - 1))}
-        onNext={() => setDesktopPage(p => Math.min(desktopTotalPages - 1, p + 1))}
-      />
+      <div className="hidden md:block">
+        <ArrowPagination
+          page={desktopPage}
+          total={desktopTotalPages}
+          onPrev={() => setDesktopPage(p => Math.max(0, p - 1))}
+          onNext={() => setDesktopPage(p => Math.min(desktopTotalPages - 1, p + 1))}
+        />
+      </div>
 
       <ServerDetailDialog
         server={selectedServer}

@@ -30,7 +30,7 @@ type Project = {
 }
 
 const MOBILE_PAGE_SIZE = 4
-const DESKTOP_PAGE_SIZE = 10
+const DESKTOP_PAGE_SIZE = 9
 
 function capitalizeWords(s: string): string {
   return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
@@ -285,20 +285,22 @@ export default function RealtimeProjectStatus() {
           <p className="py-6 text-center text-sm text-muted-foreground">No projects found.</p>
         )}
       </div>
-      <ArrowPagination
-        page={mobilePage}
-        total={mobileTotalPages}
-        onPrev={() => {
-          const p = Math.max(0, mobilePage - 1)
-          setMobilePage(p)
-          scrollRef.current?.scrollTo({ left: p * (scrollRef.current?.offsetWidth || 0), behavior: 'smooth' })
-        }}
-        onNext={() => {
-          const p = Math.min(mobileTotalPages - 1, mobilePage + 1)
-          setMobilePage(p)
-          scrollRef.current?.scrollTo({ left: p * (scrollRef.current?.offsetWidth || 0), behavior: 'smooth' })
-        }}
-      />
+      <div className="md:hidden">
+        <ArrowPagination
+          page={mobilePage}
+          total={mobileTotalPages}
+          onPrev={() => {
+            const p = Math.max(0, mobilePage - 1)
+            setMobilePage(p)
+            scrollRef.current?.scrollTo({ left: p * (scrollRef.current?.offsetWidth || 0), behavior: 'smooth' })
+          }}
+          onNext={() => {
+            const p = Math.min(mobileTotalPages - 1, mobilePage + 1)
+            setMobilePage(p)
+            scrollRef.current?.scrollTo({ left: p * (scrollRef.current?.offsetWidth || 0), behavior: 'smooth' })
+          }}
+        />
+      </div>
 
       {/* Desktop: paginated card grid */}
       <div className="hidden md:block">
@@ -311,12 +313,14 @@ export default function RealtimeProjectStatus() {
           <p className="py-6 text-center text-sm text-muted-foreground">No projects found.</p>
         )}
       </div>
-      <ArrowPagination
-        page={desktopPage}
-        total={desktopTotalPages}
-        onPrev={() => setDesktopPage(p => Math.max(0, p - 1))}
-        onNext={() => setDesktopPage(p => Math.min(desktopTotalPages - 1, p + 1))}
-      />
+      <div className="hidden md:block">
+        <ArrowPagination
+          page={desktopPage}
+          total={desktopTotalPages}
+          onPrev={() => setDesktopPage(p => Math.max(0, p - 1))}
+          onNext={() => setDesktopPage(p => Math.min(desktopTotalPages - 1, p + 1))}
+        />
+      </div>
 
       <ProjectDetailDialog
         project={selectedProject}
