@@ -31,15 +31,15 @@ export default function LoginPage() {
       return
     }
 
-    router.refresh()
-    router.push('/dashboard')
+    await new Promise(resolve => setTimeout(resolve, 500))
+    router.replace('/dashboard')
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Alfredo Dashboard Login</CardTitle>
+          <CardTitle>Alfredo Dashboard</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -62,7 +62,7 @@ export default function LoginPage() {
               />
             </div>
             {error && (
-              <p className="text-sm text-red-500">{error}</p>
+              <p className="text-sm text-destructive">{error}</p>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
