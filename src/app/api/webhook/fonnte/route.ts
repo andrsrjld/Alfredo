@@ -37,10 +37,12 @@ async function extractFonnteMessage(request: NextRequest): Promise<{
   if (contentType.includes('application/json')) {
     try {
       const body = await request.json()
+      console.log('[Fonnte] JSON payload keys:', Object.keys(body).join(','), '| name:', body.name, '| senderName:', body.senderName, '| pushName:', body.pushName, '| contactName:', body.contactName, '| notifyName:', body.notifyName)
+
       const sender = String(body.sender || body.number || body.phone || '')
       const text = String(body.message || body.text || body.content || '')
       const member = body.member ? String(body.member) : undefined
-      const name = body.name ? String(body.name).trim() : undefined
+      const name = String(body.name || body.senderName || body.pushName || body.contactName || body.notifyName || '').trim() || undefined
       if (!sender || !text) return null
 
       const isGroup = !!member
@@ -81,6 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { from, text, isGroup, groupId, senderName } = msg
+    console.log('[Fonnte] from:', from, 'senderName:', senderName, 'text:', text?.slice(0, 50), 'isGroup:', isGroup)
 
     if (isGroup && !/alfredo/i.test(text)) {
       return NextResponse.json({ ok: true, ignored: 'not_mentioned' })
