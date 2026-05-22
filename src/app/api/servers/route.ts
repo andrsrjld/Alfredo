@@ -56,14 +56,12 @@ export async function POST(request: NextRequest) {
     }
 
     const webhookUrl = `${baseUrl}/api/server-ping?secret=${ping_secret}`
+    const scriptUrl = `${baseUrl}/api/scripts/alfredo-ping.sh?secret=${ping_secret}`
     const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
-    const scriptUrl = `${baseUrl}/scripts/alfredo-ping.sh`
     const instructions = [
-      `# 1. Download and install the ping script:`,
-      `curl -sL ${scriptUrl} -o /usr/local/bin/alfredo-ping.sh && chmod +x /usr/local/bin/alfredo-ping.sh`,
-      `# 2. Edit the SECRET in the script:`,
-      `sed -i 's|<YOUR_SERVER_PING_SECRET>|${ping_secret}|' /usr/local/bin/alfredo-ping.sh`,
-      `# 3. Add to crontab (runs every minute):`,
+      `# 1. Download the ping script (secret pre-filled):`,
+      `curl -sL "${scriptUrl}" -o /usr/local/bin/alfredo-ping.sh && chmod +x /usr/local/bin/alfredo-ping.sh`,
+      `# 2. Add to crontab (runs every minute):`,
       `(crontab -l 2>/dev/null; echo "${crontab}") | crontab -`,
     ].join('\n')
 
