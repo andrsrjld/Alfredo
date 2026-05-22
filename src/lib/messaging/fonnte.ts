@@ -1,7 +1,8 @@
 import { MessagingProvider, SendMessageOptions } from './types'
 
 export class FonnteProvider implements MessagingProvider {
-  async sendMessage(to: string, text: string, options?: SendMessageOptions): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async sendMessage(to: string, text: string, _options?: SendMessageOptions): Promise<void> {
     const token = process.env.FONNTE_API_KEY
     if (!token) {
       console.error('Fonnte provider: missing FONNTE_API_KEY')
@@ -13,11 +14,7 @@ export class FonnteProvider implements MessagingProvider {
       message: text,
     }
 
-    if (options?.isGroup) {
-      body.group = true
-    }
-
-    await fetch('https://api.fonnte.com/send', {
+    const res = await fetch('https://api.fonnte.com/send', {
       method: 'POST',
       headers: {
         Authorization: token,
@@ -25,5 +22,10 @@ export class FonnteProvider implements MessagingProvider {
       },
       body: JSON.stringify(body),
     })
+
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error('[Fonnte] send failed:', res.status, errText)
+    }
   }
 }
