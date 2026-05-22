@@ -17,10 +17,10 @@ type Server = {
 
 const SERVER_PAGE_SIZE = 10
 
-const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary'; label: string }> = {
-  online: { variant: 'default', label: 'online' },
+const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
+  online: { variant: 'success', label: 'online' },
   offline: { variant: 'destructive', label: 'offline' },
-  high_load: { variant: 'secondary', label: 'high_load' },
+  high_load: { variant: 'warning', label: 'high_load' },
 }
 
 export default function RealtimeServerStatus() {

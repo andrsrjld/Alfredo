@@ -45,11 +45,11 @@ export default function DashboardPage() {
 
   const statCards = [
     { label: 'Total Servers', value: stats.totalServers, icon: Server, color: 'text-foreground' },
-    { label: 'Online', value: stats.online, icon: CheckCircle, color: 'text-primary' },
-    { label: 'Offline', value: stats.offline, icon: AlertTriangle, color: 'text-destructive' },
-    { label: 'Pipelines OK', value: stats.success, icon: Monitor, color: 'text-primary' },
-    { label: 'Failed', value: stats.failed, icon: AlertTriangle, color: 'text-destructive' },
-    { label: 'Running', value: stats.running, icon: Server, color: 'text-tertiary' },
+    { label: 'Online', value: stats.online, icon: CheckCircle, color: 'text-emerald-400' },
+    { label: 'Offline', value: stats.offline, icon: AlertTriangle, color: 'text-red-400' },
+    { label: 'Pipelines OK', value: stats.success, icon: Monitor, color: 'text-emerald-400' },
+    { label: 'Failed', value: stats.failed, icon: AlertTriangle, color: 'text-red-400' },
+    { label: 'Running', value: stats.running, icon: Server, color: 'text-amber-400' },
   ]
 
   return (

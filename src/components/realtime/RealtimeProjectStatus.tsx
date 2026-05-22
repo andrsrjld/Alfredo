@@ -29,12 +29,15 @@ type Project = {
 
 const STATUS_PAGE_SIZE = 50
 
-const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary'; label: string }> = {
-  success: { variant: 'default', label: 'success' },
+const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
+  success: { variant: 'success', label: 'success' },
   failed: { variant: 'destructive', label: 'failed' },
-  running: { variant: 'secondary', label: 'running' },
+  running: { variant: 'warning', label: 'running' },
   canceled: { variant: 'secondary', label: 'canceled' },
   pending: { variant: 'secondary', label: 'pending' },
+  skipped: { variant: 'secondary', label: 'skipped' },
+  manual: { variant: 'secondary', label: 'manual' },
+  created: { variant: 'secondary', label: 'created' },
 }
 
 function formatWIB(iso: string): string {
