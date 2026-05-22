@@ -63,9 +63,9 @@ function formatWIBShort(iso: string): string {
 
 function DetailRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-3">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
-      <span className={`text-right ${mono ? 'font-mono' : ''} text-xs`}>{value || '\u2014'}</span>
+      <span className={`min-w-0 truncate text-right ${mono ? 'font-mono' : ''} text-xs`}>{value || '\u2014'}</span>
     </div>
   )
 }

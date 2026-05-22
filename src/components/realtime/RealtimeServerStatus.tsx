@@ -77,10 +77,11 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
             <div className="space-y-1.5">
               <span className="text-xs text-muted-foreground">Ping Secret</span>
               <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">{server.ping_secret}</code>
+                <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">{server.ping_secret}</code>
                 <Button
                   variant="ghost"
                   size="icon-sm"
+                  className="shrink-0"
                   onClick={() => copyToClipboard(server.ping_secret!, 'secret')}
                 >
                   {copied === 'secret' ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
@@ -92,10 +93,11 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
             <div className="space-y-1.5">
               <span className="text-xs text-muted-foreground">Ping URL</span>
               <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">{pingUrl}</code>
+                <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs break-all">{pingUrl}</code>
                 <Button
                   variant="ghost"
                   size="icon-sm"
+                  className="shrink-0"
                   onClick={() => copyToClipboard(pingUrl, 'url')}
                 >
                   {copied === 'url' ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
@@ -111,9 +113,9 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
 
 function DetailRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex items-center justify-between gap-3">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
-      <span className={`text-right ${mono ? 'font-mono' : ''} text-xs`}>{value || '\u2014'}</span>
+      <span className={`min-w-0 truncate text-right ${mono ? 'font-mono' : ''} text-xs`}>{value || '\u2014'}</span>
     </div>
   )
 }
