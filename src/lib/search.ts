@@ -45,7 +45,7 @@ export async function smartSearch(query: string): Promise<SearchResult[]> {
 
     if (projectRes.data) {
       for (const row of projectRes.data) {
-        const key = `project:${row.repo_name}`
+        const key = `project:${row.repo_name}:${row.project_group || ''}`
         if (!seen.has(key)) {
           seen.add(key)
           results.push({ type: 'project', data: row, score: 1.0 })

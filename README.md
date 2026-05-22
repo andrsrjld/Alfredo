@@ -1,6 +1,6 @@
-# Alfredo — Enterprise Serverless DevOps Companion
+# Alfredo — DevOps AI Companion
 
-Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer project manager questions about server and deployment status without waking up the DevOps engineer. It enforces a **zero-hallucination** policy: it only answers based on real-time data from the database, and falls back gracefully when data is unavailable.
+Alfredo is an AI-powered WhatsApp chatbot that acts as Ijal's DevOps AI Companion. It answers project manager questions about server, pipeline, and deployment status — so Ijal doesn't get woken up. It enforces a **zero-hallucination** policy: answers only from real-time database context, and falls back gracefully when data is unavailable. When project names are ambiguous (same repo name across different GitLab groups), Alfredo asks for clarification before answering.
 
 ## Architecture
 
@@ -33,9 +33,11 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 
 - **Multi-Provider Messaging** — Choose between Meta WhatsApp Cloud API, **Fonnte** (no Meta approval needed, recommended for Indonesia), or **Evolution API** (self-hosted, free). Switch via `WA_PROVIDER` env var.
 - **WhatsApp Bot** — Responds to whitelisted PMs during configurable active hours (default 06:00–12:00 WIB).
-- **Zero-Hallucination** — Alfredo only answers from database context with an explicit `=== DATA DATABASE ===` block. If data is missing, it returns a polite fallback message without calling the LLM.
-- **Switchable AI Provider** — Choose between DeepSeek (default, recommended) or Groq via `AI_PROVIDER` env var. All calls use raw `fetch` to OpenAI-compatible endpoints — no SDK dependency.
-- **GitLab Integration** — Receives pipeline status updates from GitLab Group Webhooks and stores them in real-time.
+- **Zero-Hallucination** — Alfredo only answers from database context with an explicit `=== DATA DATABASE ===` block. If data is missing, it returns a friendly fallback message without calling the LLM.
+- **Ambiguity Detection** — When multiple projects share the same repo name across different GitLab groups, Alfredo asks for clarification before answering. Both prompt-level rules and code-level safety net enforce this.
+- **WIB Timestamps** — All timestamps are converted to Asia/Jakarta (WIB) before reaching the LLM, so responses use local time.
+- **Switchable AI Provider** — Choose between DeepSeek (default), OpenAI, Google Gemini, or Ollama Cloud via dashboard or `AI_PROVIDER` env var. All calls use raw `fetch` to OpenAI-compatible endpoints — no SDK dependency.
+- **GitLab Integration** — Receives pipeline status from GitLab webhooks and auto-fetches failed job logs for AI-powered error analysis.
 - **Server Monitoring** — Accepts cron-based pings from 40+ servers to track online/offline/high_load status.
 - **Web Dashboard** — Internal admin UI with Supabase Auth, real-time status cards, chat logs, and manual server note overrides.
 - **Smart Search** — Keyword-based retrieval with stop-word filtering via Supabase `ILIKE` and trigram similarity (pgvector embeddings planned).
@@ -48,7 +50,7 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 | Hosting | Vercel (Serverless) |
 | Database | Supabase (PostgreSQL, Auth, Realtime) |
 | Messaging | Meta WhatsApp Cloud API / Fonnte / Evolution API |
-| AI Engine | DeepSeek API (`deepseek-chat`) — or Groq (`llama-3.1-70b-versatile`) |
+| AI Engine | DeepSeek / OpenAI / Gemini / Ollama Cloud (switchable via dashboard) |
 | Styling | Tailwind CSS v3 + shadcn/ui |
 
 ## Getting Started
@@ -135,31 +137,39 @@ Open-source WhatsApp API. Requires a VPS to host. [GitHub repo](https://github.c
 
 ### AI Provider
 
-Set `AI_PROVIDER` to choose your LLM backend: `deepseek` (default) or `groq`.
+Set `AI_PROVIDER` or configure via dashboard: `deepseek` (default), `openai`, `gemini`, or `ollama`. Dashboard settings take priority over env vars.
 
-#### DeepSeek (Default, Recommended)
-
-Lower cost, good Indonesian language support.
+#### DeepSeek (Default)
 
 | Variable | How to Generate |
 |---|---|
 | `AI_PROVIDER` | Set to `deepseek` |
 | `DEEPSEEK_API_KEY` | [platform.deepseek.com](https://platform.deepseek.com) → **API Keys** → Create |
-| `DEEPSEEK_MODEL` | Default: `deepseek-chat`. See [platform.deepseek.com](https://platform.deepseek.com) for available models. |
 
-#### Groq
-
-Ultra-fast inference. Requires Groq account.
+#### OpenAI
 
 | Variable | How to Generate |
 |---|---|
-| `AI_PROVIDER` | Set to `groq` |
-| `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) → **API Keys** → **Create API Key** |
-| `GROQ_MODEL` | Default: `llama-3.1-70b-versatile`. See console.groq.com for available models. |
+| `AI_PROVIDER` | Set to `openai` |
+| `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com) → **API Keys** → Create |
+
+#### Google Gemini
+
+| Variable | How to Generate |
+|---|---|
+| `AI_PROVIDER` | Set to `gemini` |
+| `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) → **API Keys** → Create |
+
+#### Ollama Cloud
+
+| Variable | How to Generate |
+|---|---|
+| `AI_PROVIDER` | Set to `ollama` |
+| `OLLAMA_API_KEY` | [ollama.com](https://ollama.com) → Account → API Key |
 
 | Variable | Applies to | Description |
 |---|---|---|
-| `AI_TEMPERATURE` | Both | Float `0.0`–`1.0`. Lower = more deterministic. Default: `0.0` (zero-hallucination) |
+| `AI_TEMPERATURE` | All | Float `0.0`–`1.0`. Lower = more deterministic. Default: `0.0` (zero-hallucination) |
 
 ### GitLab
 
@@ -225,22 +235,37 @@ Choose **one** section based on your `WA_PROVIDER`:
 
 #### 3. GitLab Webhook
 
+**Option A: Project-level webhooks (works on GitLab Free tier)**
+
+Use the CLI script to bulk-create webhooks for all projects in a group:
+
+```bash
+GITLAB_PAT=glpat-xxxxx \
+GITLAB_WEBHOOK_SECRET=your_secret \
+GITLAB_GROUP_ID=12345 \
+node scripts/setup-gitlab-webhooks.mjs
+```
+
+**Option B: Group-level webhook (requires GitLab Premium)**
+
 - Go to your GitLab Group → Settings → Webhooks.
 - Add a new webhook pointing to `https://<your-vercel-url>/api/webhook/gitlab`.
 - Set the Secret Token to match `GITLAB_WEBHOOK_SECRET`.
 - Trigger on **Pipeline events** only.
 
+**Error analysis:** Save a GitLab PAT (scope: `api`) in Dashboard → Settings → GitLab Integration. When a pipeline fails, Alfredo auto-fetches the failed job log and stores it in `error_detail` — enabling AI-powered error analysis and suggestions.
+
 #### 4. Server Cron Pings
 
-On each of your 40+ servers, add a cron job (or systemd timer) that runs every few minutes:
+On each server, add a cron job that runs every 5 minutes. Use the **Add Server** feature in the dashboard (`/dashboard/override`) to auto-generate a unique `ping_secret` and ready-to-use crontab:
 
 ```bash
-curl -X POST https://<your-vercel-url>/api/server-ping \
+*/5 * * * * curl -s -X POST https://<your-vercel-url>/api/server-ping \
   -H "Content-Type: application/json" \
-  -d '{"server_name":"my-server-01","status":"online","secret":"YOUR_SERVER_PING_SECRET"}'
+  -d '{"server_name":"my-server-01","status":"online","ping_secret":"AUTO_GENERATED_SECRET"}' >/dev/null 2>&1
 ```
 
-Adjust `server_name`, `status`, and `secret` per server.
+Per-server `ping_secret` (recommended) takes priority. The global `SERVER_PING_SECRET` still works as a fallback for existing setups.
 
 #### 5. Whitelist PMs
 
@@ -260,9 +285,12 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── auth/signout/route.ts        # Sign out action
-│   │   ├── server-ping/route.ts          # Server cron ping endpoint
+│   │   ├── server-ping/route.ts          # Server cron ping (per-server ping_secret auth)
+│   │   ├── servers/route.ts              # Server management CRUD (GET/POST/DELETE)
+│   │   ├── settings/route.ts             # AI config + GitLab PAT (GET/PUT)
+│   │   ├── whitelist/route.ts            # PM whitelist CRUD
 │   │   └── webhook/
-│   │       ├── gitlab/route.ts           # GitLab pipeline webhook
+│   │       ├── gitlab/route.ts           # GitLab pipeline webhook + auto error fetch
 │   │       ├── whatsapp/route.ts         # Meta WhatsApp webhook (GET verify + POST)
 │   │       ├── fonnte/route.ts           # Fonnte webhook (formData + JSON)
 │   │       └── evolution/route.ts        # Evolution API webhook (JSON)
@@ -270,7 +298,9 @@ src/
 │   ├── (dashboard)/
 │   │   ├── dashboard/page.tsx            # Main monitoring view
 │   │   ├── logs/page.tsx                 # Chat logs
-│   │   ├── override/page.tsx             # Manual server note editor
+│   │   ├── override/page.tsx             # Server management + note editor + crontab gen
+│   │   ├── settings/page.tsx             # AI provider, API keys, GitLab PAT config
+│   │   ├── whitelist/page.tsx            # PM whitelist management
 │   │   └── layout.tsx                    # Dashboard shell with sidebar
 │   ├── layout.tsx                        # Root layout
 │   └── page.tsx                          # Redirects to /dashboard
@@ -290,11 +320,16 @@ src/
 │   │   ├── client.ts                     # Browser Supabase client
 │   │   ├── server.ts                     # Server-side Supabase client (SSR)
 │   │   └── admin.ts                      # Service-role client (webhooks, bypasses RLS)
-│   ├── llm.ts                            # DeepSeek/Groq API wrapper + system prompt
-│   ├── search.ts                         # Keyword-based context retrieval with stop-word filter
+│   ├── encryption.ts                     # AES-256-GCM encrypt/decrypt/maskKey
+│   ├── gitlab.ts                         # GitLab PAT fetch + failed job log retrieval
+│   ├── llm.ts                            # Multi-provider LLM + system prompt + WIB conversion + ambiguity detection
+│   ├── search.ts                         # Keyword-based context retrieval (includes project_group in dedup)
 │   ├── phone.ts                          # Indonesia phone number normalization
 │   └── utils.ts                          # shadcn/ui cn() helper
-└── middleware.ts                          # Supabase Auth route protection
+├── middleware.ts                          # Supabase Auth route protection
+scripts/
+├── migrate.sh                            # Local DB migration runner
+└── setup-gitlab-webhooks.mjs             # Bulk create GitLab project webhooks
 ```
 
 ## Scripts

@@ -2,7 +2,7 @@ import { createAdminClient } from './supabase/admin'
 import { decrypt } from './encryption'
 
 const FALLBACK_REPLY =
-  'Mohon maaf Bapak/Ibu, status yang Bapak/Ibu tanyakan tidak tercatat dalam log serah terima sistem kami. Christian akan melakukan pengecekan manual dan merespons setelah pukul 12.00.'
+  'Halo! 🤖 Data untuk pertanyaan itu belum tersedia di sistem saya. Ijal akan follow up secepatnya setelah online ya!'
 
 const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; model: string; authHeader: string; authPrefix: string }> = {
   deepseek: {
@@ -128,32 +128,95 @@ export function invalidateConfigCache() {
   cachedConfig = null
 }
 
+function toWIB(isoString: string): string {
+  try {
+    const d = new Date(isoString)
+    return d.toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    })
+  } catch {
+    return isoString
+  }
+}
+
+function convertTimestampsToWIB(context: string): string {
+  return context.replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, (match) => toWIB(match))
+}
+
+function detectAmbiguousProjects(context: string): string | null {
+  const lines = context.split('\n')
+  const repoGroups: Record<string, string[]> = {}
+
+  for (const line of lines) {
+    if (!line.startsWith('- Project:')) continue
+    const repoMatch = line.match(/Project:\s*(\S+)/)
+    const groupMatch = line.match(/Group:\s*(\S+)/)
+    if (!repoMatch || !groupMatch) continue
+
+    const repo = repoMatch[1]
+    const group = groupMatch[1]
+    if (group === '-') continue
+
+    if (!repoGroups[repo]) repoGroups[repo] = []
+    if (!repoGroups[repo].includes(group)) repoGroups[repo].push(group)
+  }
+
+  const ambiguous = Object.entries(repoGroups).filter(([, groups]) => groups.length > 1)
+  if (ambiguous.length === 0) return null
+
+  const notes = ambiguous.map(([repo, groups]) => {
+    const paths = groups.map(g => `${g}/${repo}`).join(' dan ')
+    return `Project "${repo}" ada di ${groups.length} group: ${paths}`
+  })
+
+  return `[PERINGATAN AMBIGUITAS] ${notes.join('. ')} — WAJIB tanya PM project mana yang dimaksud sebelum jawab status!`
+}
+
 function createSystemPrompt(context: string): string {
   const start = process.env.BOT_ACTIVE_START || '06:00'
   const end = process.env.BOT_ACTIVE_END || '12:00'
-  return `Nama Anda adalah Alfredo, asisten AI L1 Support untuk Christian (DevOps Engineer).
-Gunakan Bahasa Indonesia korporat yang sangat sopan dan profesional. Sapa pengirim dengan Bapak/Ibu.
-Jam aktif bot adalah ${start} hingga ${end} WIB karena Christian sedang istirahat shift malam.
+  const wibContext = convertTimestampsToWIB(context)
+
+  let ambigNote = ''
+  const ambig = detectAmbiguousProjects(wibContext)
+  if (ambig) ambigNote = `\n\n${ambig}`
+
+  return `Kamu adalah Alfredo 🤖, DevOps AI Companion milik Ijal (DevOps Engineer).
+Kamu membantu PM cek status server, pipeline, dan deployment.
+
+Gaya bicara: santai tapi profesional. Sapaan "Halo". Jawab ringkas dan to-the-point.
+Perkenalkan diri sebagai Alfredo di pesan pertama.
+Jam aktif: ${start}–${end} WIB. Di luar jam itu, Ijal lagi istirahat shift malam.
 
 ATURAN MUTLAK (ZERO-HALLUCINATION):
-1. Anda HANYA BOLEH menjawab berdasarkan data di dalam konteks yang diberikan di bawah ini.
-2. Jika PM menanyakan status server atau project yang TIDAK ADA dalam konteks di bawah, Anda DILARANG menebak atau mengarang jawaban.
-3. Jika data TIDAK ADA sama sekali dalam konteks, jawab: "${FALLBACK_REPLY}"
+1. HANYA jawab berdasarkan data konteks di bawah. Dilarang menebak atau mengarang.
+2. Jika data tidak ada, jawab dengan fallback reply.
 
-PENTING: Data di bawah ini ADALAH data dari database sistem. Gunakan data ini untuk menjawab pertanyaan.
+ATURAN AMBIGUITAS:
+Jika dalam konteks ada lebih dari satu project dengan repo_name sama tapi project_group berbeda,
+WAJIB tanya PM untuk jelaskan full repo path atau group-nya dulu sebelum jawab status.
+Contoh: "Halo! 🤖 Ada 2 project 'dashboard' nih — wit-id/sub-group-a/dashboard dan wit-id/sub-group-b/dashboard. Maksudnya yang mana ya?"
+
+ATURAN WAKTU:
+Semua timestamp di konteks sudah dalam waktu WIB (Asia/Jakarta). Gunakan format WIB saat menjawab.
 
 === DATA DATABASE ===
-${context}
+${wibContext}
 === AKHIR DATA ===
+${ambigNote}
 
 CONTOH JAWABAN:
-Jika konteks berisi "- Server: app-prod-01 | Status: online | Last Ping: 2026-01-01T10:00:00Z"
-maka jawab: "Bapak/Ibu, server app-prod-01 saat ini berstatus online. Terakhir diperiksa pada 1 Januari 2026 pukul 10:00 UTC."
+Server online → "Halo! 🤖 Alfredo di sini. Server app-prod-01 lagi online nih. Terakhir dicek 1 Jan 2026 10:00 WIB."
 
-Jika konteks berisi "... | Status: failed | Error: Module not found: 'xyz'"
-maka jawab: "Bapak/Ibu, pipeline terakhir gagal karena module 'xyz' tidak ditemukan. Saran: jalankan npm install xyz atau cek apakah module sudah didaftarkan di package.json."
+Pipeline failed → "Halo! 🤖 Pipeline dashboard gagal nih, error-nya module 'xyz' gak ketemu. Coba jalankan npm install xyz atau cek package.json-nya ya."
 
-Sekarang jawablah pertanyaan PM berdasarkan data di atas.`
+Sekarang jawab pertanyaan PM berdasarkan data di atas.`
 }
 
 async function callOpenAICompatible(config: LLMConfig, systemPrompt: string, userMessage: string): Promise<{ content: string | null; debug: { provider: string; status: number; error?: string } }> {
