@@ -41,6 +41,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 ExecStart=/usr/local/bin/alfredo-daemon.sh
 Restart=always
 RestartSec=3
@@ -68,14 +69,14 @@ SECRET="${secret}"
 INTERVAL=3
 CONTAINER_INTERVAL=60
 
-last_container=0
+last_container=-999999
 
 read_cpu() {
-  awk -v cpu='cpu' '$1==cpu{printf "%.1f", ($2+$4)*100/($2+$4+$5+$7)}' /proc/stat 2>/dev/null || echo "0"
+  top -bn1 | grep "Cpu(s)" | awk '{print $2}' 2>/dev/null || echo "0"
 }
 
 read_mem() {
-  awk '/MemAvailable/{printf "%.1f", (1-$2/($2+0.001))*100}' /proc/meminfo 2>/dev/null || free | awk '/Mem/{printf "%.1f", $3/$2*100}'
+  awk '/MemTotal/{t=$2}/MemAvailable/{a=$2}END{if(t>0)printf "%.1f",(1-a/t)*100;else print "0"}' /proc/meminfo 2>/dev/null || free | awk '/Mem/{printf "%.1f",$3/$2*100}'
 }
 
 read_disk() {

@@ -1,5 +1,4 @@
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
@@ -21,23 +20,6 @@ interface MetricsPayload {
   disk?: number
   uptime_hours?: number
   containers?: ContainerPayload[]
-}
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
-async function broadcastMetrics(serverName: string, cpu: number | null, memory: number | null, disk: number | null, uptimeHours: number | null) {
-  try {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    await client.channel('server_metrics_all').send({
-      type: 'broadcast',
-      event: 'metrics',
-      payload: { server_name: serverName, cpu, memory, disk, uptime_hours: uptimeHours },
-    })
-  } catch (err) {
-    console.error('[Server ping] Broadcast error:', err)
-  }
 }
 
 async function authenticate(request: NextRequest, supabase: ReturnType<typeof createAdminClient>): Promise<string | null> {
@@ -157,8 +139,6 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-
-    broadcastMetrics(serverName, cpu ?? null, memory ?? null, disk ?? null, uptime_hours ?? null)
 
     return NextResponse.json({ ok: true }, noStore)
   } catch (err) {
