@@ -1,7 +1,3 @@
-import Groq from 'groq-sdk'
-
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
 const FALLBACK_REPLY =
   'Mohon maaf Bapak/Ibu, status yang Bapak/Ibu tanyakan tidak tercatat dalam log serah terima sistem kami. Christian akan melakukan pengecekan manual dan merespons setelah pukul 12.00.'
 
@@ -21,23 +17,69 @@ ATURAN MUTLAK (ZERO-HALLUCINATION):
 ${context}`
 }
 
+interface LLMConfig {
+  url: string
+  key: string
+  model: string
+}
+
+function getLLMConfig(): LLMConfig {
+  const provider = process.env.AI_PROVIDER || 'groq'
+
+  switch (provider) {
+    case 'deepseek':
+      return {
+        url: 'https://api.deepseek.com/v1/chat/completions',
+        key: process.env.DEEPSEEK_API_KEY || '',
+        model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+      }
+    case 'groq':
+    default:
+      return {
+        url: 'https://api.groq.com/openai/v1/chat/completions',
+        key: process.env.GROQ_API_KEY || '',
+        model: process.env.GROQ_MODEL || 'llama-3.1-70b-versatile',
+      }
+  }
+}
+
 export async function askAlfredo(context: string, userMessage: string): Promise<string> {
   if (!context.trim()) {
     return FALLBACK_REPLY
   }
 
-  const chatCompletion = await groq.chat.completions.create({
-    messages: [
-      { role: 'system', content: createSystemPrompt(context) },
-      { role: 'user', content: userMessage },
-    ],
-    model: process.env.GROQ_MODEL || 'llama-3.1-70b-versatile',
-    temperature: parseFloat(process.env.AI_TEMPERATURE || '0.0'),
-    max_tokens: 512,
+  const config = getLLMConfig()
+
+  if (!config.key) {
+    console.error(`[LLM] No API key configured for provider: ${process.env.AI_PROVIDER || 'groq'}`)
+    return FALLBACK_REPLY
+  }
+
+  const response = await fetch(config.url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${config.key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [
+        { role: 'system', content: createSystemPrompt(context) },
+        { role: 'user', content: userMessage },
+      ],
+      temperature: parseFloat(process.env.AI_TEMPERATURE || '0.0'),
+      max_tokens: 512,
+    }),
   })
 
-  return (
-    chatCompletion.choices[0]?.message?.content ||
-    FALLBACK_REPLY
-  )
+  if (!response.ok) {
+    const errorBody = await response.text()
+    console.error(`[LLM] API error ${response.status}: ${errorBody}`)
+    return FALLBACK_REPLY
+  }
+
+  const data = await response.json()
+  const content = data?.choices?.[0]?.message?.content
+
+  return content || FALLBACK_REPLY
 }

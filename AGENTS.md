@@ -22,9 +22,11 @@
 ## Bot & Search Behavior
 - WhatsApp POST ignores non-text messages, then applies active-hours gate (`BOT_ACTIVE_START`, `BOT_ACTIVE_END`, `BOT_TIMEZONE`) before whitelist lookup.
 - The `/api/webhook/whatsapp` POST handler also supports Fonnte (formData) and Evolution (JSON) when `WA_PROVIDER` is set accordingly. Each provider also has a dedicated endpoint: `/api/webhook/fonnte`, `/api/webhook/evolution`.
-- Alfredo zero-hallucination rule is enforced by `src/lib/llm.ts`: empty DB context returns fallback without calling Groq.
-- `AI_PROVIDER` exists in env, but code currently implements Groq only; do not assume Ollama/provider switching works yet.
-- Embedding env vars exist, but search is currently simple Supabase `ILIKE` in `src/lib/search.ts`; pgvector is not implemented in `supabase/schema.sql`.
+- Alfredo zero-hallucination rule is enforced by `src/lib/llm.ts`: empty DB context returns fallback without calling LLM.
+- `AI_PROVIDER` env selects LLM backend: `groq` (default) or `deepseek`. Uses OpenAI-compatible API via `fetch` — no SDK dependency.
+- `groq-sdk` npm package has been removed; all LLM calls use raw `fetch` to OpenAI-compatible endpoints.
+- Search uses keyword extraction with stop-word filtering (`src/lib/search.ts`); phone numbers are normalized via `src/lib/phone.ts`.
+- Embedding/pgvector not yet implemented.
 
 ## Routing Gotcha
 - Route groups are URL-invisible. Current files map as: `src/app/(dashboard)/dashboard/page.tsx` -> `/dashboard`, `src/app/(dashboard)/logs/page.tsx` -> `/logs`, `src/app/(dashboard)/override/page.tsx` -> `/override`.
