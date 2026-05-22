@@ -14,6 +14,11 @@ type ChatLog = {
   group_id: string | null
 }
 
+type WhitelistEntry = {
+  phone_number: string
+  pm_name: string | null
+}
+
 const TRUNCATE_LEN = 80
 
 function formatWIB(iso: string): string {
@@ -29,6 +34,7 @@ function formatWIB(iso: string): string {
 
 export default function LogsPage() {
   const [logs, setLogs] = useState<ChatLog[]>([])
+  const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([])
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
@@ -44,14 +50,33 @@ export default function LogsPage() {
         .limit(500)
       if (!error && data) setLogs(data)
     }
+    async function fetchWhitelist() {
+      const { data } = await supabase.from('whitelisted_pms').select('phone_number, pm_name')
+      if (data) setWhitelist(data)
+    }
     fetchLogs()
+    fetchWhitelist()
   }, [])
 
+  const nameMap = new Map<string, string | null>()
+  for (const w of whitelist) {
+    nameMap.set(w.phone_number, w.pm_name)
+  }
+
+  function getDisplayName(phone: string): string {
+    const name = nameMap.get(phone)
+    return name || phone
+  }
+
   const filtered = logs.filter(
-    (l) =>
-      l.pm_number.toLowerCase().includes(search.toLowerCase()) ||
-      l.pm_message.toLowerCase().includes(search.toLowerCase()) ||
-      l.bot_reply.toLowerCase().includes(search.toLowerCase())
+    (l) => {
+      const name = nameMap.get(l.pm_number) || ''
+      const q = search.toLowerCase()
+      return l.pm_number.toLowerCase().includes(q) ||
+        name.toLowerCase().includes(q) ||
+        l.pm_message.toLowerCase().includes(q) ||
+        l.bot_reply.toLowerCase().includes(q)
+    }
   )
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
@@ -121,6 +146,7 @@ export default function LogsPage() {
         {paged.map((log) => {
           const isOpen = expanded.has(log.id)
           const needsExpand = log.bot_reply.length > TRUNCATE_LEN || log.pm_message.length > TRUNCATE_LEN
+          const displayName = getDisplayName(log.pm_number)
           return (
             <div key={log.id} className="border border-border/60 rounded-md bg-card">
               <button
@@ -129,7 +155,7 @@ export default function LogsPage() {
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-mono text-xs text-foreground">{log.pm_number}</span>
+                    <span className="font-mono text-xs text-foreground">{displayName}</span>
                     {log.is_group && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono">group</span>
                     )}

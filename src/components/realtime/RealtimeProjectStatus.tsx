@@ -22,6 +22,7 @@ const statusConfig: Record<string, { dot: string; label: string }> = {
   failed: { dot: 'bg-destructive', label: 'text-destructive' },
   running: { dot: 'bg-tertiary', label: 'text-tertiary' },
   canceled: { dot: 'bg-muted-foreground', label: 'text-muted-foreground' },
+  pending: { dot: 'bg-yellow-400', label: 'text-yellow-400' },
 }
 
 function formatWIB(iso: string): string {
@@ -30,6 +31,16 @@ function formatWIB(iso: string): string {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function formatWIBShort(iso: string): string {
+  return new Date(iso).toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric',
+    month: 'short',
     hour: '2-digit',
     minute: '2-digit',
   })
@@ -84,16 +95,72 @@ export default function RealtimeProjectStatus() {
         </div>
         <span className="text-xs text-muted-foreground font-mono">{filtered.length} projects</span>
       </div>
-      <div className="border border-border rounded-md overflow-x-auto bg-card">
+
+      {/* Card view */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:hidden">
+        {visible.map((project) => {
+          const cfg = statusConfig[project.status] || { dot: 'bg-muted-foreground', label: 'text-muted-foreground' }
+          const isOpen = expandedError.has(project.id)
+          return (
+            <div key={project.id} className="border border-border rounded-md p-2.5 bg-card">
+              <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                <span className="font-mono text-[11px] text-foreground truncate min-w-0">{project.repo_name}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                  <span className={`text-[10px] ${cfg.label}`}>{project.status}</span>
+                </div>
+              </div>
+              <div className="text-[11px] text-muted-foreground space-y-0.5">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground/50">Group</span>
+                  <span className="truncate ml-1 max-w-[80px]">{project.project_group || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground/50">Branch</span>
+                  <span className="truncate ml-1">{project.branch || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground/50">Updated</span>
+                  <span>{formatWIBShort(project.last_updated)}</span>
+                </div>
+              </div>
+              {project.error_detail && (
+                <button
+                  onClick={() => {
+                    setExpandedError(prev => {
+                      const n = new Set(prev)
+                      if (n.has(project.id)) n.delete(project.id)
+                      else n.add(project.id)
+                      return n
+                    })
+                  }}
+                  className="mt-1.5 text-[10px] text-destructive hover:underline"
+                >
+                  {isOpen ? 'Hide error' : 'Show error'}
+                </button>
+              )}
+              {isOpen && project.error_detail && (
+                <pre className="mt-1 text-[10px] text-foreground whitespace-pre-wrap break-words font-mono border-t border-border/40 pt-1">{project.error_detail}</pre>
+              )}
+            </div>
+          )
+        })}
+        {visible.length === 0 && (
+          <p className="text-xs text-muted-foreground col-span-full py-6 text-center">No projects found.</p>
+        )}
+      </div>
+
+      {/* Table view (desktop) */}
+      <div className="hidden md:block border border-border rounded-md overflow-x-auto bg-card">
         <table className="w-full min-w-[640px]">
           <thead>
             <tr className="border-b border-border">
-              <th className="label-sm text-muted-foreground text-left px-4 py-3">Repo</th>
-              <th className="label-sm text-muted-foreground text-left px-4 py-3">Group</th>
-              <th className="label-sm text-muted-foreground text-left px-4 py-3">Branch</th>
-              <th className="label-sm text-muted-foreground text-left px-4 py-3">Status</th>
-              <th className="label-sm text-muted-foreground text-left px-4 py-3">Commit</th>
-              <th className="label-sm text-muted-foreground text-left px-4 py-3">Updated</th>
+              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Repo</th>
+              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Group</th>
+              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Branch</th>
+              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Status</th>
+              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Commit</th>
+              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Updated</th>
             </tr>
           </thead>
           <tbody>
@@ -103,7 +170,7 @@ export default function RealtimeProjectStatus() {
               return (
                 <>
                   <tr key={project.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="font-mono text-xs px-4 py-2.5">
+                    <td className="font-mono text-xs px-3 py-2">
                       {project.repo_name}
                       {project.error_detail && (
                         <button onClick={() => {
@@ -120,20 +187,20 @@ export default function RealtimeProjectStatus() {
                         </button>
                       )}
                     </td>
-                    <td className="text-xs px-4 py-2.5 text-muted-foreground">{project.project_group || '—'}</td>
-                    <td className="text-xs px-4 py-2.5 text-muted-foreground">{project.branch || '—'}</td>
-                    <td className="px-4 py-2.5">
+                    <td className="text-xs px-3 py-2 text-muted-foreground">{project.project_group || '—'}</td>
+                    <td className="text-xs px-3 py-2 text-muted-foreground">{project.branch || '—'}</td>
+                    <td className="px-3 py-2">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
                         <span className={`label-sm ${cfg.label}`}>{project.status}</span>
                       </div>
                     </td>
-                    <td className="text-xs px-4 py-2.5 text-muted-foreground max-w-[200px] truncate">{project.commit_msg || '—'}</td>
-                    <td className="font-mono text-xs px-4 py-2.5 text-muted-foreground whitespace-nowrap">{formatWIB(project.last_updated)}</td>
+                    <td className="text-xs px-3 py-2 text-muted-foreground max-w-[200px] truncate">{project.commit_msg || '—'}</td>
+                    <td className="font-mono text-xs px-3 py-2 text-muted-foreground whitespace-nowrap">{formatWIB(project.last_updated)}</td>
                   </tr>
                   {isOpen && project.error_detail && (
                     <tr key={`${project.id}-error`} className="border-b border-border/30 bg-destructive/5">
-                      <td colSpan={6} className="px-4 py-2.5">
+                      <td colSpan={6} className="px-3 py-2">
                         <p className="label-sm text-destructive mb-1">Error Detail</p>
                         <pre className="text-xs text-foreground whitespace-pre-wrap break-words font-mono">{project.error_detail}</pre>
                       </td>

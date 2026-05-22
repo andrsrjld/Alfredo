@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ping_secret = randomBytes(24).toString('hex')
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCAL_URL ? `https://${process.env.VERCEL_URL}` : 'https://alfredo-pi.vercel.app'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://alfredo-pi.vercel.app')
 
     const supabase = createAdminClient()
     const { data, error } = await supabase
