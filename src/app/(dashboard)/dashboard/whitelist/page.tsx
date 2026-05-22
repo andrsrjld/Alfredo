@@ -1,12 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table'
 
 type WhitelistEntry = {
   phone_number: string
@@ -92,95 +86,75 @@ export default function WhitelistPage() {
   }
 
   if (loading) {
-    return <div className="p-6"><p className="text-muted-foreground">Loading whitelist...</p></div>
+    return <div className="p-5 md:p-lg"><p className="text-muted-foreground text-xs">Loading...</p></div>
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-3xl">
-      <h1 className="text-2xl font-bold">WhatsApp Whitelist</h1>
+    <div className="p-5 md:p-lg space-y-md max-w-2xl">
+      <p className="label-sm text-muted-foreground">WhatsApp Whitelist</p>
 
       {message && (
-        <div className={`p-3 rounded-md text-sm ${message.type === 'ok' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+        <div className={`label-sm px-3 py-2 rounded-sm border ${message.type === 'ok' ? 'border-primary/30 text-primary' : 'border-destructive/30 text-destructive'}`}>
           {message.text}
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Add PM to Whitelist</CardTitle>
-          <CardDescription>
-            Phone numbers are automatically normalized to international format (62xxx) without +.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground">Phone Number</label>
-              <Input
-                placeholder="e.g. 081234567890 or 628123456789"
-                value={newPhone}
-                onChange={e => setNewPhone(e.target.value)}
-              />
-              {preview && (
-                <p className="text-xs text-muted-foreground mt-1">Normalized: {preview}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">PM Name (optional)</label>
-              <Input
-                placeholder="e.g. Budi Santoso"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-              />
-            </div>
+      <div className="border border-border rounded-md p-4 bg-card space-y-3">
+        <p className="label-sm text-muted-foreground">Add PM</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="label-sm text-muted-foreground mb-1 block">Phone Number</label>
+            <input
+              placeholder="e.g. 081234567890"
+              value={newPhone}
+              onChange={e => setNewPhone(e.target.value)}
+              className="w-full bg-background border border-border rounded-sm px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
+            />
+            {preview && (
+              <p className="font-mono text-xs text-muted-foreground mt-1">→ {preview}</p>
+            )}
           </div>
-          <Button onClick={handleAdd} disabled={!newPhone}>Add to Whitelist</Button>
-        </CardContent>
-      </Card>
+          <div>
+            <label className="label-sm text-muted-foreground mb-1 block">Name</label>
+            <input
+              placeholder="e.g. Budi Santoso"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              className="w-full bg-background border border-border rounded-sm px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
+            />
+          </div>
+        </div>
+        <button
+          onClick={handleAdd}
+          disabled={!newPhone}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-1.5 rounded-sm font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+        >
+          Add
+        </button>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Whitelisted PMs ({entries.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Phone Number</TableHead>
-                  <TableHead>PM Name</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map(entry => (
-                  <TableRow key={entry.phone_number}>
-                    <TableCell className="font-mono">{entry.phone_number}</TableCell>
-                    <TableCell>{entry.pm_name || '—'}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(entry.phone_number)}
-                      >
-                        Remove
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {entries.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
-                      No whitelisted PMs yet.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="border border-border rounded-md p-4 bg-card">
+        <p className="label-sm text-muted-foreground mb-3">Whitelisted PMs ({entries.length})</p>
+        <div className="space-y-0">
+          {entries.map(entry => (
+            <div key={entry.phone_number} className="flex items-center justify-between py-2.5 border-b border-border/50 last:border-0 hover:bg-muted/50 transition-colors px-1">
+              <div>
+                <span className="font-mono text-xs text-foreground">{entry.phone_number}</span>
+                {entry.pm_name && <span className="text-xs text-muted-foreground ml-2">{entry.pm_name}</span>}
+              </div>
+              <button
+                onClick={() => handleDelete(entry.phone_number)}
+                className="text-xs text-destructive hover:text-destructive/80 transition-colors font-mono uppercase tracking-wider"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          {entries.length === 0 && (
+            <p className="text-xs text-muted-foreground py-4">No whitelisted PMs yet.</p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -3,14 +3,13 @@ import RealtimeProjectStatus from '@/components/realtime/RealtimeProjectStatus'
 
 export default function DashboardPage() {
   return (
-    <div className="p-6 space-y-8">
-      <h1 className="text-2xl font-bold">Alfredo Monitoring Dashboard</h1>
+    <div className="p-5 md:p-lg space-y-xl">
       <section>
-        <h2 className="text-lg font-semibold mb-4">Server Status</h2>
+        <p className="label-sm text-muted-foreground mb-3">Server Status</p>
         <RealtimeServerStatus />
       </section>
       <section>
-        <h2 className="text-lg font-semibold mb-4">Project Pipeline Status</h2>
+        <p className="label-sm text-muted-foreground mb-3">Project Pipeline Status</p>
         <RealtimeProjectStatus />
       </section>
     </div>

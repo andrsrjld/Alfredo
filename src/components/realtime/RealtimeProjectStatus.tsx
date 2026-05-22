@@ -2,16 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 
 type Project = {
   id: string
@@ -47,11 +37,11 @@ export default function RealtimeProjectStatus() {
     }
   }, [])
 
-  const statusVariant: Record<string, 'default' | 'destructive' | 'secondary' | 'outline'> = {
-    success: 'default',
-    failed: 'destructive',
-    running: 'secondary',
-    canceled: 'outline',
+  const statusStyles: Record<string, string> = {
+    success: 'text-primary',
+    failed: 'text-destructive',
+    running: 'text-tertiary',
+    canceled: 'text-muted-foreground',
   }
 
   const filtered = projects.filter(
@@ -61,46 +51,50 @@ export default function RealtimeProjectStatus() {
   )
 
   return (
-    <div className="space-y-4">
-      <Input
+    <div className="space-y-3">
+      <input
+        type="text"
         placeholder="Search project or group..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
+        className="w-full md:w-64 bg-card border border-border rounded-sm px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
       />
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Repo</TableHead>
-              <TableHead>Group</TableHead>
-              <TableHead>Branch</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Commit</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="border border-border rounded-md overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5">Repo</th>
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5">Group</th>
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5 hidden md:table-cell">Branch</th>
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5">Status</th>
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5 hidden lg:table-cell">Commit</th>
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5">Updated</th>
+            </tr>
+          </thead>
+          <tbody>
             {filtered.map((project) => (
-              <TableRow key={project.id}>
-                <TableCell className="font-medium">{project.repo_name}</TableCell>
-                <TableCell>{project.project_group || '-'}</TableCell>
-                <TableCell>{project.branch || '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={statusVariant[project.status] || 'outline'}>{project.status}</Badge>
-                </TableCell>
-                <TableCell className="max-w-xs truncate">{project.commit_msg || '-'}</TableCell>
-                <TableCell>{new Date(project.last_updated).toLocaleString('id-ID')}</TableCell>
-              </TableRow>
+              <tr key={project.id} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
+                <td className="font-mono text-xs px-4 py-2.5">{project.repo_name}</td>
+                <td className="text-xs px-4 py-2.5 text-muted-foreground">{project.project_group || '—'}</td>
+                <td className="text-xs px-4 py-2.5 text-muted-foreground hidden md:table-cell">{project.branch || '—'}</td>
+                <td className="px-4 py-2.5">
+                  <span className={`label-sm ${statusStyles[project.status] || 'text-muted-foreground'}`}>
+                    {project.status}
+                  </span>
+                </td>
+                <td className="text-xs px-4 py-2.5 text-muted-foreground max-w-xs truncate hidden lg:table-cell">{project.commit_msg || '—'}</td>
+                <td className="font-mono text-xs px-4 py-2.5 text-muted-foreground">{new Date(project.last_updated).toLocaleString('id-ID')}</td>
+              </tr>
             ))}
             {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+              <tr>
+                <td colSpan={6} className="text-center text-xs text-muted-foreground py-8">
                   No projects found.
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
     </div>
   )

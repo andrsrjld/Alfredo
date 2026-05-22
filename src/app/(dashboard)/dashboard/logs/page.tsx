@@ -2,15 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
 
 type ChatLog = {
   id: string
@@ -45,41 +36,43 @@ export default function LogsPage() {
   )
 
   return (
-    <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-bold">Chat Logs</h1>
-      <Input
+    <div className="p-5 md:p-lg space-y-md">
+      <p className="label-sm text-muted-foreground">Chat Logs</p>
+      <input
+        type="text"
         placeholder="Search by number, message, or reply..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
+        className="w-full md:w-64 bg-card border border-border rounded-sm px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
       />
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>PM Number</TableHead>
-              <TableHead>Message</TableHead>
-              <TableHead>Bot Reply</TableHead>
-              <TableHead>Time</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="border border-border rounded-md overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5">PM Number</th>
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5">Message</th>
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5">Bot Reply</th>
+              <th className="label-sm text-muted-foreground text-left px-4 py-2.5">Time</th>
+            </tr>
+          </thead>
+          <tbody>
             {filtered.map((log) => (
-              <TableRow key={log.id}>
-                <TableCell className="font-medium">{log.pm_number}</TableCell>
-                <TableCell className="max-w-xs truncate">{log.pm_message}</TableCell>
-                <TableCell className="max-w-xs truncate">{log.bot_reply}</TableCell>
-                <TableCell>{new Date(log.created_at).toLocaleString('id-ID')}</TableCell>
-              </TableRow>
+              <tr key={log.id} className="border-b border-border/50 hover:bg-muted/50 transition-colors">
+                <td className="font-mono text-xs px-4 py-2.5">{log.pm_number}</td>
+                <td className="text-xs px-4 py-2.5 max-w-xs truncate">{log.pm_message}</td>
+                <td className="text-xs px-4 py-2.5 max-w-xs truncate text-muted-foreground">{log.bot_reply}</td>
+                <td className="font-mono text-xs px-4 py-2.5 text-muted-foreground">{new Date(log.created_at).toLocaleString('id-ID')}</td>
+              </tr>
             ))}
             {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
+              <tr>
+                <td colSpan={4} className="text-center text-xs text-muted-foreground py-8">
                   No logs found.
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
     </div>
   )

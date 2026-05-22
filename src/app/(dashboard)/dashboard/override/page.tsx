@@ -2,10 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 
 type Server = {
   id: string
@@ -19,6 +15,7 @@ type Server = {
 export default function OverridePage() {
   const [servers, setServers] = useState<Server[]>([])
   const [editNote, setEditNote] = useState<Record<string, string>>({})
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -36,47 +33,57 @@ export default function OverridePage() {
 
   async function handleUpdate(id: string) {
     const supabase = createClient()
+    setSavingId(id)
     const { error } = await supabase
       .from('server_status')
       .update({ notes: editNote[id] || null })
       .eq('id', id)
-    if (!error) {
-      alert('Updated')
-    } else {
-      alert('Failed: ' + error.message)
+    if (error) {
+      console.error('Failed to update note:', error)
     }
+    setSavingId(null)
   }
 
-  const statusColor: Record<string, string> = {
-    online: 'bg-green-500',
-    offline: 'bg-red-500',
-    high_load: 'bg-yellow-500',
+  const statusStyles: Record<string, string> = {
+    online: 'text-primary',
+    offline: 'text-destructive',
+    high_load: 'text-tertiary',
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Override Server Notes</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="p-5 md:p-lg space-y-md">
+      <p className="label-sm text-muted-foreground">Override Server Notes</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {servers.map((server) => (
-          <Card key={server.id}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{server.server_name}</CardTitle>
-              <Badge className={statusColor[server.status] || 'bg-gray-500'}>{server.status}</Badge>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <p className="text-xs text-muted-foreground">IP: {server.ip_address || '-'}</p>
-              <Textarea
-                value={editNote[server.id] || ''}
-                onChange={(e) => setEditNote((prev) => ({ ...prev, [server.id]: e.target.value }))}
-                placeholder="Add manual override note here..."
-                rows={3}
-              />
-              <Button onClick={() => handleUpdate(server.id)} size="sm">Update Note</Button>
-            </CardContent>
-          </Card>
+          <div
+            key={server.id}
+            className="border border-border rounded-md p-4 bg-card"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-mono text-sm text-foreground">{server.server_name}</span>
+              <span className={`label-sm ${statusStyles[server.status] || 'text-muted-foreground'}`}>
+                {server.status}
+              </span>
+            </div>
+            <p className="font-mono text-xs text-muted-foreground mb-3">IP: {server.ip_address || '—'}</p>
+            <textarea
+              value={editNote[server.id] || ''}
+              onChange={(e) => setEditNote((prev) => ({ ...prev, [server.id]: e.target.value }))}
+              placeholder="Add manual override note..."
+              rows={2}
+              className="w-full bg-background border border-border rounded-sm px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none resize-none mb-3"
+            />
+            <button
+              onClick={() => handleUpdate(server.id)}
+              disabled={savingId === server.id}
+              className="font-mono text-xs uppercase tracking-wider text-primary hover:text-primary/80 transition-colors disabled:text-muted-foreground"
+            >
+              {savingId === server.id ? 'Saving...' : 'Update Note'}
+            </button>
+          </div>
         ))}
         {servers.length === 0 && (
-          <p className="text-muted-foreground">No servers found.</p>
+          <p className="text-xs text-muted-foreground">No servers found.</p>
         )}
       </div>
     </div>
