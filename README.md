@@ -84,22 +84,57 @@ Open [http://localhost:3000](http://localhost:3000). The root redirects to `/das
 
 ## Environment Variables
 
-| Variable | Purpose |
+### Supabase
+
+| Variable | How to Generate |
 |---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon/public key (browser + SSR) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side webhooks only — bypasses RLS) |
-| `WA_PHONE_NUMBER_ID` | WhatsApp Business phone number ID |
-| `WA_ACCESS_TOKEN` | Meta API access token |
-| `WA_WEBHOOK_VERIFY_TOKEN` | Webhook verification token for Meta |
-| `GITLAB_WEBHOOK_SECRET` | Secret token for GitLab Group Webhook validation |
-| `SERVER_PING_SECRET` | Secret token for server cron ping validation |
-| `GROQ_API_KEY` | Groq API key for LLM inference |
-| `GROQ_MODEL` | Groq model to use (default: `llama-3.1-70b-versatile`) |
-| `AI_TEMPERATURE` | LLM temperature (default: `0.0`) |
-| `BOT_ACTIVE_START` | Bot active window start, HH:MM (default: `06:00`) |
-| `BOT_ACTIVE_END` | Bot active window end, HH:MM (default: `12:00`) |
-| `BOT_TIMEZONE` | Timezone for active hours (default: `Asia/Jakarta`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → **Settings** → **API** → **Project URL** (use `.supabase.co`, not `.supabase.com`) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → **Settings** → **API** → **Project API keys** → `anon` `public` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → **Settings** → **API** → **Project API keys** → `service_role` `secret` |
+
+> **Important:** After setting these, go to Supabase Dashboard → **Authentication** → **URL Configuration** and set **Site URL** to your app URL (`http://localhost:3000` for dev, your Vercel URL for prod). Otherwise login will fail with a CORS error.
+
+### WhatsApp Cloud API
+
+| Variable | How to Generate |
+|---|---|
+| `WA_PHONE_NUMBER_ID` | [Meta for Developers](https://developers.facebook.com) → Your App → **WhatsApp** → **API Setup** → Phone Number ID |
+| `WA_ACCESS_TOKEN` | Meta for Developers → Your App → **WhatsApp** → **API Setup** → **Generate Access Token** (use a permanent token for production) |
+| `WA_WEBHOOK_VERIFY_TOKEN` | Self-generated arbitrary string. You choose this value — just use the same one when configuring the Meta webhook. Example: `alfredo_verify_2026` |
+
+### GitLab
+
+| Variable | How to Generate |
+|---|---|
+| `GITLAB_WEBHOOK_SECRET` | Self-generated arbitrary string. Enter the same value when creating the GitLab Group Webhook. Example: `gl-wh-alfredo-2026` |
+| `SERVER_PING_SECRET` | Self-generated arbitrary string. Include this in your server cron ping payloads. Example: `ping-secret-alfredo-2026` |
+
+### AI Provider
+
+| Variable | How to Generate |
+|---|---|
+| `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) → **API Keys** → **Create API Key** |
+| `GROQ_MODEL` | Choose from available models at console.groq.com → **Models**. Default: `llama-3.1-70b-versatile` |
+| `AI_TEMPERATURE` | Float `0.0`–`1.0`. Lower = more deterministic. Default: `0.0` (zero-hallucination) |
+
+### Bot Config
+
+| Variable | How to Generate |
+|---|---|
+| `BOT_ACTIVE_START` | Time in `HH:MM` format when bot starts responding. Default: `06:00` |
+| `BOT_ACTIVE_END` | Time in `HH:MM` format when bot stops responding. Default: `12:00` |
+| `BOT_TIMEZONE` | IANA timezone string. Default: `Asia/Jakarta`. [Full list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) |
+
+### Quick secret generation
+
+For self-generated secrets (`WA_WEBHOOK_VERIFY_TOKEN`, `GITLAB_WEBHOOK_SECRET`, `SERVER_PING_SECRET`), generate a random string:
+
+```bash
+# macOS / Linux
+openssl rand -hex 24
+
+# Or use any password manager to generate a 32+ character string
+```
 
 ## Deployment
 
