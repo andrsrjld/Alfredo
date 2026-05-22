@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { Menu, X, Monitor, FileText, Edit3, Users, Settings, LogOut, Zap } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -54,12 +55,14 @@ export default function DashboardLayout({
             </div>
             <span className="font-mono text-xs font-medium tracking-widest text-foreground">ALFREDO</span>
           </div>
-          <button
-            className="md:hidden p-1 text-muted-foreground hover:text-foreground transition-colors"
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="md:hidden"
             onClick={() => setSidebarOpen(false)}
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
@@ -87,10 +90,10 @@ export default function DashboardLayout({
 
         <div className="p-3 border-t border-border shrink-0">
           <form action="/api/auth/signout" method="post" className="block">
-            <button className="flex items-center gap-2.5 w-full px-3 py-2 rounded-sm text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2.5 text-xs text-muted-foreground">
               <LogOut className="h-3.5 w-3.5 shrink-0" />
               Sign out
-            </button>
+            </Button>
           </form>
         </div>
       </aside>
@@ -98,12 +101,14 @@ export default function DashboardLayout({
       <div className="flex-1 flex flex-col min-w-0">
         <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-xl shrink-0">
           <div className="flex h-14 items-center gap-3 px-5 md:px-8">
-            <button
-              className="md:hidden p-1 text-muted-foreground hover:text-foreground transition-colors"
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="md:hidden"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="h-5 w-5" />
-            </button>
+            </Button>
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-sm font-medium text-foreground truncate">{pageTitle}</span>
             </div>

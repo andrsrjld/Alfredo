@@ -3,6 +3,18 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table'
 
 type Project = {
   id: string
@@ -17,32 +29,25 @@ type Project = {
 
 const STATUS_PAGE_SIZE = 50
 
-const statusConfig: Record<string, { dot: string; label: string }> = {
-  success: { dot: 'bg-primary', label: 'text-primary' },
-  failed: { dot: 'bg-destructive', label: 'text-destructive' },
-  running: { dot: 'bg-tertiary', label: 'text-tertiary' },
-  canceled: { dot: 'bg-muted-foreground', label: 'text-muted-foreground' },
-  pending: { dot: 'bg-yellow-400', label: 'text-yellow-400' },
+const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary'; label: string }> = {
+  success: { variant: 'default', label: 'success' },
+  failed: { variant: 'destructive', label: 'failed' },
+  running: { variant: 'secondary', label: 'running' },
+  canceled: { variant: 'secondary', label: 'canceled' },
+  pending: { variant: 'secondary', label: 'pending' },
 }
 
 function formatWIB(iso: string): string {
   return new Date(iso).toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 }
 
 function formatWIBShort(iso: string): string {
   return new Date(iso).toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
   })
 }
 
@@ -85,12 +90,12 @@ export default function RealtimeProjectStatus() {
       <div className="flex items-center gap-3">
         <div className="relative flex-1 md:flex-none md:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
-          <input
+          <Input
             type="text"
             placeholder="Search project or group..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setShowCount(STATUS_PAGE_SIZE) }}
-            className="w-full bg-card border border-border rounded-sm pl-8 pr-3 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
+            className="pl-8 font-mono text-xs"
           />
         </div>
         <span className="text-xs text-muted-foreground font-mono">{filtered.length} projects</span>
@@ -99,50 +104,51 @@ export default function RealtimeProjectStatus() {
       {/* Card view */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:hidden">
         {visible.map((project) => {
-          const cfg = statusConfig[project.status] || { dot: 'bg-muted-foreground', label: 'text-muted-foreground' }
+          const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: project.status }
           const isOpen = expandedError.has(project.id)
           return (
-            <div key={project.id} className="border border-border rounded-md p-2.5 bg-card">
-              <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                <span className="font-mono text-[11px] text-foreground truncate min-w-0">{project.repo_name}</span>
-                <div className="flex items-center gap-1 shrink-0">
-                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                  <span className={`text-[10px] ${cfg.label}`}>{project.status}</span>
+            <Card key={project.id} size="sm">
+              <CardContent>
+                <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                  <span className="font-mono text-[11px] text-foreground truncate min-w-0">{project.repo_name}</span>
+                  <Badge variant={cfg.variant} className="text-[10px] shrink-0">{cfg.label}</Badge>
                 </div>
-              </div>
-              <div className="text-[11px] text-muted-foreground space-y-0.5">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground/50">Group</span>
-                  <span className="truncate ml-1 max-w-[80px]">{project.project_group || '—'}</span>
+                <div className="text-[11px] text-muted-foreground space-y-0.5">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground/50">Group</span>
+                    <span className="truncate ml-1 max-w-[80px]">{project.project_group || '\u2014'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground/50">Branch</span>
+                    <span className="truncate ml-1">{project.branch || '\u2014'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground/50">Updated</span>
+                    <span>{formatWIBShort(project.last_updated)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground/50">Branch</span>
-                  <span className="truncate ml-1">{project.branch || '—'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground/50">Updated</span>
-                  <span>{formatWIBShort(project.last_updated)}</span>
-                </div>
-              </div>
-              {project.error_detail && (
-                <button
-                  onClick={() => {
-                    setExpandedError(prev => {
-                      const n = new Set(prev)
-                      if (n.has(project.id)) n.delete(project.id)
-                      else n.add(project.id)
-                      return n
-                    })
-                  }}
-                  className="mt-1.5 text-[10px] text-destructive hover:underline"
-                >
-                  {isOpen ? 'Hide error' : 'Show error'}
-                </button>
-              )}
-              {isOpen && project.error_detail && (
-                <pre className="mt-1 text-[10px] text-foreground whitespace-pre-wrap break-words font-mono border-t border-border/40 pt-1">{project.error_detail}</pre>
-              )}
-            </div>
+                {project.error_detail && (
+                  <Button
+                    variant="link"
+                    size="xs"
+                    className="mt-1.5 text-destructive"
+                    onClick={() => {
+                      setExpandedError(prev => {
+                        const n = new Set(prev)
+                        if (n.has(project.id)) n.delete(project.id)
+                        else n.add(project.id)
+                        return n
+                      })
+                    }}
+                  >
+                    {isOpen ? 'Hide error' : 'Show error'}
+                  </Button>
+                )}
+                {isOpen && project.error_detail && (
+                  <pre className="mt-1 text-[10px] text-foreground whitespace-pre-wrap break-words font-mono border-t border-border/40 pt-1">{project.error_detail}</pre>
+                )}
+              </CardContent>
+            </Card>
           )
         })}
         {visible.length === 0 && (
@@ -151,82 +157,79 @@ export default function RealtimeProjectStatus() {
       </div>
 
       {/* Table view (desktop) */}
-      <div className="hidden md:block border border-border rounded-md overflow-x-auto bg-card">
-        <table className="w-full min-w-[640px]">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Repo</th>
-              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Group</th>
-              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Branch</th>
-              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Status</th>
-              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Commit</th>
-              <th className="label-sm text-muted-foreground text-left px-3 py-2.5">Updated</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Repo</TableHead>
+              <TableHead>Group</TableHead>
+              <TableHead>Branch</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Commit</TableHead>
+              <TableHead>Updated</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {visible.map((project) => {
-              const cfg = statusConfig[project.status] || { dot: 'bg-muted-foreground', label: 'text-muted-foreground' }
+              const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: project.status }
               const isOpen = expandedError.has(project.id)
               return (
                 <>
-                  <tr key={project.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                    <td className="font-mono text-xs px-3 py-2">
+                  <TableRow key={project.id}>
+                    <TableCell className="font-mono text-xs">
                       {project.repo_name}
                       {project.error_detail && (
-                        <button onClick={() => {
-                          setExpandedError(prev => {
-                            const n = new Set(prev)
-                            if (n.has(project.id)) n.delete(project.id)
-                            else n.add(project.id)
-                            return n
-                          })
-                        }} className="ml-1.5 inline-block align-middle">
-                          {isOpen
-                            ? <ChevronUp className="h-3 w-3 text-destructive" />
-                            : <ChevronDown className="h-3 w-3 text-destructive" />}
-                        </button>
+                        <Button
+                          variant="link"
+                          size="xs"
+                          className="ml-1.5 text-destructive p-0 h-auto"
+                          onClick={() => {
+                            setExpandedError(prev => {
+                              const n = new Set(prev)
+                              if (n.has(project.id)) n.delete(project.id)
+                              else n.add(project.id)
+                              return n
+                            })
+                          }}
+                        >
+                          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        </Button>
                       )}
-                    </td>
-                    <td className="text-xs px-3 py-2 text-muted-foreground">{project.project_group || '—'}</td>
-                    <td className="text-xs px-3 py-2 text-muted-foreground">{project.branch || '—'}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
-                        <span className={`label-sm ${cfg.label}`}>{project.status}</span>
-                      </div>
-                    </td>
-                    <td className="text-xs px-3 py-2 text-muted-foreground max-w-[200px] truncate">{project.commit_msg || '—'}</td>
-                    <td className="font-mono text-xs px-3 py-2 text-muted-foreground whitespace-nowrap">{formatWIB(project.last_updated)}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{project.project_group || '\u2014'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{project.branch || '\u2014'}</TableCell>
+                    <TableCell>
+                      <Badge variant={cfg.variant} className="text-[10px]">{cfg.label}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{project.commit_msg || '\u2014'}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">{formatWIB(project.last_updated)}</TableCell>
+                  </TableRow>
                   {isOpen && project.error_detail && (
-                    <tr key={`${project.id}-error`} className="border-b border-border/30 bg-destructive/5">
-                      <td colSpan={6} className="px-3 py-2">
+                    <TableRow key={`${project.id}-error`}>
+                      <TableCell colSpan={6} className="bg-destructive/5">
                         <p className="label-sm text-destructive mb-1">Error Detail</p>
                         <pre className="text-xs text-foreground whitespace-pre-wrap break-words font-mono">{project.error_detail}</pre>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </>
               )
             })}
             {visible.length === 0 && (
-              <tr>
-                <td colSpan={6} className="text-center text-xs text-muted-foreground py-8">
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-xs text-muted-foreground py-8">
                   No projects found.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {showCount < filtered.length && (
         <div className="flex justify-center pt-2">
-          <button
-            onClick={() => setShowCount(c => c + STATUS_PAGE_SIZE)}
-            className="px-4 py-2 text-xs font-mono border border-border rounded hover:bg-muted/50 transition-colors"
-          >
+          <Button variant="outline" size="sm" onClick={() => setShowCount(c => c + STATUS_PAGE_SIZE)}>
             Load more ({filtered.length - showCount} remaining)
-          </button>
+          </Button>
         </div>
       )}
     </div>

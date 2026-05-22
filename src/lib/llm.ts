@@ -4,6 +4,42 @@ import { decrypt } from "./encryption";
 const FALLBACK_REPLY =
   "Halo! 🤖 Data untuk pertanyaan itu belum tersedia di sistem saya. Ijal akan follow up secepatnya setelah online ya!";
 
+const GREETING_PATTERNS = [
+  /^halo$/i, /^hallo$/i, /^hai$/i, /^hey$/i, /^hi$/i, /^p$/i,
+  /^assalamualaikum/i, /^walaikumsalam/i, /^salam$/i,
+  /^selamat\s*(pagi|siang|sore|malam)/i,
+  /^morning$/i, /^siang$/i, /^malam$/i,
+  /^jal$/i, /^bro$/i, /^boss$/i, /^gan$/i, /^sob$/i,
+  /^oi$/i, /^woi$/i, /^wey$/i, /^we$/i,
+  /^cuy$/i, /^cuk$/i, /^coy$/i,
+  /^hello$/i, /^yo$/i,
+];
+
+const INFRA_KEYWORDS = /\b(server|pipeline|deploy|status|app|error|down|up|build|release|staging|prod|dev|ci|cd|gitlab|docker|cpu|memory|disk|ping|config|log|job|cek|check|bagaimana|gimana|bagaimana|apa|kenapa|mengapa|kapan|dimana|berapa|tolong|bantu|help|masalah|problem|issue|trouble|fail|success|running|pending|online|offline)\b/i;
+
+function isGreeting(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed) return false
+  const wordCount = trimmed.split(/\s+/).length
+  if (wordCount > 4) return false
+  if (INFRA_KEYWORDS.test(trimmed)) return false
+  if (trimmed.length <= 2) return true
+  return GREETING_PATTERNS.some(p => p.test(trimmed))
+}
+
+function getGreetingReply(): string {
+  const tz = process.env.BOT_TIMEZONE || 'Asia/Jakarta'
+  const now = new Date()
+  const hourStr = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hour12: false }).format(now)
+  const hour = parseInt(hourStr, 10)
+  let salutation: string
+  if (hour >= 3 && hour < 11) salutation = 'selamat pagi'
+  else if (hour >= 11 && hour < 15) salutation = 'selamat siang'
+  else if (hour >= 15 && hour < 18) salutation = 'selamat sore'
+  else salutation = 'selamat malam'
+  return `Halo, ${salutation}! 🤖 Saya Alfredo, AI Companion Ijal. Silakan tanya tentang status server atau pipeline ya!`
+}
+
 const PROVIDER_DEFAULTS: Record<
   string,
   { baseUrl: string; model: string; authHeader: string; authPrefix: string }
@@ -329,6 +365,13 @@ export async function askAlfredo(
     status: 0,
     error: undefined as string | undefined,
   };
+
+  if (isGreeting(userMessage)) {
+    return {
+      reply: getGreetingReply(),
+      debug: { ...debug, status: 0, error: "greeting_skip" },
+    };
+  }
 
   if (!context.trim()) {
     return {

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 const PROVIDERS = [
   { id: 'deepseek', label: 'DeepSeek', models: 'deepseek-chat, deepseek-reasoner', defaultModel: 'deepseek-chat', defaultUrl: 'https://api.deepseek.com/v1/chat/completions' },
@@ -23,8 +26,6 @@ type Settings = {
   gitlab_pat: string
   bot_mode: string
 }
-
-const inputClass = "w-full bg-background border border-border rounded-sm px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>({
@@ -124,31 +125,31 @@ export default function SettingsPage() {
       </div>
 
       {message && (
-        <div className={`text-xs px-3 py-2.5 rounded-sm border ${message.type === 'ok' ? 'border-primary/30 text-primary bg-primary/5' : 'border-destructive/30 text-destructive bg-destructive/5'}`}>
+        <div className={`text-xs px-3 py-2.5 border rounded-lg ${message.type === 'ok' ? 'border-primary/30 text-primary bg-primary/5' : 'border-destructive/30 text-destructive bg-destructive/5'}`}>
           {message.text}
         </div>
       )}
 
-      <div className="border border-border rounded-md bg-card">
-        <div className="px-5 py-3.5 border-b border-border">
-          <p className="label-sm text-muted-foreground">Bot Mode</p>
-        </div>
-        <div className="px-5 py-4">
+      <Card>
+        <CardHeader><CardDescription>Bot Mode</CardDescription></CardHeader>
+        <CardContent>
           <div className="grid grid-cols-3 gap-2">
             {([
               { id: 'normal', icon: '🤖', label: 'Normal AI', desc: '03:00–12:00 WIB' },
               { id: 'extended', icon: '🤖', label: 'Extended AI', desc: '24/7 active' },
               { id: 'human', icon: '👤', label: 'Human Mode', desc: 'Bot offline' },
             ] as const).map(mode => (
-              <button
+              <Button
                 key={mode.id}
+                variant={settings.bot_mode === mode.id ? 'default' : 'outline'}
+                size="sm"
+                className="flex flex-col items-center gap-1 h-auto py-3"
                 onClick={() => setSettings(s => ({ ...s, bot_mode: mode.id }))}
-                className={`flex flex-col items-center gap-1 px-3 py-3 rounded-md border transition-colors ${settings.bot_mode === mode.id ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-background text-muted-foreground hover:border-ring'}`}
               >
                 <span className="text-lg">{mode.icon}</span>
                 <span className="font-mono text-xs font-medium">{mode.label}</span>
                 <span className="text-[10px] text-muted-foreground/60">{mode.desc}</span>
-              </button>
+              </Button>
             ))}
           </div>
           <p className="text-xs text-muted-foreground/50 mt-2">
@@ -156,31 +157,27 @@ export default function SettingsPage() {
             {settings.bot_mode === 'extended' && 'Alfredo aktif 24 jam. Untuk saat Ijal AFK di luar jam kerja.'}
             {settings.bot_mode === 'human' && 'Alfredo offline. Semua pesan mendapat balasan Ijal sedang online.'}
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="border border-border rounded-md bg-card">
-        <div className="px-5 py-3.5 border-b border-border">
-          <p className="label-sm text-muted-foreground">Active Provider</p>
-        </div>
-        <div className="px-5 py-4">
+      <Card>
+        <CardHeader><CardDescription>Active Provider</CardDescription></CardHeader>
+        <CardContent>
           <select
             value={settings.provider}
             onChange={e => setSettings(s => ({ ...s, provider: e.target.value }))}
-            className="w-full md:w-64 bg-background border border-border rounded-sm px-3 py-2 font-mono text-xs text-foreground focus:border-ring focus:outline-none"
+            className="w-full md:w-64 bg-background border border-border rounded-lg px-3 py-2 font-mono text-xs text-foreground focus:border-ring focus:outline-none"
           >
             {PROVIDERS.map(p => (
               <option key={p.id} value={p.id}>{p.label}</option>
             ))}
           </select>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="border border-border rounded-md bg-card">
-        <div className="px-5 py-3.5 border-b border-border">
-          <p className="label-sm text-muted-foreground">Temperature</p>
-        </div>
-        <div className="px-5 py-4">
+      <Card>
+        <CardHeader><CardDescription>Temperature</CardDescription></CardHeader>
+        <CardContent>
           <div className="flex items-center gap-4">
             <input
               type="range"
@@ -193,14 +190,12 @@ export default function SettingsPage() {
             />
             <span className="font-mono text-xs text-muted-foreground w-8">{settings.temperature.toFixed(1)}</span>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="border border-border rounded-md bg-card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-border">
-          <p className="label-sm text-muted-foreground">API Keys &amp; Models</p>
-        </div>
-        <div>
+      <Card>
+        <CardHeader><CardDescription>API Keys & Models</CardDescription></CardHeader>
+        <CardContent className="p-0">
           {PROVIDERS.map(p => {
             const isExpanded = expandedProviders.has(p.id)
             const modelCfg = settings.models[p.id] || { apiKey: '', model: p.defaultModel, baseUrl: p.defaultUrl }
@@ -222,7 +217,7 @@ export default function SettingsPage() {
                   <div className="px-5 pb-4 space-y-3 bg-muted/10">
                     <div>
                       <label className="label-sm text-muted-foreground/60 mb-1.5 block">API Key</label>
-                      <input
+                      <Input
                         type="password"
                         placeholder={modelCfg.apiKey ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'Enter API key'}
                         value={modelCfg.apiKey.includes('\u2022') ? modelCfg.apiKey : ''}
@@ -233,31 +228,31 @@ export default function SettingsPage() {
                             models: { ...s.models, [p.id]: { ...s.models[p.id], apiKey: val } },
                           }))
                         }}
-                        className={inputClass}
+                        className="font-mono text-xs"
                       />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="label-sm text-muted-foreground/60 mb-1.5 block">Model</label>
-                        <input
+                        <Input
                           value={modelCfg.model}
                           onChange={e => setSettings(s => ({
                             ...s,
                             models: { ...s.models, [p.id]: { ...s.models[p.id], model: e.target.value } },
                           }))}
-                          className={inputClass}
+                          className="font-mono text-xs"
                         />
                         <p className="text-xs text-muted-foreground/40 mt-1">Available: {p.models}</p>
                       </div>
                       <div>
                         <label className="label-sm text-muted-foreground/60 mb-1.5 block">Base URL</label>
-                        <input
+                        <Input
                           value={modelCfg.baseUrl}
                           onChange={e => setSettings(s => ({
                             ...s,
                             models: { ...s.models, [p.id]: { ...s.models[p.id], baseUrl: e.target.value } },
                           }))}
-                          className={inputClass}
+                          className="font-mono text-xs"
                         />
                       </div>
                     </div>
@@ -266,35 +261,29 @@ export default function SettingsPage() {
               </div>
             )
           })}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="border border-border rounded-md bg-card">
-        <div className="px-5 py-3.5 border-b border-border">
-          <p className="label-sm text-muted-foreground">GitLab Integration</p>
-        </div>
-        <div className="px-5 py-4 space-y-3">
+      <Card>
+        <CardHeader><CardDescription>GitLab Integration</CardDescription></CardHeader>
+        <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground/60">Used to fetch pipeline error logs for AI analysis. Scope required: <span className="font-mono text-foreground">api</span></p>
           <div>
             <label className="label-sm text-muted-foreground/60 mb-1.5 block">Personal Access Token</label>
-            <input
+            <Input
               type="password"
               placeholder={settings.gitlab_pat ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'glpat-xxxxxxxxxxxx'}
               value={settings.gitlab_pat.includes('\u2022') ? settings.gitlab_pat : ''}
               onChange={e => setSettings(s => ({ ...s, gitlab_pat: e.target.value }))}
-              className={inputClass}
+              className="font-mono text-xs"
             />
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="bg-primary text-primary-foreground hover:bg-primary/90 px-5 py-2.5 rounded-sm font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
-      >
+      <Button onClick={handleSave} disabled={saving}>
         {saving ? 'Saving...' : 'Save Settings'}
-      </button>
+      </Button>
     </div>
   )
 }

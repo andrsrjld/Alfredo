@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 
 type Server = {
   id: string
@@ -12,12 +15,12 @@ type Server = {
   last_ping: string
 }
 
-const SERVER_PAGE_SIZE = 12
+const SERVER_PAGE_SIZE = 10
 
-const statusConfig: Record<string, { dot: string; label: string }> = {
-  online: { dot: 'bg-primary', label: 'text-primary' },
-  offline: { dot: 'bg-destructive', label: 'text-destructive' },
-  high_load: { dot: 'bg-tertiary', label: 'text-tertiary' },
+const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary'; label: string }> = {
+  online: { variant: 'default', label: 'online' },
+  offline: { variant: 'destructive', label: 'offline' },
+  high_load: { variant: 'secondary', label: 'high_load' },
 }
 
 export default function RealtimeServerStatus() {
@@ -44,6 +47,13 @@ export default function RealtimeServerStatus() {
     }
   }, [])
 
+  function formatWIB(iso: string): string {
+    return new Date(iso).toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    })
+  }
+
   function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diff / 60000)
@@ -54,49 +64,38 @@ export default function RealtimeServerStatus() {
     return `${Math.floor(hrs / 24)}d ago`
   }
 
-  function formatWIB(iso: string): string {
-    return new Date(iso).toLocaleString('id-ID', {
-      timeZone: 'Asia/Jakarta',
-      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-    })
-  }
-
   const visible = servers.slice(0, showCount)
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
         {visible.map((server) => {
-          const cfg = statusConfig[server.status] || { dot: 'bg-muted-foreground', label: 'text-muted-foreground' }
+          const cfg = statusConfig[server.status] || { variant: 'secondary' as const, label: server.status }
           return (
-            <div
-              key={server.id}
-              className="border border-border rounded-md p-2.5 bg-card"
-            >
-              <div className="flex items-center justify-between gap-1.5 mb-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
-                  <span className="font-mono text-[11px] text-foreground truncate">{server.server_name}</span>
+            <Card key={server.id} size="sm">
+              <CardContent>
+                <div className="flex items-center justify-between gap-1.5 mb-2">
+                  <span className="font-mono text-[11px] text-foreground truncate min-w-0">{server.server_name}</span>
+                  <Badge variant={cfg.variant} className="text-[10px] shrink-0">{cfg.label}</Badge>
                 </div>
-                <span className={`label-sm shrink-0 ${cfg.label}`}>{server.status}</span>
-              </div>
-              <div className="flex flex-col gap-0.5 text-[11px] text-muted-foreground">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-muted-foreground/50">IP</span>
-                  <span className="font-mono truncate ml-2">{server.ip_address || '—'}</span>
-                </div>
-                {server.notes && (
+                <div className="flex flex-col gap-0.5 text-[11px] text-muted-foreground">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-muted-foreground/50">Note</span>
-                    <span className="truncate ml-2 max-w-[120px]">{server.notes}</span>
+                    <span className="font-mono text-muted-foreground/50">IP</span>
+                    <span className="font-mono truncate ml-2">{server.ip_address || '\u2014'}</span>
                   </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-muted-foreground/50">Ping</span>
-                  <span className="font-mono" title={formatWIB(server.last_ping)}>{timeAgo(server.last_ping)}</span>
+                  {server.notes && (
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-muted-foreground/50">Note</span>
+                      <span className="truncate ml-2 max-w-[120px]">{server.notes}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-muted-foreground/50">Ping</span>
+                    <span className="font-mono" title={formatWIB(server.last_ping)}>{timeAgo(server.last_ping)}</span>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )
         })}
         {servers.length === 0 && (
@@ -105,12 +104,9 @@ export default function RealtimeServerStatus() {
       </div>
       {showCount < servers.length && (
         <div className="flex justify-center">
-          <button
-            onClick={() => setShowCount(c => c + SERVER_PAGE_SIZE)}
-            className="px-4 py-2 text-xs font-mono border border-border rounded hover:bg-muted/50 transition-colors"
-          >
+          <Button variant="outline" size="sm" onClick={() => setShowCount(c => c + SERVER_PAGE_SIZE)}>
             Load more ({servers.length - showCount} remaining)
-          </button>
+          </Button>
         </div>
       )}
     </div>

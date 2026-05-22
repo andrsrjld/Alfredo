@@ -1,12 +1,26 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, X, Upload } from 'lucide-react'
+import { X, Upload } from 'lucide-react'
+import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 
 type WhitelistEntry = {
   phone_number: string
   pm_name: string | null
 }
+
+const PAGE_SIZE = 10
 
 function normalizePhoneLocal(input: string): string {
   let num = input.replace(/[\s\-()+]/g, '')
@@ -25,9 +39,10 @@ export default function WhitelistPage() {
   const [newName, setNewName] = useState('')
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [preview, setPreview] = useState('')
-  const [showImport, setShowImport] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
   const [importing, setImporting] = useState(false)
+  const [page, setPage] = useState(0)
 
   useEffect(() => {
     fetchWhitelist()
@@ -52,6 +67,9 @@ export default function WhitelistPage() {
     }
   }, [newPhone])
 
+  const totalPages = Math.ceil(entries.length / PAGE_SIZE)
+  const paged = entries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
   async function handleAdd() {
     if (!newPhone) return
     const phone = normalizePhoneLocal(newPhone)
@@ -63,10 +81,7 @@ export default function WhitelistPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        setEntries(prev => {
-          const filtered = prev.filter(e => e.phone_number !== phone)
-          return [...filtered, data].sort((a, b) => (a.pm_name || '').localeCompare(b.pm_name || ''))
-        })
+        await fetchWhitelist()
         setNewPhone('')
         setNewName('')
         setPreview('')
@@ -117,8 +132,9 @@ export default function WhitelistPage() {
       if (res.ok) {
         setMessage({ type: 'ok', text: `Imported ${data.imported} contacts${data.skipped ? `, ${data.skipped} skipped` : ''}${data.errors ? `, ${data.errors.length} errors` : ''}` })
         setImportText('')
-        setShowImport(false)
+        setImportOpen(false)
         await fetchWhitelist()
+        setPage(0)
       } else {
         setMessage({ type: 'err', text: data.error || 'Import failed' })
       }
@@ -133,8 +149,6 @@ export default function WhitelistPage() {
     return <div className="p-5 md:p-8"><p className="text-muted-foreground text-xs">Loading...</p></div>
   }
 
-  const inputClass = "w-full bg-background border border-border rounded-sm px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
-
   return (
     <div className="p-5 md:p-8 space-y-6 max-w-2xl">
       <div className="mb-2">
@@ -142,63 +156,54 @@ export default function WhitelistPage() {
       </div>
 
       {message && (
-        <div className={`text-xs px-3 py-2.5 rounded-sm border ${message.type === 'ok' ? 'border-primary/30 text-primary bg-primary/5' : 'border-destructive/30 text-destructive bg-destructive/5'}`}>
+        <div className={`text-xs px-3 py-2.5 border rounded-lg ${message.type === 'ok' ? 'border-primary/30 text-primary bg-primary/5' : 'border-destructive/30 text-destructive bg-destructive/5'}`}>
           {message.text}
         </div>
       )}
 
-      <div className="border border-border rounded-md bg-card">
-        <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-            <p className="label-sm text-muted-foreground">Add PM</p>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardDescription>Add PM</CardDescription>
+            <Dialog open={importOpen} onOpenChange={setImportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="link" size="xs" className="gap-1">
+                  <Upload className="h-3 w-3" /> Import
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Import Contacts</DialogTitle>
+                  <DialogDescription>One entry per line: phone, name or just phone</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <Textarea
+                    value={importText}
+                    onChange={e => setImportText(e.target.value)}
+                    placeholder={`628123456789, WIT Fahmi Sholat\n6282240274833, WIT Ganjar\n6285794005069`}
+                    rows={6}
+                    className="font-mono text-xs"
+                  />
+                  <div className="flex items-center gap-3">
+                    <Button onClick={handleImport} disabled={importing || !importText.trim()}>
+                      {importing ? 'Importing...' : 'Import'}
+                    </Button>
+                    <Button variant="ghost" onClick={() => { setImportOpen(false); setImportText('') }}>Cancel</Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
-          <button
-            onClick={() => setShowImport(!showImport)}
-            className="flex items-center gap-1.5 font-mono text-xs text-primary hover:text-primary/80 transition-colors"
-          >
-            <Upload className="h-3 w-3" />
-            Import
-          </button>
-        </div>
-
-        {showImport && (
-          <div className="px-5 py-4 border-b border-border space-y-3">
-            <p className="text-xs text-muted-foreground/60">One entry per line: <code className="text-foreground">phone, name</code> or just <code className="text-foreground">phone</code></p>
-            <textarea
-              value={importText}
-              onChange={e => setImportText(e.target.value)}
-              placeholder={`628123456789, WIT Fahmi Sholat\n6282240274833, WIT Ganjar\n6285794005069`}
-              rows={5}
-              className="w-full bg-background border border-border rounded-sm px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none resize-none"
-            />
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleImport}
-                disabled={importing || !importText.trim()}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-sm font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
-              >
-                {importing ? 'Importing...' : 'Import'}
-              </button>
-              <button
-                onClick={() => { setShowImport(false); setImportText('') }}
-                className="font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="px-5 py-4 space-y-3">
+        </CardHeader>
+        <CardContent className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="label-sm text-muted-foreground/60 mb-1.5 block">Phone Number</label>
-              <input
+              <Input
                 placeholder="e.g. 081234567890"
                 value={newPhone}
                 onChange={e => setNewPhone(e.target.value)}
-                className={inputClass}
+                className="font-mono text-xs"
               />
               {preview && (
                 <p className="font-mono text-xs text-muted-foreground mt-1.5">→ {preview}</p>
@@ -206,48 +211,50 @@ export default function WhitelistPage() {
             </div>
             <div>
               <label className="label-sm text-muted-foreground/60 mb-1.5 block">Name</label>
-              <input
+              <Input
                 placeholder="e.g. Budi Santoso"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                className={inputClass}
+                className="font-mono text-xs"
               />
             </div>
           </div>
-          <button
-            onClick={handleAdd}
-            disabled={!newPhone}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-sm font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
-          >
+          <Button size="sm" onClick={handleAdd} disabled={!newPhone}>
             Add
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CardContent>
+      </Card>
 
-      <div className="border border-border rounded-md bg-card overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-border">
-          <p className="label-sm text-muted-foreground">Whitelisted PMs ({entries.length})</p>
-        </div>
-        <div>
-          {entries.map(entry => (
-            <div key={entry.phone_number} className="flex items-center justify-between px-5 py-3 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="font-mono text-xs text-foreground">{entry.phone_number}</span>
-                {entry.pm_name && <span className="text-xs text-muted-foreground truncate">{entry.pm_name}</span>}
+      <Card>
+        <CardHeader>
+          <CardDescription>Whitelisted PMs ({entries.length})</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div>
+            {paged.map(entry => (
+              <div key={entry.phone_number} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="font-mono text-xs text-foreground">{entry.phone_number}</span>
+                  {entry.pm_name && <span className="text-xs text-muted-foreground truncate">{entry.pm_name}</span>}
+                </div>
+                <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(entry.phone_number)} className="text-muted-foreground hover:text-destructive">
+                  <X className="h-3.5 w-3.5" />
+                </Button>
               </div>
-              <button
-                onClick={() => handleDelete(entry.phone_number)}
-                className="shrink-0 p-1 text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
+            ))}
+            {entries.length === 0 && (
+              <p className="text-xs text-muted-foreground py-8 text-center">No whitelisted PMs yet.</p>
+            )}
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-3 border-t border-border/50 mt-3">
+              <Button variant="outline" size="xs" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>Prev</Button>
+              <span className="text-xs font-mono text-muted-foreground">Page {page + 1} of {totalPages}</span>
+              <Button variant="outline" size="xs" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
             </div>
-          ))}
-          {entries.length === 0 && (
-            <p className="text-xs text-muted-foreground py-8 text-center">No whitelisted PMs yet.</p>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
