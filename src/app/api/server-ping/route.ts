@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
       })
       .eq('server_name', serverName)
 
+    const { data: verify } = await supabase.from('server_status').select('cpu_usage,memory_usage,disk_usage').eq('server_name', serverName).single()
+    console.log('[Server ping] POST received:', { serverName, cpu, memory, disk, verify })
+
     if (serverError) {
       console.error('[Server ping] POST server upsert error:', serverError)
       return NextResponse.json({ error: 'Database error' }, { status: 500, ...noStore })
@@ -142,7 +145,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, stored: { cpu, memory, disk, uptime_hours } }, noStore)
+    return NextResponse.json({ ok: true, server: serverName, stored: { cpu, memory, disk, uptime_hours } }, noStore)
   } catch (err) {
     console.error('[Server ping] POST error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, ...noStore })
