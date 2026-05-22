@@ -10,22 +10,22 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 │  Webhooks   │     │ gitlab           │     │  (Postgres)  │
 └─────────────┘     └──────────────────┘     └──────────────┘
                                                  ▲
-┌─────────────┐     ┌──────────────────┐        │
-│  40+ Servers│────▶│ /api/server-ping │────────┘
+┌─────────────┐     ┌──────────────────┐         │
+│  40+ Servers│────▶│ /api/server-ping │─────────┘
 │  (cron)     │     │                  │
 └─────────────┘     └──────────────────┘
                                                  ▲
-┌─────────────┐     ┌──────────────────┐        │
-│  Messaging  │────▶│ /api/webhook/    │────────┘
-│  Provider    │     │ {whatsapp,       │
-│  (meta/      │     │  fonnte,         │
-│   fonnte/    │     │  evolution}      │
-│   evolution) │     └──────────────────┘
+┌─────────────┐     ┌──────────────────┐         │
+│  Messaging  │────▶│ /api/webhook/    │─────────┘
+│  Provider   │     │ {whatsapp,        │
+│  (meta/     │     │  fonnte,          │
+│   fonnte/   │     │  evolution}       │
+│   evolution)│     └──────────────────┘
 └─────────────┘              │
                               ▼
                        ┌──────────────┐
-                       │  Groq API    │
-                       │  (LLM)       │
+                       │  DeepSeek API │
+                       │  (LLM)        │
                        └──────────────┘
 ```
 
@@ -33,11 +33,12 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 
 - **Multi-Provider Messaging** — Choose between Meta WhatsApp Cloud API, **Fonnte** (no Meta approval needed, recommended for Indonesia), or **Evolution API** (self-hosted, free). Switch via `WA_PROVIDER` env var.
 - **WhatsApp Bot** — Responds to whitelisted PMs during configurable active hours (default 06:00–12:00 WIB).
-- **Zero-Hallucination** — Alfredo only answers from database context. If data is missing, it returns a polite fallback message.
+- **Zero-Hallucination** — Alfredo only answers from database context with an explicit `=== DATA DATABASE ===` block. If data is missing, it returns a polite fallback message without calling the LLM.
+- **Switchable AI Provider** — Choose between DeepSeek (default, recommended) or Groq via `AI_PROVIDER` env var. All calls use raw `fetch` to OpenAI-compatible endpoints — no SDK dependency.
 - **GitLab Integration** — Receives pipeline status updates from GitLab Group Webhooks and stores them in real-time.
 - **Server Monitoring** — Accepts cron-based pings from 40+ servers to track online/offline/high_load status.
 - **Web Dashboard** — Internal admin UI with Supabase Auth, real-time status cards, chat logs, and manual server note overrides.
-- **Smart Search** — Keyword-based retrieval using Supabase `ILIKE` and trigram similarity (pgvector embeddings planned).
+- **Smart Search** — Keyword-based retrieval with stop-word filtering via Supabase `ILIKE` and trigram similarity (pgvector embeddings planned).
 
 ## Tech Stack
 
@@ -47,8 +48,8 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 | Hosting | Vercel (Serverless) |
 | Database | Supabase (PostgreSQL, Auth, Realtime) |
 | Messaging | Meta WhatsApp Cloud API / Fonnte / Evolution API |
-| AI Engine | Groq API (`llama-3.1-70b-versatile`) |
-| Styling | Tailwind CSS + shadcn/ui |
+| AI Engine | DeepSeek API (`deepseek-chat`) — or Groq (`llama-3.1-70b-versatile`) |
+| Styling | Tailwind CSS v3 + shadcn/ui |
 
 ## Getting Started
 
@@ -56,7 +57,7 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 
 - Node.js 18+ and npm
 - A Supabase project
-- A Groq API key
+- A DeepSeek API key (or Groq API key)
 - A messaging provider account (Fonnte recommended, or Meta WhatsApp, or Evolution API)
 
 ### 1. Install dependencies
@@ -132,20 +133,40 @@ Open-source WhatsApp API. Requires a VPS to host. [GitHub repo](https://github.c
 | `EVOLUTION_API_KEY` | Set during Evolution API installation |
 | `EVOLUTION_INSTANCE_NAME` | Created in Evolution API dashboard after connecting a WhatsApp number |
 
+### AI Provider
+
+Set `AI_PROVIDER` to choose your LLM backend: `deepseek` (default) or `groq`.
+
+#### DeepSeek (Default, Recommended)
+
+Lower cost, good Indonesian language support.
+
+| Variable | How to Generate |
+|---|---|
+| `AI_PROVIDER` | Set to `deepseek` |
+| `DEEPSEEK_API_KEY` | [platform.deepseek.com](https://platform.deepseek.com) → **API Keys** → Create |
+| `DEEPSEEK_MODEL` | Default: `deepseek-chat`. See [platform.deepseek.com](https://platform.deepseek.com) for available models. |
+
+#### Groq
+
+Ultra-fast inference. Requires Groq account.
+
+| Variable | How to Generate |
+|---|---|
+| `AI_PROVIDER` | Set to `groq` |
+| `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) → **API Keys** → **Create API Key** |
+| `GROQ_MODEL` | Default: `llama-3.1-70b-versatile`. See console.groq.com for available models. |
+
+| Variable | Applies to | Description |
+|---|---|---|
+| `AI_TEMPERATURE` | Both | Float `0.0`–`1.0`. Lower = more deterministic. Default: `0.0` (zero-hallucination) |
+
 ### GitLab
 
 | Variable | How to Generate |
 |---|---|
 | `GITLAB_WEBHOOK_SECRET` | Self-generated arbitrary string. Enter the same value when creating the GitLab Group Webhook. Example: `gl-wh-alfredo-2026` |
 | `SERVER_PING_SECRET` | Self-generated arbitrary string. Include this in your server cron ping payloads. Example: `ping-secret-alfredo-2026` |
-
-### AI Provider
-
-| Variable | How to Generate |
-|---|---|
-| `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) → **API Keys** → **Create API Key** |
-| `GROQ_MODEL` | Choose from available models at console.groq.com → **Models**. Default: `llama-3.1-70b-versatile` |
-| `AI_TEMPERATURE` | Float `0.0`–`1.0`. Lower = more deterministic. Default: `0.0` (zero-hallucination) |
 
 ### Bot Config
 
@@ -230,7 +251,7 @@ INSERT INTO whitelisted_pms (phone_number, pm_name)
 VALUES ('628123456789', 'John Doe');
 ```
 
-Phone numbers must be in international format without `+` (e.g., `628123456789`).
+Phone numbers must be in international format without `+` (e.g., `628123456789`). The bot normalizes common Indonesian formats (`08xx` → `628xx`, `+62xx` → `62xx`, `8xx` → `628xx`).
 
 ## Project Structure
 
@@ -238,41 +259,42 @@ Phone numbers must be in international format without `+` (e.g., `628123456789`)
 src/
 ├── app/
 │   ├── api/
-│   │   ├── auth/signout/route.ts       # Sign out action
-│   │   ├── server-ping/route.ts        # Server cron ping endpoint
+│   │   ├── auth/signout/route.ts        # Sign out action
+│   │   ├── server-ping/route.ts          # Server cron ping endpoint
 │   │   └── webhook/
-│   │       ├── gitlab/route.ts          # GitLab pipeline webhook
-│   │       ├── whatsapp/route.ts        # Meta WhatsApp webhook (GET verify + POST)
-│   │       ├── fonnte/route.ts          # Fonnte webhook (formData)
-│   │       └── evolution/route.ts       # Evolution API webhook (JSON)
-│   ├── (auth)/login/page.tsx            # Admin login
+│   │       ├── gitlab/route.ts           # GitLab pipeline webhook
+│   │       ├── whatsapp/route.ts         # Meta WhatsApp webhook (GET verify + POST)
+│   │       ├── fonnte/route.ts           # Fonnte webhook (formData + JSON)
+│   │       └── evolution/route.ts        # Evolution API webhook (JSON)
+│   ├── (auth)/login/page.tsx             # Admin login
 │   ├── (dashboard)/
-│   │   ├── dashboard/page.tsx           # Main monitoring view
-│   │   ├── logs/page.tsx               # Chat logs
-│   │   ├── override/page.tsx           # Manual server note editor
-│   │   └── layout.tsx                  # Dashboard shell with sidebar
-│   ├── layout.tsx                      # Root layout
-│   └── page.tsx                        # Redirects to /dashboard
+│   │   ├── dashboard/page.tsx            # Main monitoring view
+│   │   ├── logs/page.tsx                 # Chat logs
+│   │   ├── override/page.tsx             # Manual server note editor
+│   │   └── layout.tsx                    # Dashboard shell with sidebar
+│   ├── layout.tsx                        # Root layout
+│   └── page.tsx                          # Redirects to /dashboard
 ├── components/
-│   ├── realtime/                       # Supabase Realtime subscriptions
+│   ├── realtime/                         # Supabase Realtime subscriptions
 │   │   ├── RealtimeServerStatus.tsx
 │   │   └── RealtimeProjectStatus.tsx
-│   └── ui/                             # shadcn/ui components
+│   └── ui/                               # shadcn/ui components
 ├── lib/
-│   ├── messaging/                      # Provider abstraction
-│   │   ├── types.ts                    # MessagingProvider interface
-│   │   ├── index.ts                    # Factory (getMessagingProvider)
-│   │   ├── meta.ts                     # Meta WhatsApp Cloud API
-│   │   ├── fonnte.ts                   # Fonnte API
-│   │   └── evolution.ts                # Evolution API
+│   ├── messaging/                        # Provider abstraction
+│   │   ├── types.ts                      # MessagingProvider interface
+│   │   ├── index.ts                      # Factory (getMessagingProvider)
+│   │   ├── meta.ts                       # Meta WhatsApp Cloud API
+│   │   ├── fonnte.ts                     # Fonnte API
+│   │   └── evolution.ts                  # Evolution API
 │   ├── supabase/
-│   │   ├── client.ts                   # Browser Supabase client
-│   │   ├── server.ts                   # Server-side Supabase client (SSR)
-│   │   └── admin.ts                    # Service-role client (webhooks, bypasses RLS)
-│   ├── llm.ts                          # Groq API wrapper + system prompt
-│   ├── search.ts                       # Keyword-based context retrieval
-│   └── utils.ts                        # shadcn/ui cn() helper
-└── middleware.ts                        # Supabase Auth route protection
+│   │   ├── client.ts                     # Browser Supabase client
+│   │   ├── server.ts                     # Server-side Supabase client (SSR)
+│   │   └── admin.ts                      # Service-role client (webhooks, bypasses RLS)
+│   ├── llm.ts                            # DeepSeek/Groq API wrapper + system prompt
+│   ├── search.ts                         # Keyword-based context retrieval with stop-word filter
+│   ├── phone.ts                          # Indonesia phone number normalization
+│   └── utils.ts                          # shadcn/ui cn() helper
+└── middleware.ts                          # Supabase Auth route protection
 ```
 
 ## Scripts
