@@ -138,11 +138,13 @@ send_ping() {
    read -r cpu_val mem_val disk_val uptime_val <<< "$cpu_mem_disk_uptime"
    # Debug: log values before sending
    echo "[debug] CPU=$cpu_val MEM=$mem_val DISK=$disk_val UPTIME=$uptime_val" >&2
+   echo "[debug] payload before jq: cpu=$cpu_val mem=$mem_val disk=$disk_val" >&2
    if [ -n "$containers" ]; then
     payload=$(jq -n --arg cpu "$cpu_val" --arg mem "$mem_val" --arg disk "$disk_val" --arg uptime "$uptime_val" --argjson containers "$containers" '{cpu:($cpu|tonumber?//0),memory:($mem|tonumber?//0),disk:($disk|tonumber?//0),uptime_hours:($uptime|tonumber?//0),containers:$containers}' 2>/dev/null)
   else
     payload=$(jq -n --arg cpu "$cpu_val" --arg mem "$mem_val" --arg disk "$disk_val" --arg uptime "$uptime_val" '{cpu:($cpu|tonumber?//0),memory:($mem|tonumber?//0),disk:($disk|tonumber?//0),uptime_hours:($uptime|tonumber?//0)}' 2>/dev/null)
   fi
+  echo "[debug] payload: $payload" >&2
   [ -z "$payload" ] && payload='{\"cpu\":0,\"memory\":0,\"disk\":0,\"uptime_hours\":0}'
   result=$(curl -s -w "\\n%{http_code}" -X POST "\${PING_URL}?secret=\${SECRET}" -H "Content-Type: application/json" -d "$payload" 2>/dev/null)
   http_code=$(echo "$result" | tail -1)
