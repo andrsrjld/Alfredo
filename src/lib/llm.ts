@@ -121,7 +121,10 @@ async function getDBConfig(): Promise<LLMConfig | null> {
       .eq("key", "ai_config")
       .single();
 
-    if (error || !data) return null;
+    if (error || !data) {
+      console.error("[LLM] DB config fetch failed:", error?.message || "no data");
+      return null;
+    }
 
     const config = data.value as {
       provider?: string;
@@ -140,14 +143,20 @@ async function getDBConfig(): Promise<LLMConfig | null> {
     const defaults = PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.deepseek;
     const modelConfig = config.models?.[provider];
 
-    if (!modelConfig?.apiKey) return null;
+    if (!modelConfig?.apiKey) {
+      console.error(`[LLM] No API key in DB config for provider: ${provider}`);
+      return null;
+    }
 
     let apiKey: string;
     try {
       apiKey = decrypt(modelConfig.apiKey);
     } catch {
+      console.error("[LLM] Decryption failed, using raw key (likely invalid)");
       apiKey = modelConfig.apiKey;
     }
+
+    console.log(`[LLM] Using DB config: provider=${provider} model=${modelConfig.model || defaults.model} url=${modelConfig.baseUrl || defaults.baseUrl}`);
 
     return {
       provider,
@@ -155,7 +164,8 @@ async function getDBConfig(): Promise<LLMConfig | null> {
       key: apiKey,
       model: modelConfig.model || defaults.model,
     };
-  } catch {
+  } catch (err) {
+    console.error("[LLM] getDBConfig exception:", err);
     return null;
   }
 }
@@ -167,6 +177,10 @@ async function getActiveConfig(): Promise<LLMConfig> {
 
   const dbConfig = await getDBConfig();
   const config = dbConfig || getEnvConfig();
+
+  if (!dbConfig) {
+    console.log(`[LLM] Using env config: provider=${config.provider} key=${config.key ? '***set***' : '***MISSING***'} model=${config.model}`);
+  }
 
   cachedConfig = {
     config,
@@ -330,7 +344,8 @@ async function callOpenAICompatible(
 
   if (!response.ok) {
     const errorBody = await response.text();
-    debug.error = errorBody.substring(0, 300);
+    debug.error = errorBody.substring(0, 500);
+    console.error(`[LLM] API error: provider=${config.provider} status=${response.status} body=${debug.error}`);
     return { content: null, debug };
   }
 
@@ -339,10 +354,16 @@ async function callOpenAICompatible(
   if (config.provider === "ollama") {
     const content =
       data?.message?.content || data?.choices?.[0]?.message?.content;
+    if (!content) {
+      console.error(`[LLM] Empty ollama response:`, JSON.stringify(data).substring(0, 300));
+    }
     return { content: content || null, debug };
   }
 
   const content = data?.choices?.[0]?.message?.content;
+  if (!content) {
+    console.error(`[LLM] Empty response: provider=${config.provider} model=${config.model}`, JSON.stringify(data).substring(0, 300));
+  }
   return { content: content || null, debug };
 }
 

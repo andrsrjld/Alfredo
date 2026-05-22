@@ -83,7 +83,11 @@ export async function POST(request: NextRequest) {
 
     const results = await smartSearch(text)
     const context = formatSearchContext(results)
-    const { reply } = await askAlfredo(context, text)
+    const { reply, debug } = await askAlfredo(context, text)
+
+    if (debug.error) {
+      console.error(`[WhatsApp] LLM debug: provider=${debug.provider} hasContext=${debug.hasContext} ctxLen=${debug.contextLength} status=${debug.status} error=${debug.error}`)
+    }
 
     const messenger = getMessagingProvider()
     await messenger.sendMessage(from, reply)
