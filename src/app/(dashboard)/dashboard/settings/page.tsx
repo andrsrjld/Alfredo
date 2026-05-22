@@ -32,6 +32,7 @@ export default function SettingsPage() {
     temperature: 0.0,
     models: {},
     gitlab_pat: '',
+    bot_mode: 'normal',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
