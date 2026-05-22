@@ -2,11 +2,18 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search } from 'lucide-react'
+import { Search, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 
 type Project = {
   id: string
@@ -16,6 +23,9 @@ type Project = {
   commit_msg: string | null
   status: string
   error_detail: string | null
+  pipeline_id: string | null
+  gitlab_project_id: string | null
+  gitlab_event_time: string | null
   last_updated: string
 }
 
@@ -37,6 +47,13 @@ const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secon
   created: { variant: 'secondary', label: 'Created' },
 }
 
+function formatWIB(iso: string): string {
+  return new Date(iso).toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
 function formatWIBShort(iso: string): string {
   return new Date(iso).toLocaleString('id-ID', {
     timeZone: 'Asia/Jakarta',
@@ -44,15 +61,94 @@ function formatWIBShort(iso: string): string {
   })
 }
 
-function ProjectCard({ project, expandedError, toggleError }: {
+function DetailRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+      <span className={`text-right ${mono ? 'font-mono' : ''} text-xs`}>{value || '\u2014'}</span>
+    </div>
+  )
+}
+
+function ProjectDetailDialog({ project, open, onOpenChange }: {
+  project: Project | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const [showError, setShowError] = useState(false)
+
+  if (!project) return null
+  const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: capitalizeWords(project.status) }
+
+  const repoPath = project.project_group
+    ? `${project.project_group}/${project.repo_name}`
+    : project.repo_name
+  const pipelineUrl = project.pipeline_id
+    ? `https://gitlab.com/${repoPath}/-/pipelines/${project.pipeline_id}`
+    : null
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="font-mono">{capitalizeWords(project.repo_name)}</span>
+            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+          </DialogTitle>
+          <DialogDescription>Pipeline details</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <DetailRow label="Project Group" value={project.project_group} />
+          <DetailRow label="Branch" value={project.branch} mono />
+          <DetailRow label="Commit" value={project.commit_msg} />
+          <DetailRow label="Pipeline ID" value={project.pipeline_id} mono />
+          <DetailRow label="GitLab Project ID" value={project.gitlab_project_id} mono />
+          <DetailRow label="Event Time" value={project.gitlab_event_time ? formatWIB(project.gitlab_event_time) : null} mono />
+          <DetailRow label="Last Updated" value={formatWIB(project.last_updated)} mono />
+
+          {project.pipeline_id && (
+            <div className="flex gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={() => window.open(pipelineUrl!, '_blank', 'noopener')}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View in GitLab
+              </Button>
+            </div>
+          )}
+
+          {project.error_detail && (
+            <div className="space-y-1.5 border-t border-border pt-3">
+              <Button
+                variant="link"
+                size="xs"
+                className="text-destructive p-0"
+                onClick={() => setShowError(!showError)}
+              >
+                {showError ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+                {showError ? 'Hide Error' : 'Show Error'}
+              </Button>
+              {showError && (
+                <pre className="whitespace-pre-wrap break-words rounded bg-muted px-3 py-2 font-mono text-xs text-foreground">{project.error_detail}</pre>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ProjectCard({ project, onClick }: {
   project: Project
-  expandedError: Set<string>
-  toggleError: (id: string) => void
+  onClick: () => void
 }) {
   const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: capitalizeWords(project.status) }
-  const isOpen = expandedError.has(project.id)
   return (
-    <Card size="sm" className="h-full">
+    <Card size="sm" className="h-full cursor-pointer" onClick={onClick}>
       <CardContent>
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="truncate font-mono text-xs font-medium text-foreground sm:text-sm">{capitalizeWords(project.repo_name)}</span>
@@ -72,19 +168,6 @@ function ProjectCard({ project, expandedError, toggleError }: {
             <span className="font-mono">{formatWIBShort(project.last_updated)}</span>
           </div>
         </div>
-        {project.error_detail && (
-          <Button
-            variant="link"
-            size="xs"
-            className="mt-1.5 text-destructive"
-            onClick={() => toggleError(project.id)}
-          >
-            {isOpen ? 'Hide' : 'Error'}
-          </Button>
-        )}
-        {isOpen && project.error_detail && (
-          <pre className="mt-2 whitespace-pre-wrap break-words border-t border-border pt-2 font-mono text-xs text-foreground">{project.error_detail}</pre>
-        )}
       </CardContent>
     </Card>
   )
@@ -93,7 +176,7 @@ function ProjectCard({ project, expandedError, toggleError }: {
 export default function RealtimeProjectStatus() {
   const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
-  const [expandedError, setExpandedError] = useState<Set<string>>(new Set())
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [mobilePage, setMobilePage] = useState(0)
@@ -135,15 +218,6 @@ export default function RealtimeProjectStatus() {
     const page = Math.round(el.scrollLeft / el.offsetWidth)
     setMobilePage(page)
   }, [])
-
-  function toggleError(id: string) {
-    setExpandedError(prev => {
-      const n = new Set(prev)
-      if (n.has(id)) n.delete(id)
-      else n.add(id)
-      return n
-    })
-  }
 
   function renderDots(total: number, current: number, onChange: (i: number) => void) {
     if (total <= 1) return null
@@ -187,7 +261,7 @@ export default function RealtimeProjectStatus() {
           return (
             <div key={pageIdx} className="grid grid-cols-2 gap-3 snap-start" style={{ minWidth: '100%', flexShrink: 0 }}>
               {pageItems.map((project) => (
-                <ProjectCard key={project.id} project={project} expandedError={expandedError} toggleError={toggleError} />
+                <ProjectCard key={project.id} project={project} onClick={() => setSelectedProject(project)} />
               ))}
             </div>
           )
@@ -205,7 +279,7 @@ export default function RealtimeProjectStatus() {
       <div className="hidden md:block">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {desktopItems.map((project) => (
-            <ProjectCard key={project.id} project={project} expandedError={expandedError} toggleError={toggleError} />
+            <ProjectCard key={project.id} project={project} onClick={() => setSelectedProject(project)} />
           ))}
         </div>
         {filtered.length === 0 && (
@@ -213,6 +287,12 @@ export default function RealtimeProjectStatus() {
         )}
       </div>
       {renderDots(desktopTotalPages, desktopPage, setDesktopPage)}
+
+      <ProjectDetailDialog
+        project={selectedProject}
+        open={!!selectedProject}
+        onOpenChange={(open) => { if (!open) setSelectedProject(null) }}
+      />
     </div>
   )
 }

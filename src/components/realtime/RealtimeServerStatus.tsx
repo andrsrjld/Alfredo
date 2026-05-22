@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Copy, Check } from 'lucide-react'
 
 type Server = {
   id: string
@@ -11,11 +20,14 @@ type Server = {
   ip_address: string | null
   status: string
   notes: string | null
+  ping_secret: string | null
   last_ping: string
 }
 
 const MOBILE_PAGE_SIZE = 4
 const DESKTOP_PAGE_SIZE = 8
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app'
 
 const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
   online: { variant: 'success', label: 'Online' },
@@ -23,10 +35,94 @@ const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secon
   high_load: { variant: 'warning', label: 'High load' },
 }
 
+function formatWIB(iso: string): string {
+  return new Date(iso).toLocaleString('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+function ServerDetailDialog({ server, open, onOpenChange }: {
+  server: Server | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const [copied, setCopied] = useState<string | null>(null)
+
+  if (!server) return null
+  const cfg = statusConfig[server.status] || { variant: 'secondary' as const, label: server.status }
+  const pingUrl = server.ping_secret ? `${APP_URL}/api/server-ping?secret=${server.ping_secret}` : null
+
+  async function copyToClipboard(text: string, label: string) {
+    await navigator.clipboard.writeText(text)
+    setCopied(label)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className="font-mono">{server.server_name}</span>
+            <Badge variant={cfg.variant}>{cfg.label}</Badge>
+          </DialogTitle>
+          <DialogDescription>Server details</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <DetailRow label="IP Address" value={server.ip_address} mono />
+          <DetailRow label="Notes" value={server.notes} />
+          <DetailRow label="Last Ping" value={formatWIB(server.last_ping)} mono />
+          {server.ping_secret && (
+            <div className="space-y-1.5">
+              <span className="text-xs text-muted-foreground">Ping Secret</span>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">{server.ping_secret}</code>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => copyToClipboard(server.ping_secret!, 'secret')}
+                >
+                  {copied === 'secret' ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
+          )}
+          {pingUrl && (
+            <div className="space-y-1.5">
+              <span className="text-xs text-muted-foreground">Ping URL</span>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">{pingUrl}</code>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => copyToClipboard(pingUrl, 'url')}
+                >
+                  {copied === 'url' ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+      <span className={`text-right ${mono ? 'font-mono' : ''} text-xs`}>{value || '\u2014'}</span>
+    </div>
+  )
+}
+
 export default function RealtimeServerStatus() {
   const [servers, setServers] = useState<Server[]>([])
   const [mobilePage, setMobilePage] = useState(0)
   const [desktopPage, setDesktopPage] = useState(0)
+  const [selectedServer, setSelectedServer] = useState<Server | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -58,13 +154,6 @@ export default function RealtimeServerStatus() {
     return `${Math.floor(hrs / 24)}d ago`
   }
 
-  function formatWIB(iso: string): string {
-    return new Date(iso).toLocaleString('id-ID', {
-      timeZone: 'Asia/Jakarta',
-      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-    })
-  }
-
   const mobileTotalPages = Math.ceil(servers.length / MOBILE_PAGE_SIZE)
   const desktopTotalPages = Math.ceil(servers.length / DESKTOP_PAGE_SIZE)
   const desktopItems = servers.slice(desktopPage * DESKTOP_PAGE_SIZE, (desktopPage + 1) * DESKTOP_PAGE_SIZE)
@@ -72,7 +161,7 @@ export default function RealtimeServerStatus() {
   function renderCard(server: Server, compact?: boolean) {
     const cfg = statusConfig[server.status] || { variant: 'secondary' as const, label: server.status }
     return (
-      <Card key={server.id} size="sm" className="h-full">
+      <Card key={server.id} size="sm" className="h-full cursor-pointer" onClick={() => setSelectedServer(server)}>
         <CardContent>
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className={`truncate font-mono font-medium text-foreground ${compact ? 'text-xs' : 'text-sm'}`}>{server.server_name}</span>
@@ -148,6 +237,12 @@ export default function RealtimeServerStatus() {
         )}
       </div>
       {renderDots(desktopTotalPages, desktopPage, setDesktopPage)}
+
+      <ServerDetailDialog
+        server={selectedServer}
+        open={!!selectedServer}
+        onOpenChange={(open) => { if (!open) setSelectedServer(null) }}
+      />
     </div>
   )
 }
