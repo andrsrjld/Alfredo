@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const webhookUrl = `${baseUrl}/api/server-ping`
-    const crontab = `*/5 * * * * curl -s -X POST ${webhookUrl} -H "Content-Type: application/json" -d '{"server_name":"${server_name}","status":"online","ping_secret":"${ping_secret}"}' >/dev/null 2>&1`
+    const crontab = `* * * * * curl -s -X POST ${webhookUrl} -H "Content-Type: application/json" -d '{"server_name":"${server_name}","status":"online","ping_secret":"${ping_secret}"}' >/dev/null 2>&1`
 
     return NextResponse.json({ server: data, crontab }, { status: 201, ...noStore })
   } catch (err) {
