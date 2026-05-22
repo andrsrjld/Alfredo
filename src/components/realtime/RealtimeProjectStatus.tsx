@@ -219,6 +219,7 @@ export default function RealtimeProjectStatus() {
       if (data) setProjects(data)
     }
     fetchProjects()
+    const interval = setInterval(fetchProjects, 5000)
 
     const channel = supabase
       .channel('project_status_changes')
@@ -228,6 +229,7 @@ export default function RealtimeProjectStatus() {
       .subscribe()
 
     return () => {
+      clearInterval(interval)
       supabase.removeChannel(channel)
     }
   }, [])

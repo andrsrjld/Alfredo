@@ -98,6 +98,7 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
   const [showRunning, setShowRunning] = useState(false)
   const [containerPage, setContainerPage] = useState(0)
   const [expandedLog, setExpandedLog] = useState<Set<string>>(new Set())
+  const [liveServer, setLiveServer] = useState<Server | null>(null)
   const CONTAINER_PAGE_SIZE = 10
 
   useEffect(() => {
@@ -112,19 +113,36 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
         .order('status', { ascending: true })
       if (data) setContainers(data)
     }
+    async function fetchServerMetrics() {
+      const { data } = await supabase
+        .from('server_status')
+        .select('*')
+        .eq('server_name', serverName)
+        .maybeSingle()
+      if (data) setLiveServer(data as Server)
+    }
     fetchContainers()
+    fetchServerMetrics()
+    const metricsInterval = setInterval(fetchServerMetrics, 5000)
+    const containerInterval = setInterval(fetchContainers, 5000)
     const channel = supabase
       .channel(`container_status_${serverName}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'container_status', filter: `server_name=eq.${serverName}` }, () => {
         fetchContainers()
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    return () => {
+      clearInterval(metricsInterval)
+      clearInterval(containerInterval)
+      supabase.removeChannel(channel)
+      setLiveServer(null)
+    }
   }, [server, open])
 
   if (!server) return null
-  const cfg = statusConfig[server.status] || { variant: 'secondary' as const, label: server.status }
-  const pingUrl = server.ping_secret ? `${APP_URL}/api/server-ping?secret=${server.ping_secret}` : null
+  const displayServer = liveServer || server
+  const cfg = statusConfig[displayServer.status] || { variant: 'secondary' as const, label: displayServer.status }
+  const pingUrl = displayServer.ping_secret ? `${APP_URL}/api/server-ping?secret=${displayServer.ping_secret}` : null
 
   const problemContainers = containers.filter(c => c.status !== 'running')
   const runningContainers = containers.filter(c => c.status === 'running')
@@ -162,34 +180,34 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
       <DialogContent className="overflow-x-hidden">
         <DialogHeader>
           <DialogTitle className="flex min-w-0 flex-wrap items-center gap-2 pr-8">
-            <span className="min-w-0 break-words font-mono">{server.server_name}</span>
+            <span className="min-w-0 break-words font-mono">{displayServer.server_name}</span>
             <Badge variant={cfg.variant}>{cfg.label}</Badge>
           </DialogTitle>
           <DialogDescription>Server details</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 text-sm">
           <div className="space-y-2.5">
-            {server.cpu_usage !== null && <MetricBar label="CPU" value={server.cpu_usage} />}
-            {server.memory_usage !== null && <MetricBar label="Memory" value={server.memory_usage} />}
-            {server.disk_usage !== null && <MetricBar label="Disk" value={server.disk_usage} />}
-            {server.cpu_usage === null && server.memory_usage === null && server.disk_usage === null && (
+            {displayServer.cpu_usage !== null && <MetricBar label="CPU" value={displayServer.cpu_usage} />}
+            {displayServer.memory_usage !== null && <MetricBar label="Memory" value={displayServer.memory_usage} />}
+            {displayServer.disk_usage !== null && <MetricBar label="Disk" value={displayServer.disk_usage} />}
+            {displayServer.cpu_usage === null && displayServer.memory_usage === null && displayServer.disk_usage === null && (
               <p className="text-xs text-muted-foreground">No metrics reported. Update cron script to enable.</p>
             )}
           </div>
 
           <div className="grid gap-1.5 text-xs">
-            <DetailRow label="IP Address" value={server.ip_address} mono />
-            <DetailRow label="Notes" value={server.notes} />
-            <DetailRow label="Uptime" value={server.uptime_hours !== null ? `${server.uptime_hours.toFixed(1)}h` : null} mono />
-            <DetailRow label="Last Ping" value={formatWIB(server.last_ping)} mono />
+            <DetailRow label="IP Address" value={displayServer.ip_address} mono />
+            <DetailRow label="Notes" value={displayServer.notes} />
+            <DetailRow label="Uptime" value={displayServer.uptime_hours !== null ? `${displayServer.uptime_hours.toFixed(1)}h` : null} mono />
+            <DetailRow label="Last Ping" value={formatWIB(displayServer.last_ping)} mono />
           </div>
 
-          {server.ping_secret && (
+          {displayServer.ping_secret && (
             <div className="space-y-1.5">
               <span className="text-xs text-muted-foreground">Ping Secret</span>
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                <code className="min-w-0 overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-xs">{server.ping_secret}</code>
-                <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => copyToClipboard(server.ping_secret!, 'secret')}>
+                <code className="min-w-0 overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-xs">{displayServer.ping_secret}</code>
+                <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => copyToClipboard(displayServer.ping_secret!, 'secret')}>
                   {copied === 'secret' ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                 </Button>
               </div>
@@ -341,6 +359,7 @@ export default function RealtimeServerStatus() {
       if (data) setServers(data)
     }
     fetchServers()
+    const interval = setInterval(fetchServers, 5000)
 
     const channel = supabase
       .channel('server_status_changes')
@@ -350,6 +369,7 @@ export default function RealtimeServerStatus() {
       .subscribe()
 
     return () => {
+      clearInterval(interval)
       supabase.removeChannel(channel)
     }
   }, [])
@@ -387,9 +407,9 @@ export default function RealtimeServerStatus() {
               <div className="flex items-center justify-between gap-1">
                 <span>Load</span>
                 <div className="flex items-center gap-1 font-mono text-xs">
-                  {server.cpu_usage !== null && <span className={server.cpu_usage >= 80 ? 'text-amber-500' : 'text-emerald-500'}>C:{server.cpu_usage.toFixed(0)}%</span>}
-                  {server.memory_usage !== null && <span className={server.memory_usage >= 80 ? 'text-amber-500' : 'text-emerald-500'}>M:{server.memory_usage.toFixed(0)}%</span>}
-                  {server.disk_usage !== null && <span className={server.disk_usage >= 80 ? 'text-amber-500' : 'text-emerald-500'}>D:{server.disk_usage.toFixed(0)}%</span>}
+                  {server.cpu_usage !== null && <span className={server.cpu_usage >= 80 ? 'text-amber-500' : 'text-emerald-500'}>C:{server.cpu_usage.toFixed(1)}%</span>}
+                  {server.memory_usage !== null && <span className={server.memory_usage >= 80 ? 'text-amber-500' : 'text-emerald-500'}>M:{server.memory_usage.toFixed(1)}%</span>}
+                  {server.disk_usage !== null && <span className={server.disk_usage >= 80 ? 'text-amber-500' : 'text-emerald-500'}>D:{server.disk_usage.toFixed(1)}%</span>}
                 </div>
               </div>
             )}
