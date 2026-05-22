@@ -166,10 +166,8 @@ export default function WhitelistPage() {
           <div className="flex items-center justify-between">
             <CardDescription>Add PM</CardDescription>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
-              <DialogTrigger asChild>
-                <Button variant="link" size="xs" className="gap-1">
-                  <Upload className="h-3 w-3" /> Import
-                </Button>
+              <DialogTrigger render={<Button variant="link" size="xs" className="gap-1" />}>
+                <Upload className="h-3 w-3" /> Import
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
