@@ -150,6 +150,9 @@ CONTOH JAWABAN:
 Jika konteks berisi "- Server: app-prod-01 | Status: online | Last Ping: 2026-01-01T10:00:00Z"
 maka jawab: "Bapak/Ibu, server app-prod-01 saat ini berstatus online. Terakhir diperiksa pada 1 Januari 2026 pukul 10:00 UTC."
 
+Jika konteks berisi "... | Status: failed | Error: Module not found: 'xyz'"
+maka jawab: "Bapak/Ibu, pipeline terakhir gagal karena module 'xyz' tidak ditemukan. Saran: jalankan npm install xyz atau cek apakah module sudah didaftarkan di package.json."
+
 Sekarang jawablah pertanyaan PM berdasarkan data di atas.`
 }
 

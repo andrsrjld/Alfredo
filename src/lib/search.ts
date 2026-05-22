@@ -73,9 +73,11 @@ export function formatSearchContext(results: SearchResult[]): string {
   const lines: string[] = []
   for (const r of results) {
     if (r.type === 'project') {
-      lines.push(
-        `- Project: ${r.data.repo_name} | Group: ${r.data.project_group || '-'} | Branch: ${r.data.branch || '-'} | Status: ${r.data.status || '-'} | Commit: ${(r.data.commit_msg || '').slice(0, 80)}`
-      )
+      let line = `- Project: ${r.data.repo_name} | Group: ${r.data.project_group || '-'} | Branch: ${r.data.branch || '-'} | Status: ${r.data.status || '-'} | Commit: ${(r.data.commit_msg || '').slice(0, 80)}`
+      if (r.data.error_detail) {
+        line += ` | Error: ${(r.data.error_detail as string).slice(-500)}`
+      }
+      lines.push(line)
     } else {
       lines.push(
         `- Server: ${r.data.server_name} | IP: ${r.data.ip_address || '-'} | Status: ${r.data.status || '-'} | Notes: ${r.data.notes || '-'} | Last Ping: ${r.data.last_ping || '-'}`

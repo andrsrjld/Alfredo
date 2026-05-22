@@ -15,7 +15,7 @@ export async function GET() {
       .single()
 
     if (error || !data) {
-      return NextResponse.json({ provider: 'deepseek', temperature: 0.0, models: {} })
+      return NextResponse.json({ provider: 'deepseek', temperature: 0.0, models: {}, gitlab_pat: '' })
     }
 
     const raw = data.value as Record<string, unknown>
@@ -33,6 +33,7 @@ export async function GET() {
       provider: raw.provider || 'deepseek',
       temperature: raw.temperature ?? 0.0,
       models: maskedModels,
+      gitlab_pat: (raw.gitlab_pat as string) ? maskKey(raw.gitlab_pat as string) : '',
     })
   } catch (err) {
     console.error('[Settings GET]', err)
@@ -43,10 +44,11 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { provider, temperature, models } = body as {
+    const { provider, temperature, models, gitlab_pat } = body as {
       provider: string
       temperature: number
       models: Record<string, Record<string, string>>
+      gitlab_pat?: string
     }
 
     if (!SUPPORTED_PROVIDERS.includes(provider)) {
@@ -55,36 +57,56 @@ export async function PUT(request: NextRequest) {
 
     const clampedTemp = Math.max(0, Math.min(1, temperature ?? 0.0))
 
+    const supabase = createAdminClient()
+    const { data: existing } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'ai_config')
+      .single()
+
+    const existingModels = existing
+      ? ((existing.value as Record<string, unknown>).models || {}) as Record<string, Record<string, string>>
+      : {}
+    const existingGitlabPat = existing
+      ? (existing.value as Record<string, unknown>).gitlab_pat as string | undefined
+      : undefined
+
     const encryptedModels: Record<string, Record<string, string>> = {}
     for (const [prov, cfg] of Object.entries(models)) {
       encryptedModels[prov] = { ...cfg }
-      if (cfg.apiKey && !cfg.apiKey.includes('••••')) {
-        encryptedModels[prov].apiKey = encrypt(cfg.apiKey)
-      } else if (cfg.apiKey && cfg.apiKey.includes('••••')) {
-        const supabase = createAdminClient()
-        const { data: existing } = await supabase
-          .from('app_settings')
-          .select('value')
-          .eq('key', 'ai_config')
-          .single()
-
-        if (existing) {
-          const raw = existing.value as Record<string, unknown>
-          const existingModels = (raw.models || {}) as Record<string, Record<string, string>>
-          encryptedModels[prov].apiKey = existingModels[prov]?.apiKey || ''
+      if (cfg.apiKey && !cfg.apiKey.includes('\u2022')) {
+        try {
+          encryptedModels[prov].apiKey = encrypt(cfg.apiKey)
+        } catch {
+          return NextResponse.json({ error: 'ENCRYPTION_KEY not set. Cannot save API keys.' }, { status: 500 })
         }
+      } else if (cfg.apiKey && cfg.apiKey.includes('\u2022')) {
+        encryptedModels[prov].apiKey = existingModels[prov]?.apiKey || ''
       } else {
         encryptedModels[prov].apiKey = ''
       }
     }
 
-    const value = {
+    let encryptedGitlabPat: string | undefined = existingGitlabPat
+    if (gitlab_pat && !gitlab_pat.includes('\u2022')) {
+      try {
+        encryptedGitlabPat = encrypt(gitlab_pat)
+      } catch {
+        return NextResponse.json({ error: 'ENCRYPTION_KEY not set. Cannot save GitLab PAT.' }, { status: 500 })
+      }
+    } else if (gitlab_pat === '') {
+      encryptedGitlabPat = ''
+    }
+
+    const value: Record<string, unknown> = {
       provider,
       temperature: clampedTemp,
       models: encryptedModels,
     }
+    if (encryptedGitlabPat !== undefined) {
+      value.gitlab_pat = encryptedGitlabPat
+    }
 
-    const supabase = createAdminClient()
     const { error } = await supabase
       .from('app_settings')
       .upsert({ key: 'ai_config', value }, { onConflict: 'key' })

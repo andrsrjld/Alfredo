@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
 const PROVIDERS = [
-  { id: 'deepseek', label: 'DeepSeek', defaultModel: 'deepseek-chat', defaultUrl: 'https://api.deepseek.com/v1/chat/completions' },
-  { id: 'openai', label: 'OpenAI', defaultModel: 'gpt-4o-mini', defaultUrl: 'https://api.openai.com/v1/chat/completions' },
-  { id: 'gemini', label: 'Google Gemini', defaultModel: 'gemini-2.0-flash', defaultUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' },
-  { id: 'ollama', label: 'Ollama Cloud', defaultModel: 'deepseek-v4-flash', defaultUrl: 'https://ollama.com/api/chat' },
+  { id: 'deepseek', label: 'DeepSeek', models: 'deepseek-chat, deepseek-reasoner', defaultModel: 'deepseek-chat', defaultUrl: 'https://api.deepseek.com/v1/chat/completions' },
+  { id: 'openai', label: 'OpenAI', models: 'gpt-4o-mini, gpt-4o, gpt-4.1-mini, gpt-4.1', defaultModel: 'gpt-4o-mini', defaultUrl: 'https://api.openai.com/v1/chat/completions' },
+  { id: 'gemini', label: 'Google Gemini', models: 'gemini-2.0-flash, gemini-2.5-flash, gemini-2.5-pro', defaultModel: 'gemini-2.0-flash', defaultUrl: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions' },
+  { id: 'ollama', label: 'Ollama Cloud', models: 'deepseek-v4-flash, gemma4, qwen3.5, glm-5.1, etc.', defaultModel: 'deepseek-v4-flash', defaultUrl: 'https://ollama.com/api/chat' },
 ] as const
 
 type ModelConfig = {
@@ -20,6 +20,7 @@ type Settings = {
   provider: string
   temperature: number
   models: Record<string, ModelConfig>
+  gitlab_pat: string
 }
 
 const inputClass = "w-full bg-background border border-border rounded-sm px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
@@ -29,6 +30,7 @@ export default function SettingsPage() {
     provider: 'deepseek',
     temperature: 0.0,
     models: {},
+    gitlab_pat: '',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -48,7 +50,12 @@ export default function SettingsPage() {
             baseUrl: existing?.baseUrl || p.defaultUrl,
           }
         }
-        setSettings({ provider: data.provider || 'deepseek', temperature: data.temperature ?? 0.0, models })
+        setSettings({
+          provider: data.provider || 'deepseek',
+          temperature: data.temperature ?? 0.0,
+          models,
+          gitlab_pat: data.gitlab_pat || '',
+        })
         setExpandedProviders(new Set([data.provider || 'deepseek']))
         setLoading(false)
       })
@@ -57,7 +64,7 @@ export default function SettingsPage() {
         for (const p of PROVIDERS) {
           models[p.id] = { apiKey: '', model: p.defaultModel, baseUrl: p.defaultUrl }
         }
-        setSettings({ provider: 'deepseek', temperature: 0.0, models })
+        setSettings({ provider: 'deepseek', temperature: 0.0, models, gitlab_pat: '' })
         setLoading(false)
       })
   }, [])
@@ -84,7 +91,7 @@ export default function SettingsPage() {
             baseUrl: settings.models[p.id].baseUrl,
           }
         }
-        setSettings(s => ({ ...s, models }))
+        setSettings(s => ({ ...s, models, gitlab_pat: fresh.gitlab_pat || '' }))
       } else {
         setMessage({ type: 'err', text: data.error || 'Failed to save.' })
       }
@@ -110,7 +117,7 @@ export default function SettingsPage() {
   return (
     <div className="p-5 md:p-8 space-y-6 max-w-2xl">
       <div className="mb-2">
-        <p className="text-xs text-muted-foreground/60">Configure AI provider, model, and API keys</p>
+        <p className="text-xs text-muted-foreground/60">Configure AI provider, model, API keys, and GitLab integration</p>
       </div>
 
       {message && (
@@ -184,8 +191,8 @@ export default function SettingsPage() {
                       <label className="label-sm text-muted-foreground/60 mb-1.5 block">API Key</label>
                       <input
                         type="password"
-                        placeholder={modelCfg.apiKey ? '••••••••' : 'Enter API key'}
-                        value={modelCfg.apiKey.includes('••••') ? modelCfg.apiKey : ''}
+                        placeholder={modelCfg.apiKey ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'Enter API key'}
+                        value={modelCfg.apiKey.includes('\u2022') ? modelCfg.apiKey : ''}
                         onChange={e => {
                           const val = e.target.value
                           setSettings(s => ({
@@ -207,6 +214,7 @@ export default function SettingsPage() {
                           }))}
                           className={inputClass}
                         />
+                        <p className="text-xs text-muted-foreground/40 mt-1">Available: {p.models}</p>
                       </div>
                       <div>
                         <label className="label-sm text-muted-foreground/60 mb-1.5 block">Base URL</label>
@@ -225,6 +233,25 @@ export default function SettingsPage() {
               </div>
             )
           })}
+        </div>
+      </div>
+
+      <div className="border border-border rounded-md bg-card">
+        <div className="px-5 py-3.5 border-b border-border">
+          <p className="label-sm text-muted-foreground">GitLab Integration</p>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-xs text-muted-foreground/60">Used to fetch pipeline error logs for AI analysis. Scope required: <span className="font-mono text-foreground">api</span></p>
+          <div>
+            <label className="label-sm text-muted-foreground/60 mb-1.5 block">Personal Access Token</label>
+            <input
+              type="password"
+              placeholder={settings.gitlab_pat ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'glpat-xxxxxxxxxxxx'}
+              value={settings.gitlab_pat.includes('\u2022') ? settings.gitlab_pat : ''}
+              onChange={e => setSettings(s => ({ ...s, gitlab_pat: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
         </div>
       </div>
 

@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS project_status (
     branch TEXT,
     commit_msg TEXT,
     status TEXT CHECK (status IN ('success', 'failed', 'running', 'canceled')),
+    error_detail TEXT,
+    gitlab_project_id TEXT,
     last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -20,6 +22,7 @@ CREATE TABLE IF NOT EXISTS server_status (
     ip_address TEXT,
     status TEXT CHECK (status IN ('online', 'offline', 'high_load')),
     notes TEXT,
+    ping_secret TEXT UNIQUE,
     last_ping TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -38,7 +41,7 @@ CREATE TABLE IF NOT EXISTS whitelisted_pms (
     pm_name TEXT
 );
 
--- 5. Table: app_settings (for dashboard config later)
+-- 5. Table: app_settings (for dashboard config)
 CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value JSONB NOT NULL DEFAULT '{}',

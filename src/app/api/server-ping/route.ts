@@ -5,25 +5,39 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    if (body.secret !== process.env.SERVER_PING_SECRET) {
+    const supabase = createAdminClient()
+    let serverName: string | undefined
+
+    if (body.ping_secret) {
+      const { data: server } = await supabase
+        .from('server_status')
+        .select('server_name')
+        .eq('ping_secret', body.ping_secret)
+        .maybeSingle()
+
+      if (!server) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      serverName = server.server_name
+    } else if (body.secret && body.secret === process.env.SERVER_PING_SECRET) {
+      serverName = body.server_name
+    } else {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { server_name, status, ip_address } = body
+    const { status, ip_address } = body
 
-    if (!server_name || !status) {
+    if (!serverName || !status) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
-
-    const supabase = createAdminClient()
 
     const { error } = await supabase
       .from('server_status')
       .upsert(
         {
-          server_name,
+          server_name: serverName,
           status,
-          ip_address: ip_address || null,
+          ip_address: ip_address || undefined,
           last_ping: new Date().toISOString(),
         },
         { onConflict: 'server_name' }
