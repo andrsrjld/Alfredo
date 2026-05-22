@@ -115,9 +115,11 @@ export async function PUT(request: NextRequest) {
       .from('app_settings')
       .upsert({ key: 'ai_config', value }, { onConflict: 'key' })
 
+    console.error('[Settings PUT] upsert result:', { error, value: JSON.stringify(value).length })
+
     if (error) {
       console.error('[Settings PUT] DB error:', error)
-      return NextResponse.json({ error: 'Failed to save settings' }, { status: 500, ...noStore })
+      return NextResponse.json({ error: 'Failed to save settings', detail: error.message }, { status: 500, ...noStore })
     }
 
     invalidateConfigCache()
