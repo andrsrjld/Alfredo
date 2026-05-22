@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       console.error('Fonnte chat log error:', logError)
     }
 
-    return NextResponse.json({ ok: true, replied: true, reply_preview: reply.substring(0, 300), debug: { search_results: results.length, llm: llmDebug } })
+    return NextResponse.json({ ok: true, replied: true, reply_preview: reply.substring(0, 300), debug: { search_results: results.length, context_preview: context.substring(0, 500), llm: llmDebug } })
   } catch (err) {
     console.error('Fonnte webhook error:', err)
     return NextResponse.json({ error: 'Internal error', detail: String(err) }, { status: 500 })
