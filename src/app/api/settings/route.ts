@@ -40,6 +40,8 @@ export async function GET() {
       models: maskedModels,
       gitlab_pat: (raw.gitlab_pat as string) ? maskKey(raw.gitlab_pat as string) : '',
       bot_mode: (raw.bot_mode as string) || 'normal',
+      active_start: (raw.active_start as string) || process.env.BOT_ACTIVE_START || '03:00',
+      active_end: (raw.active_end as string) || process.env.BOT_ACTIVE_END || '12:00',
     }, noStore)
   } catch (err) {
     console.error('[Settings GET]', err)
@@ -50,16 +52,21 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { provider, temperature, models, gitlab_pat, bot_mode } = body as {
+    const { provider, temperature, models, gitlab_pat, bot_mode, active_start, active_end } = body as {
       provider: string
       temperature: number
       models: Record<string, Record<string, string>>
       gitlab_pat?: string
       bot_mode?: string
+      active_start?: string
+      active_end?: string
     }
 
     const VALID_BOT_MODES = ['normal', 'extended', 'human']
     const botMode = VALID_BOT_MODES.includes(bot_mode || '') ? (bot_mode as string) : 'normal'
+    const TIME_REGEX = /^\d{2}:\d{2}$/
+    const activeStart = TIME_REGEX.test(active_start || '') ? active_start! : '03:00'
+    const activeEnd = TIME_REGEX.test(active_end || '') ? active_end! : '12:00'
 
     if (!SUPPORTED_PROVIDERS.includes(provider)) {
       return NextResponse.json({ error: `Unsupported provider: ${provider}` }, { status: 400, ...noStore })
@@ -119,6 +126,8 @@ export async function PUT(request: NextRequest) {
       temperature: clampedTemp,
       models: encryptedModels,
       bot_mode: botMode,
+      active_start: activeStart,
+      active_end: activeEnd,
     }
     if (encryptedGitlabPat !== undefined) {
       value.gitlab_pat = encryptedGitlabPat

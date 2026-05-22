@@ -25,6 +25,8 @@ type Settings = {
   models: Record<string, ModelConfig>
   gitlab_pat: string
   bot_mode: string
+  active_start: string
+  active_end: string
 }
 
 export default function SettingsPage() {
@@ -34,6 +36,8 @@ export default function SettingsPage() {
     models: {},
     gitlab_pat: '',
     bot_mode: 'normal',
+    active_start: '03:00',
+    active_end: '12:00',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -59,6 +63,8 @@ export default function SettingsPage() {
           models,
           gitlab_pat: data.gitlab_pat || '',
           bot_mode: data.bot_mode || 'normal',
+          active_start: data.active_start || '03:00',
+          active_end: data.active_end || '12:00',
         })
         setExpandedProviders(new Set([data.provider || 'deepseek']))
         setLoading(false)
@@ -68,7 +74,7 @@ export default function SettingsPage() {
         for (const p of PROVIDERS) {
           models[p.id] = { apiKey: '', model: p.defaultModel, baseUrl: p.defaultUrl }
         }
-        setSettings({ provider: 'deepseek', temperature: 0.0, models, gitlab_pat: '', bot_mode: 'normal' })
+        setSettings({ provider: 'deepseek', temperature: 0.0, models, gitlab_pat: '', bot_mode: 'normal', active_start: '03:00', active_end: '12:00' })
         setLoading(false)
       })
   }, [])
@@ -95,7 +101,7 @@ export default function SettingsPage() {
             baseUrl: settings.models[p.id].baseUrl,
           }
         }
-        setSettings(s => ({ ...s, models, gitlab_pat: fresh.gitlab_pat || '', bot_mode: fresh.bot_mode || 'normal' }))
+        setSettings(s => ({ ...s, models, gitlab_pat: fresh.gitlab_pat || '', bot_mode: fresh.bot_mode || 'normal', active_start: fresh.active_start || '03:00', active_end: fresh.active_end || '12:00' }))
       } else {
         setMessage({ type: 'err', text: data.error || 'Failed to save.' })
       }
@@ -135,7 +141,7 @@ export default function SettingsPage() {
         <CardContent>
           <div className="grid grid-cols-3 gap-2">
             {([
-              { id: 'normal', icon: '🤖', label: 'Normal AI', desc: '03:00–12:00 WIB' },
+              { id: 'normal', icon: '🤖', label: 'Normal AI', desc: `${settings.active_start}–${settings.active_end} WIB` },
               { id: 'extended', icon: '🤖', label: 'Extended AI', desc: '24/7 active' },
               { id: 'human', icon: '👤', label: 'Human Mode', desc: 'Bot offline' },
             ] as const).map(mode => (
@@ -152,6 +158,25 @@ export default function SettingsPage() {
               </Button>
             ))}
           </div>
+          {settings.bot_mode === 'normal' && (
+            <div className="flex items-center gap-2 mt-3">
+              <label className="text-xs text-muted-foreground/60 shrink-0">Active hours</label>
+              <Input
+                type="time"
+                value={settings.active_start}
+                onChange={e => setSettings(s => ({ ...s, active_start: e.target.value }))}
+                className="font-mono text-xs w-28"
+              />
+              <span className="text-xs text-muted-foreground/40">—</span>
+              <Input
+                type="time"
+                value={settings.active_end}
+                onChange={e => setSettings(s => ({ ...s, active_end: e.target.value }))}
+                className="font-mono text-xs w-28"
+              />
+              <span className="text-xs text-muted-foreground/40">WIB</span>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground/50 mt-2">
             {settings.bot_mode === 'normal' && 'Alfredo aktif sesuai jam kerja (default).'}
             {settings.bot_mode === 'extended' && 'Alfredo aktif 24 jam. Untuk saat Ijal AFK di luar jam kerja.'}

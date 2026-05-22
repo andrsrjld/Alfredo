@@ -5,19 +5,21 @@ export type BotMode = 'normal' | 'extended' | 'human'
 const HUMAN_MODE_REPLY =
   'Halo! 🤖 Ijal sedang online sekarang. Silakan hubungi langsung ya — Alfredo standby.'
 
+const DEFAULT_ACTIVE_START = '03:00'
+const DEFAULT_ACTIVE_END = '12:00'
+
 interface CachedBotMode {
   mode: BotMode
+  activeStart: string
+  activeEnd: string
   expiresAt: number
 }
 
 let cachedBotMode: CachedBotMode | null = null
 const CACHE_TTL_MS = 5 * 60 * 1000
 
-function isWithinActiveHours(): boolean {
+function isWithinActiveHours(startStr: string, endStr: string): boolean {
   const tz = process.env.BOT_TIMEZONE || 'Asia/Jakarta'
-  const startStr = process.env.BOT_ACTIVE_START || '03:00'
-  const endStr = process.env.BOT_ACTIVE_END || '12:00'
-
   const now = new Date()
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -40,9 +42,9 @@ function isWithinActiveHours(): boolean {
   return current >= start || current <= end
 }
 
-export async function getBotMode(): Promise<BotMode> {
+export async function getBotMode(): Promise<{ mode: BotMode; activeStart: string; activeEnd: string }> {
   if (cachedBotMode && Date.now() < cachedBotMode.expiresAt) {
-    return cachedBotMode.mode
+    return { mode: cachedBotMode.mode, activeStart: cachedBotMode.activeStart, activeEnd: cachedBotMode.activeEnd }
   }
 
   try {
@@ -56,20 +58,27 @@ export async function getBotMode(): Promise<BotMode> {
     if (data) {
       const config = data.value as Record<string, unknown>
       const mode = (config.bot_mode as BotMode) || 'normal'
+      const activeStart = (config.active_start as string) || process.env.BOT_ACTIVE_START || DEFAULT_ACTIVE_START
+      const activeEnd = (config.active_end as string) || process.env.BOT_ACTIVE_END || DEFAULT_ACTIVE_END
       if (['normal', 'extended', 'human'].includes(mode)) {
-        cachedBotMode = { mode, expiresAt: Date.now() + CACHE_TTL_MS }
-        return mode
+        cachedBotMode = { mode, activeStart, activeEnd, expiresAt: Date.now() + CACHE_TTL_MS }
+        return { mode, activeStart, activeEnd }
       }
     }
-  } catch {
-  }
+  } catch {}
 
-  cachedBotMode = { mode: 'normal', expiresAt: Date.now() + CACHE_TTL_MS }
-  return 'normal'
+  const fallback: CachedBotMode = {
+    mode: 'normal',
+    activeStart: process.env.BOT_ACTIVE_START || DEFAULT_ACTIVE_START,
+    activeEnd: process.env.BOT_ACTIVE_END || DEFAULT_ACTIVE_END,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  }
+  cachedBotMode = fallback
+  return { mode: fallback.mode, activeStart: fallback.activeStart, activeEnd: fallback.activeEnd }
 }
 
 export async function shouldBotReply(): Promise<{ reply: boolean; mode: BotMode; humanReply?: string }> {
-  const mode = await getBotMode()
+  const { mode, activeStart, activeEnd } = await getBotMode()
 
   if (mode === 'human') {
     return { reply: false, mode: 'human', humanReply: HUMAN_MODE_REPLY }
@@ -79,7 +88,7 @@ export async function shouldBotReply(): Promise<{ reply: boolean; mode: BotMode;
     return { reply: true, mode: 'extended' }
   }
 
-  return { reply: isWithinActiveHours(), mode: 'normal' }
+  return { reply: isWithinActiveHours(activeStart, activeEnd), mode: 'normal' }
 }
 
 export function invalidateBotModeCache() {

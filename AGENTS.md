@@ -32,7 +32,9 @@
 - Human mode reply: "Halo! 🤖 Ijal sedang online sekarang. Silakan hubungi langsung ya — Alfredo standby."
 - Dashboard settings page has 3-state toggle UI for bot mode
 - `bot_mode` stored in `app_settings` JSON under `ai_config.bot_mode` key
-- `BOT_ACTIVE_START` default changed from `06:00` to `03:00`
+- Active hours (`active_start`, `active_end`) stored in `app_settings` JSON under `ai_config`, configurable from dashboard
+- Active hours fallback: DB → `BOT_ACTIVE_START`/`BOT_ACTIVE_END` env → default `03:00`/`12:00`
+- System prompt includes active hours from DB config
 
 ## Bot & Search Behavior
 - Bot personality: Alfredo 🤖, DevOps AI Companion milik Ijal. Style: santai profesional, sapaan "Halo", perkenalkan diri di pesan pertama.

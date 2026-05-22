@@ -1,5 +1,6 @@
 import { createAdminClient } from "./supabase/admin";
 import { decrypt } from "./encryption";
+import { getBotMode } from "./bot-mode";
 
 const FALLBACK_NO_CONTEXT =
   "Halo! 🤖 Saya Alfredo, AI Companion Ijal. Data untuk pertanyaan itu belum tersedia di sistem saya. Silakan tanya tentang status server atau pipeline ya!";
@@ -234,9 +235,7 @@ function detectAmbiguousProjects(context: string): string | null {
   return `[PERINGATAN AMBIGUITAS] ${notes.join(". ")} — WAJIB tanya untuk jelaskan project mana yang dimaksud sebelum jawab status!`;
 }
 
-function createSystemPrompt(context: string): string {
-  const start = process.env.BOT_ACTIVE_START || "03:00";
-  const end = process.env.BOT_ACTIVE_END || "12:00";
+function createSystemPrompt(context: string, activeStart = "03:00", activeEnd = "12:00"): string {
   const wibContext = convertTimestampsToWIB(context);
 
   let ambigNote = "";
@@ -248,7 +247,7 @@ Kamu membantu orang cek status server, pipeline, dan deployment.
 
 Gaya bicara: santai tapi profesional. Sapaan "Halo". Jawab ringkas dan to-the-point.
 Perkenalkan diri sebagai Alfredo di pesan pertama.
-Jam aktif: ${start}–${end} WIB. Di luar jam itu, Ijal lagi istirahat shift malam.
+Jam aktif: ${activeStart}–${activeEnd} WIB. Di luar jam itu, Ijal lagi istirahat shift malam.
 
 ATURAN MUTLAK (ZERO-HALLUCINATION):
 1. HANYA jawab berdasarkan data konteks di bawah. Dilarang menebak atau mengarang.
@@ -394,7 +393,8 @@ export async function askAlfredo(
   }
 
   try {
-    const systemPrompt = createSystemPrompt(context);
+    const { activeStart, activeEnd } = await getBotMode()
+    const systemPrompt = createSystemPrompt(context, activeStart, activeEnd);
     const result = await callOpenAICompatible(
       config,
       systemPrompt,
