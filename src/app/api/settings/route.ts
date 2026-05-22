@@ -62,6 +62,8 @@ export async function PUT(request: NextRequest) {
     const clampedTemp = Math.max(0, Math.min(1, temperature ?? 0.0))
 
     const supabase = createAdminClient()
+    const srk = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    console.error('[Settings PUT] SRK prefix:', srk.substring(0, 10), 'length:', srk.length)
     const { data: existing } = await supabase
       .from('app_settings')
       .select('value')
@@ -111,15 +113,15 @@ export async function PUT(request: NextRequest) {
       value.gitlab_pat = encryptedGitlabPat
     }
 
-    const { error } = await supabase
+    const result = await supabase
       .from('app_settings')
       .upsert({ key: 'ai_config', value }, { onConflict: 'key' })
 
-    console.error('[Settings PUT] upsert result:', { error, value: JSON.stringify(value).length })
+    console.error('[Settings PUT] upsert result:', { error: result.error, data: result.data })
 
-    if (error) {
-      console.error('[Settings PUT] DB error:', error)
-      return NextResponse.json({ error: 'Failed to save settings', detail: error.message }, { status: 500, ...noStore })
+    if (result.error) {
+      console.error('[Settings PUT] DB error:', result.error)
+      return NextResponse.json({ error: 'Failed to save settings', detail: result.error.message }, { status: 500, ...noStore })
     }
 
     invalidateConfigCache()
