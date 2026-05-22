@@ -8,12 +8,29 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+const WIT_PREFIX = /^wit\s+/i
+
+async function autoWhitelistIfWIT(phone: string, name: string | undefined): Promise<boolean> {
+  if (!name || !WIT_PREFIX.test(name)) return false
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('whitelisted_pms')
+    .upsert({ phone_number: phone, pm_name: name.trim() }, { onConflict: 'phone_number' })
+  if (error) {
+    console.error('[Fonnte] Auto-whitelist error:', error)
+    return false
+  }
+  console.log(`[Fonnte] Auto-whitelisted: ${phone} → ${name.trim()}`)
+  return true
+}
+
 async function extractFonnteMessage(request: NextRequest): Promise<{
   from: string
   text: string
   isGroup: boolean
   groupId?: string
   senderInGroup?: string
+  senderName?: string
 } | null> {
   const contentType = request.headers.get('content-type') || ''
 
@@ -23,13 +40,14 @@ async function extractFonnteMessage(request: NextRequest): Promise<{
       const sender = String(body.sender || body.number || body.phone || '')
       const text = String(body.message || body.text || body.content || '')
       const member = body.member ? String(body.member) : undefined
+      const name = body.name ? String(body.name).trim() : undefined
       if (!sender || !text) return null
 
       const isGroup = !!member
       const groupId = isGroup ? sender : undefined
       const from = isGroup ? normalizePhone(member!) : normalizePhone(sender)
 
-      return { from, text, isGroup, groupId, senderInGroup: isGroup ? normalizePhone(member!) : undefined }
+      return { from, text, isGroup, groupId, senderInGroup: isGroup ? normalizePhone(member!) : undefined, senderName: name }
     } catch {
       return null
     }
@@ -40,13 +58,15 @@ async function extractFonnteMessage(request: NextRequest): Promise<{
     const sender = (formData.get('sender') || formData.get('number') || formData.get('phone') || '') as string
     const text = (formData.get('message') || formData.get('text') || formData.get('content') || '') as string
     const member = (formData.get('member') || '') as string
+    const name = (formData.get('name') || '') as string
     if (!sender || !text) return null
 
     const isGroup = !!member
     const groupId = isGroup ? sender : undefined
     const from = isGroup ? normalizePhone(member) : normalizePhone(sender)
+    const senderName = name ? name.trim() : undefined
 
-    return { from, text, isGroup, groupId, senderInGroup: isGroup ? normalizePhone(member) : undefined }
+    return { from, text, isGroup, groupId, senderInGroup: isGroup ? normalizePhone(member) : undefined, senderName }
   } catch {
     return null
   }
@@ -60,13 +80,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, detail: 'no_valid_message' })
     }
 
-    const { from, text, isGroup, groupId } = msg
+    const { from, text, isGroup, groupId, senderName } = msg
 
     if (isGroup && !/alfredo/i.test(text)) {
       return NextResponse.json({ ok: true, ignored: 'not_mentioned' })
     }
 
     const supabase = createAdminClient()
+
+    await autoWhitelistIfWIT(from, senderName)
+
     const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
 
     const replyTarget = isGroup ? groupId! : from
@@ -106,6 +129,7 @@ export async function POST(request: NextRequest) {
     const { reply } = await askAlfredo(context, text)
 
     const messenger = getMessagingProvider()
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sendOpts = isGroup ? { isGroup: true } : undefined
     await messenger.sendMessage(replyTarget, reply, sendOpts)
 

@@ -8,12 +8,29 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+const WIT_PREFIX = /^wit\s+/i
+
+async function autoWhitelistIfWIT(phone: string, name: string | undefined): Promise<boolean> {
+  if (!name || !WIT_PREFIX.test(name)) return false
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('whitelisted_pms')
+    .upsert({ phone_number: phone, pm_name: name.trim() }, { onConflict: 'phone_number' })
+  if (error) {
+    console.error('[Evolution] Auto-whitelist error:', error)
+    return false
+  }
+  console.log(`[Evolution] Auto-whitelisted: ${phone} → ${name.trim()}`)
+  return true
+}
+
 function extractEvolutionMessage(body: Record<string, unknown>): {
   from: string
   text: string
   isGroup: boolean
   groupId?: string
   participant?: string
+  senderName?: string
 } | null {
   const data = (body?.data || body) as Record<string, unknown>
   const msgData = (data?.msg || data?.message || data) as Record<string, unknown> | undefined
@@ -22,6 +39,7 @@ function extractEvolutionMessage(body: Record<string, unknown>): {
   let remoteJid = ''
   let participant = ''
   let text = ''
+  let pushName: string | undefined
 
   const key = (msgData?.key || {}) as Record<string, unknown>
   if (key?.remoteJid) {
@@ -32,6 +50,10 @@ function extractEvolutionMessage(body: Record<string, unknown>): {
 
   if (key?.participant && typeof key.participant === 'string') {
     participant = (key.participant as string).split('@')[0]
+  }
+
+  if (msgData?.pushName && typeof msgData.pushName === 'string') {
+    pushName = (msgData.pushName as string).trim()
   }
 
   const bodyField = msgData?.body
@@ -54,11 +76,11 @@ function extractEvolutionMessage(body: Record<string, unknown>): {
   const groupId = isGroup ? remoteJid : undefined
 
   if (isGroup && participant) {
-    return { from: normalizePhone(participant), text, isGroup, groupId, participant: normalizePhone(participant) }
+    return { from: normalizePhone(participant), text, isGroup, groupId, participant: normalizePhone(participant), senderName: pushName }
   }
 
   const fromPhone = remoteJid.split('@')[0]
-  return { from: normalizePhone(fromPhone), text, isGroup, groupId }
+  return { from: normalizePhone(fromPhone), text, isGroup, groupId, senderName: pushName }
 }
 
 export async function POST(request: NextRequest) {
@@ -70,14 +92,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const { from, text, isGroup, groupId, participant } = msg
-    console.log('[Evolution] incoming - from:', from, 'isGroup:', isGroup, 'groupId:', groupId, 'text:', text)
+    const { from, text, isGroup, groupId, participant, senderName } = msg
+    console.log('[Evolution] incoming - from:', from, 'isGroup:', isGroup, 'groupId:', groupId, 'senderName:', senderName, 'text:', text)
 
     if (isGroup && !/alfredo/i.test(text)) {
       return NextResponse.json({ ok: true, ignored: 'not_mentioned' })
     }
 
     const supabase = createAdminClient()
+
+    await autoWhitelistIfWIT(from, senderName)
+
     const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
 
     const replyTarget = isGroup ? groupId! : from
