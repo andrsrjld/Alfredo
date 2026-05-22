@@ -135,8 +135,10 @@ send_ping() {
     containers=$(read_containers)
     last_container=$now
   fi
-  read -r cpu_val mem_val disk_val uptime_val <<< "$cpu_mem_disk_uptime"
-  if [ -n "$containers" ]; then
+   read -r cpu_val mem_val disk_val uptime_val <<< "$cpu_mem_disk_uptime"
+   # Debug: log values before sending
+   echo "[debug] CPU=$cpu_val MEM=$mem_val DISK=$disk_val UPTIME=$uptime_val" >&2
+   if [ -n "$containers" ]; then
     payload=$(jq -n --arg cpu "$cpu_val" --arg mem "$mem_val" --arg disk "$disk_val" --arg uptime "$uptime_val" --argjson containers "$containers" '{cpu:($cpu|tonumber?//0),memory:($mem|tonumber?//0),disk:($disk|tonumber?//0),uptime_hours:($uptime|tonumber?//0),containers:$containers}' 2>/dev/null)
   else
     payload=$(jq -n --arg cpu "$cpu_val" --arg mem "$mem_val" --arg disk "$disk_val" --arg uptime "$uptime_val" '{cpu:($cpu|tonumber?//0),memory:($mem|tonumber?//0),disk:($disk|tonumber?//0),uptime_hours:($uptime|tonumber?//0)}' 2>/dev/null)
