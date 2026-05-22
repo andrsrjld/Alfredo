@@ -57,7 +57,6 @@ export async function POST(request: NextRequest) {
 
     const { from: rawFrom, text } = msg
     const from = normalizePhone(rawFrom)
-    console.log('[Fonnte] incoming - raw:', rawFrom, 'normalized:', from, 'text:', text)
 
     if (!isWithinActiveHours()) {
       return NextResponse.json({ ok: true, ignored: 'outside_hours' })
@@ -77,9 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!whitelist) {
-      const { data: allPms } = await supabase.from('whitelisted_pms').select('phone_number').limit(10)
-      console.log('[Fonnte] not whitelisted:', from, '| DB entries:', JSON.stringify(allPms))
-      return NextResponse.json({ ok: true, ignored: 'not_whitelisted', normalized: from, db_entries: allPms })
+      return NextResponse.json({ ok: true, ignored: 'not_whitelisted' })
     }
 
     const results = await smartSearch(text)
