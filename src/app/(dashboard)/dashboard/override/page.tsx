@@ -35,8 +35,9 @@ export default function OverridePage() {
   const [addIp, setAddIp] = useState('')
   const [addError, setAddError] = useState('')
   const [adding, setAdding] = useState(false)
-  const [crontab, setCrontab] = useState('')
-  const [instructions, setInstructions] = useState('')
+  const [setupMode, setSetupMode] = useState<'daemon' | 'cron'>('daemon')
+  const [daemonInstructions, setDaemonInstructions] = useState('')
+  const [cronInstructions, setCronInstructions] = useState('')
   const [pingUrl, setPingUrl] = useState('')
   const [copied, setCopied] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -73,7 +74,9 @@ export default function OverridePage() {
     e.preventDefault()
     setAddError('')
     setAdding(true)
-    setCrontab('')
+    setDaemonInstructions('')
+    setCronInstructions('')
+    setPingUrl('')
     try {
       const res = await fetch('/api/servers', {
         method: 'POST',
@@ -85,15 +88,9 @@ export default function OverridePage() {
         setAddError(data.error || 'Failed to add server')
         return
       }
-      if (data.crontab) {
-        setCrontab(data.crontab)
-      }
-      if (data.instructions) {
-        setInstructions(data.instructions)
-      }
-      if (data.ping_url) {
-        setPingUrl(data.ping_url)
-      }
+      if (data.daemon_instructions) setDaemonInstructions(data.daemon_instructions)
+      if (data.cron_instructions) setCronInstructions(data.cron_instructions)
+      if (data.ping_url) setPingUrl(data.ping_url)
       if (data.server) {
         setServers(prev => [data.server, ...prev])
         setEditNote(prev => ({ ...prev, [data.server.id]: '' }))
@@ -126,6 +123,8 @@ export default function OverridePage() {
     setCopied(prev => { const n = new Set(prev); n.add(key); return n })
     setTimeout(() => setCopied(prev => { const n = new Set(prev); n.delete(key); return n }), 2000)
   }
+
+  const activeInstructions = setupMode === 'daemon' ? daemonInstructions : cronInstructions
 
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 lg:p-6 xl:p-8">
@@ -166,7 +165,7 @@ export default function OverridePage() {
               </Button>
             </form>
             {addError && <p className="text-sm text-destructive">{addError}</p>}
-            {crontab && (
+            {(daemonInstructions || cronInstructions) && (
               <div className="space-y-3 pt-2">
                 {pingUrl && (
                   <div className="space-y-1.5">
@@ -179,25 +178,41 @@ export default function OverridePage() {
                     </div>
                   </div>
                 )}
-                {instructions && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <p className="label-sm">Setup Mode</p>
+                    <div className="flex gap-1">
+                      <Button
+                        variant={setupMode === 'daemon' ? 'default' : 'outline'}
+                        size="xs"
+                        onClick={() => setSetupMode('daemon')}
+                      >
+                        Realtime
+                      </Button>
+                      <Button
+                        variant={setupMode === 'cron' ? 'default' : 'outline'}
+                        size="xs"
+                        onClick={() => setSetupMode('cron')}
+                      >
+                        Cron
+                      </Button>
+                    </div>
+                  </div>
+                  {setupMode === 'daemon' && (
+                    <p className="text-xs text-muted-foreground">systemd daemon — 2s streaming, real-time metrics. Requires Node.js 18+.</p>
+                  )}
+                  {setupMode === 'cron' && (
+                    <p className="text-xs text-muted-foreground">Cron — 1-min interval, no streaming. Simple but slower.</p>
+                  )}
+                </div>
+                {activeInstructions && (
                   <div className="space-y-1.5">
                     <p className="label-sm">Setup Instructions</p>
-                    <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-all">{instructions}</pre>
-                    <Button variant="outline" size="sm" className="gap-2" onClick={() => copyToClipboard(instructions, 'instructions')}>
+                    <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-all">{activeInstructions}</pre>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => copyToClipboard(activeInstructions, 'instructions')}>
                       {copied.has('instructions') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
                       Copy All
                     </Button>
-                  </div>
-                )}
-                {!instructions && crontab && (
-                  <div className="space-y-1.5">
-                    <p className="label-sm">Crontab</p>
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                      <code className="min-w-0 select-all break-all rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground">{crontab}</code>
-                      <Button variant="ghost" size="icon-xs" onClick={() => copyToClipboard(crontab, 'crontab')}>
-                        {copied.has('crontab') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                      </Button>
-                    </div>
                   </div>
                 )}
               </div>

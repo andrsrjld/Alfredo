@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+
+type MetricsPayload = {
+  server_name: string
+  cpu: number
+  memory: number
+  disk: number
+  uptime_hours: number
+}
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -123,18 +131,28 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
     }
     fetchContainers()
     fetchServerMetrics()
-    const metricsInterval = setInterval(fetchServerMetrics, 2000)
-    const containerInterval = setInterval(fetchContainers, 2000)
-    const channel = supabase
+    const metricsInterval = setInterval(fetchServerMetrics, 10000)
+    const containerInterval = setInterval(fetchContainers, 10000)
+    const dbChannel = supabase
       .channel(`container_status_${serverName}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'container_status', filter: `server_name=eq.${serverName}` }, () => {
         fetchContainers()
       })
       .subscribe()
+    const broadcastChannel = supabase
+      .channel(`server_metrics_${serverName}`)
+      .on('broadcast', { event: 'metrics' }, (payload: { payload: MetricsPayload }) => {
+        const m = payload.payload
+        if (m?.server_name === serverName) {
+          setLiveServer(prev => prev ? { ...prev, cpu_usage: m.cpu ?? prev.cpu_usage, memory_usage: m.memory ?? prev.memory_usage, disk_usage: m.disk ?? prev.disk_usage, uptime_hours: m.uptime_hours ?? prev.uptime_hours } : prev)
+        }
+      })
+      .subscribe()
     return () => {
       clearInterval(metricsInterval)
       clearInterval(containerInterval)
-      supabase.removeChannel(channel)
+      supabase.removeChannel(dbChannel)
+      supabase.removeChannel(broadcastChannel)
       setLiveServer(null)
     }
   }, [server, open])
@@ -365,18 +383,32 @@ export default function RealtimeServerStatus() {
       if (data) setServers(data)
     }
     fetchServers()
-    const interval = setInterval(fetchServers, 2000)
+    const interval = setInterval(fetchServers, 10000)
 
-    const channel = supabase
+    const dbChannel = supabase
       .channel('server_status_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'server_status' }, () => {
         fetchServers()
       })
       .subscribe()
 
+    const broadcastChannel = supabase
+      .channel('server_metrics_all')
+      .on('broadcast', { event: 'metrics' }, (payload: { payload: MetricsPayload }) => {
+        const m = payload.payload
+        if (!m?.server_name) return
+        setServers(prev => prev.map(s =>
+          s.server_name === m.server_name
+            ? { ...s, cpu_usage: m.cpu ?? s.cpu_usage, memory_usage: m.memory ?? s.memory_usage, disk_usage: m.disk ?? s.disk_usage, uptime_hours: m.uptime_hours ?? s.uptime_hours }
+            : s
+        ))
+      })
+      .subscribe()
+
     return () => {
       clearInterval(interval)
-      supabase.removeChannel(channel)
+      supabase.removeChannel(dbChannel)
+      supabase.removeChannel(broadcastChannel)
     }
   }, [])
 

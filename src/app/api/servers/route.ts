@@ -56,16 +56,38 @@ export async function POST(request: NextRequest) {
     }
 
     const webhookUrl = `${baseUrl}/api/server-ping?secret=${ping_secret}`
-    const scriptUrl = `${baseUrl}/api/scripts/alfredo-ping.sh?secret=${ping_secret}`
+    const daemonScriptUrl = `${baseUrl}/api/daemon?secret=${ping_secret}`
+    const daemonServiceUrl = `${baseUrl}/api/daemon/service?secret=${ping_secret}`
+    const pingScriptUrl = `${baseUrl}/api/scripts/alfredo-ping.sh?secret=${ping_secret}`
     const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
-    const instructions = [
-      `# 1. Download the ping script (secret pre-filled):`,
-      `sudo curl -sL "${scriptUrl}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
-      `# 2. Add to crontab (runs every minute):`,
+
+    const daemonInstructions = [
+      `# ── Realtime Daemon (recommended) ──`,
+      `# 1. Download daemon script (secrets embedded):`,
+      `sudo curl -sL "${daemonScriptUrl}" -o /usr/local/bin/alfredo-daemon.mjs && sudo chmod +x /usr/local/bin/alfredo-daemon.mjs`,
+      `# 2. Download systemd service unit:`,
+      `sudo curl -sL "${daemonServiceUrl}" -o /etc/systemd/system/alfredo-daemon.service`,
+      `# 3. Enable and start:`,
+      `sudo systemctl daemon-reload && sudo systemctl enable --now alfredo-daemon`,
+    ].join('\n')
+
+    const cronInstructions = [
+      `# ── Cron Fallback (1-min interval, no streaming) ──`,
+      `# 1. Download ping script:`,
+      `sudo curl -sL "${pingScriptUrl}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
+      `# 2. Add to crontab:`,
       `(crontab -l 2>/dev/null; echo "${crontab}") | crontab -`,
     ].join('\n')
 
-    return NextResponse.json({ server: data, crontab, instructions, ping_url: webhookUrl, ping_secret }, { status: 201, ...noStore })
+    return NextResponse.json({
+      server: data,
+      ping_url: webhookUrl,
+      ping_secret,
+      daemon_script_url: daemonScriptUrl,
+      daemon_service_url: daemonServiceUrl,
+      daemon_instructions: daemonInstructions,
+      cron_instructions: cronInstructions,
+    }, { status: 201, ...noStore })
   } catch (err) {
     console.error('[Servers POST]', err)
     return NextResponse.json({ error: 'Failed to add server' }, { status: 500, ...noStore })
