@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS project_status (
     status TEXT CHECK (status IN ('success', 'failed', 'running', 'canceled')),
     error_detail TEXT,
     gitlab_project_id TEXT,
+    pipeline_id TEXT,
+    gitlab_event_time TIMESTAMPTZ,
     last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 

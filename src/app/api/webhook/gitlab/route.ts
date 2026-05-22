@@ -4,6 +4,19 @@ import { getGitLabPAT, fetchFailedJobLog } from '@/lib/gitlab'
 
 export const dynamic = 'force-dynamic'
 
+function extractGitLabTimestamp(payload: Record<string, unknown>, status: string): string | null {
+  const attrs = payload.object_attributes as Record<string, unknown> | undefined
+  if (!attrs) return null
+
+  if ((status === 'success' || status === 'failed' || status === 'canceled') && attrs.finished_at) {
+    return String(attrs.finished_at)
+  }
+  if (attrs.created_at) {
+    return String(attrs.created_at)
+  }
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const token = request.headers.get('x-gitlab-token')
@@ -28,21 +41,38 @@ export async function POST(request: NextRequest) {
     const status = payload.object_attributes?.status
     const commitMsg = payload.commit?.message || payload.object_attributes?.commit?.message || ''
     const gitlabProjectId = payload.project?.id ? String(payload.project.id) : null
+    const pipelineId = payload.object_attributes?.id ? String(payload.object_attributes.id) : null
+    const eventTime = extractGitLabTimestamp(payload, status)
 
     if (!repoName) {
       return NextResponse.json({ error: 'Missing repo name' }, { status: 400 })
     }
 
+    if (eventTime) {
+      const { data: existing } = await supabase
+        .from('project_status')
+        .select('gitlab_event_time, pipeline_id')
+        .eq('repo_name', repoName)
+        .maybeSingle()
+
+      if (existing?.gitlab_event_time) {
+        const existingTime = new Date(existing.gitlab_event_time).getTime()
+        const incomingTime = new Date(eventTime).getTime()
+
+        if (incomingTime <= existingTime) {
+          console.log(`[GitLab webhook] Stale event for ${repoName}: incoming=${eventTime} <= existing=${existing.gitlab_event_time}, skipping`)
+          return NextResponse.json({ ok: true, ignored: 'stale_event' })
+        }
+      }
+    }
+
     let errorDetail: string | null = null
 
-    if (status === 'failed' && gitlabProjectId) {
+    if (status === 'failed' && gitlabProjectId && pipelineId) {
       try {
         const pat = await getGitLabPAT()
         if (pat) {
-          const pipelineId = String(payload.object_attributes?.id || '')
-          if (pipelineId) {
-            errorDetail = await fetchFailedJobLog(pat, gitlabProjectId, pipelineId)
-          }
+          errorDetail = await fetchFailedJobLog(pat, gitlabProjectId, pipelineId)
         }
       } catch (err) {
         console.error('[GitLab webhook] Failed to fetch job log:', err)
@@ -56,12 +86,14 @@ export async function POST(request: NextRequest) {
       status,
       commit_msg: commitMsg,
       gitlab_project_id: gitlabProjectId,
-      last_updated: new Date().toISOString(),
+      pipeline_id: pipelineId,
+      gitlab_event_time: eventTime,
+      last_updated: eventTime || new Date().toISOString(),
     }
 
     if (status === 'failed' && errorDetail) {
       upsertData.error_detail = errorDetail
-    } else if (status === 'success' || status === 'running') {
+    } else if (status === 'success') {
       upsertData.error_detail = null
     }
 
