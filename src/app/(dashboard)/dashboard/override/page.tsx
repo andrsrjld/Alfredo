@@ -138,10 +138,10 @@ export default function OverridePage() {
     if (!secret) return 'No ping secret available for this server.'
     if (mode === 'daemon') {
       return [
-        `# 1. Download daemon script (secrets embedded):`,
-        `sudo curl -sL "${baseUrl}/api/daemon?secret=${secret}" -o /usr/local/bin/alfredo-daemon.mjs && sudo chmod +x /usr/local/bin/alfredo-daemon.mjs`,
+        `# 1. Download daemon script (secrets embedded, bash only):`,
+        `sudo curl -sL "${baseUrl}/api/daemon?secret=${secret}" -o /usr/local/bin/alfredo-daemon.sh && sudo chmod +x /usr/local/bin/alfredo-daemon.sh`,
         `# 2. Download systemd service unit:`,
-        `sudo curl -sL "${baseUrl}/api/daemon/service?secret=${secret}" -o /etc/systemd/system/alfredo-daemon.service`,
+        `sudo curl -sL "${baseUrl}/api/daemon?type=service&secret=${secret}" -o /etc/systemd/system/alfredo-daemon.service`,
         `# 3. Enable and start:`,
         `sudo systemctl daemon-reload && sudo systemctl enable --now alfredo-daemon`,
       ].join('\n')
@@ -230,7 +230,7 @@ export default function OverridePage() {
                     </div>
                   </div>
                   {setupMode === 'daemon' && (
-                    <p className="text-xs text-muted-foreground">systemd daemon — 2s streaming, real-time metrics. Requires Node.js 18+.</p>
+                    <p className="text-xs text-muted-foreground">Bash systemd daemon — 3s interval, real-time metrics. No Node.js required.</p>
                   )}
                   {setupMode === 'cron' && (
                     <p className="text-xs text-muted-foreground">Cron — 1-min interval, no streaming. Simple but slower.</p>

@@ -57,14 +57,14 @@ export async function POST(request: NextRequest) {
 
     const webhookUrl = `${baseUrl}/api/server-ping?secret=${ping_secret}`
     const daemonScriptUrl = `${baseUrl}/api/daemon?secret=${ping_secret}`
-    const daemonServiceUrl = `${baseUrl}/api/daemon/service?secret=${ping_secret}`
+    const daemonServiceUrl = `${baseUrl}/api/daemon?type=service&secret=${ping_secret}`
     const pingScriptUrl = `${baseUrl}/api/scripts/alfredo-ping.sh?secret=${ping_secret}`
     const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
 
     const daemonInstructions = [
       `# ── Realtime Daemon (recommended) ──`,
-      `# 1. Download daemon script (secrets embedded):`,
-      `sudo curl -sL "${daemonScriptUrl}" -o /usr/local/bin/alfredo-daemon.mjs && sudo chmod +x /usr/local/bin/alfredo-daemon.mjs`,
+      `# 1. Download daemon script (secrets embedded, bash only):`,
+      `sudo curl -sL "${daemonScriptUrl}" -o /usr/local/bin/alfredo-daemon.sh && sudo chmod +x /usr/local/bin/alfredo-daemon.sh`,
       `# 2. Download systemd service unit:`,
       `sudo curl -sL "${daemonServiceUrl}" -o /etc/systemd/system/alfredo-daemon.service`,
       `# 3. Enable and start:`,
