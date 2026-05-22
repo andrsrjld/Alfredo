@@ -60,7 +60,13 @@ export async function PUT(request: NextRequest) {
     }
 
     const clampedTemp = Math.max(0, Math.min(1, temperature ?? 0.0))
+
     const supabase = createAdminClient()
+    const srk = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+    if (srk === anonKey || srk.length < 30) {
+      return NextResponse.json({ error: 'SUPABASE_SERVICE_ROLE_KEY is wrong (looks like anon key). Update Vercel env with the actual service_role key from Supabase Dashboard > Settings > API.' }, { status: 500, ...noStore })
+    }
 
     const { data: existing } = await supabase
       .from('app_settings')
