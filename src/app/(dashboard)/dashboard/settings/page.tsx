@@ -21,6 +21,7 @@ type Settings = {
   temperature: number
   models: Record<string, ModelConfig>
   gitlab_pat: string
+  bot_mode: string
 }
 
 const inputClass = "w-full bg-background border border-border rounded-sm px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
@@ -55,6 +56,7 @@ export default function SettingsPage() {
           temperature: data.temperature ?? 0.0,
           models,
           gitlab_pat: data.gitlab_pat || '',
+          bot_mode: data.bot_mode || 'normal',
         })
         setExpandedProviders(new Set([data.provider || 'deepseek']))
         setLoading(false)
@@ -64,7 +66,7 @@ export default function SettingsPage() {
         for (const p of PROVIDERS) {
           models[p.id] = { apiKey: '', model: p.defaultModel, baseUrl: p.defaultUrl }
         }
-        setSettings({ provider: 'deepseek', temperature: 0.0, models, gitlab_pat: '' })
+        setSettings({ provider: 'deepseek', temperature: 0.0, models, gitlab_pat: '', bot_mode: 'normal' })
         setLoading(false)
       })
   }, [])
@@ -91,7 +93,7 @@ export default function SettingsPage() {
             baseUrl: settings.models[p.id].baseUrl,
           }
         }
-        setSettings(s => ({ ...s, models, gitlab_pat: fresh.gitlab_pat || '' }))
+        setSettings(s => ({ ...s, models, gitlab_pat: fresh.gitlab_pat || '', bot_mode: fresh.bot_mode || 'normal' }))
       } else {
         setMessage({ type: 'err', text: data.error || 'Failed to save.' })
       }
@@ -117,7 +119,7 @@ export default function SettingsPage() {
   return (
     <div className="p-5 md:p-8 space-y-6 max-w-2xl">
       <div className="mb-2">
-        <p className="text-xs text-muted-foreground/60">Configure AI provider, model, API keys, and GitLab integration</p>
+        <p className="text-xs text-muted-foreground/60">Configure AI provider, bot mode, API keys, and GitLab integration</p>
       </div>
 
       {message && (
@@ -125,6 +127,36 @@ export default function SettingsPage() {
           {message.text}
         </div>
       )}
+
+      <div className="border border-border rounded-md bg-card">
+        <div className="px-5 py-3.5 border-b border-border">
+          <p className="label-sm text-muted-foreground">Bot Mode</p>
+        </div>
+        <div className="px-5 py-4">
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { id: 'normal', icon: '🤖', label: 'Normal AI', desc: '03:00–12:00 WIB' },
+              { id: 'extended', icon: '🤖', label: 'Extended AI', desc: '24/7 active' },
+              { id: 'human', icon: '👤', label: 'Human Mode', desc: 'Bot offline' },
+            ] as const).map(mode => (
+              <button
+                key={mode.id}
+                onClick={() => setSettings(s => ({ ...s, bot_mode: mode.id }))}
+                className={`flex flex-col items-center gap-1 px-3 py-3 rounded-md border transition-colors ${settings.bot_mode === mode.id ? 'border-primary bg-primary/5 text-primary' : 'border-border bg-background text-muted-foreground hover:border-ring'}`}
+              >
+                <span className="text-lg">{mode.icon}</span>
+                <span className="font-mono text-xs font-medium">{mode.label}</span>
+                <span className="text-[10px] text-muted-foreground/60">{mode.desc}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground/50 mt-2">
+            {settings.bot_mode === 'normal' && 'Alfredo aktif sesuai jam kerja (default).'}
+            {settings.bot_mode === 'extended' && 'Alfredo aktif 24 jam. Untuk saat Ijal AFK di luar jam kerja.'}
+            {settings.bot_mode === 'human' && 'Alfredo offline. Semua pesan mendapat balasan Ijal sedang online.'}
+          </p>
+        </div>
+      </div>
 
       <div className="border border-border rounded-md bg-card">
         <div className="px-5 py-3.5 border-b border-border">

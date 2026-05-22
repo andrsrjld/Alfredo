@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encrypt, maskKey } from '@/lib/encryption'
 import { invalidateConfigCache } from '@/lib/llm'
+import { invalidateBotModeCache } from '@/lib/bot-mode'
 
 const SUPPORTED_PROVIDERS = ['deepseek', 'openai', 'gemini', 'ollama']
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
@@ -19,7 +20,7 @@ export async function GET() {
       .single()
 
     if (error || !data) {
-      return NextResponse.json({ provider: 'deepseek', temperature: 0.0, models: {}, gitlab_pat: '' }, noStore)
+      return NextResponse.json({ provider: 'deepseek', temperature: 0.0, models: {}, gitlab_pat: '', bot_mode: 'normal' }, noStore)
     }
 
     const raw = data.value as Record<string, unknown>
@@ -38,6 +39,7 @@ export async function GET() {
       temperature: raw.temperature ?? 0.0,
       models: maskedModels,
       gitlab_pat: (raw.gitlab_pat as string) ? maskKey(raw.gitlab_pat as string) : '',
+      bot_mode: (raw.bot_mode as string) || 'normal',
     }, noStore)
   } catch (err) {
     console.error('[Settings GET]', err)
@@ -53,7 +55,11 @@ export async function PUT(request: NextRequest) {
       temperature: number
       models: Record<string, Record<string, string>>
       gitlab_pat?: string
+      bot_mode?: string
     }
+
+    const VALID_BOT_MODES = ['normal', 'extended', 'human']
+    const botMode = VALID_BOT_MODES.includes(bot_mode || '') ? (bot_mode as string) : 'normal'
 
     if (!SUPPORTED_PROVIDERS.includes(provider)) {
       return NextResponse.json({ error: `Unsupported provider: ${provider}` }, { status: 400, ...noStore })
@@ -112,6 +118,7 @@ export async function PUT(request: NextRequest) {
       provider,
       temperature: clampedTemp,
       models: encryptedModels,
+      bot_mode: botMode,
     }
     if (encryptedGitlabPat !== undefined) {
       value.gitlab_pat = encryptedGitlabPat
@@ -137,6 +144,7 @@ export async function PUT(request: NextRequest) {
     }
 
     invalidateConfigCache()
+    invalidateBotModeCache()
     revalidatePath('/api/settings')
 
     return NextResponse.json({ ok: true }, noStore)

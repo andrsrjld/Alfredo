@@ -51,6 +51,13 @@ export default function RealtimeServerStatus() {
     return `${Math.floor(hrs / 24)}d ago`
   }
 
+  function formatWIB(iso: string): string {
+    return new Date(iso).toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+    })
+  }
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {servers.map((server) => {
@@ -80,7 +87,7 @@ export default function RealtimeServerStatus() {
               )}
               <div className="flex items-center justify-between">
                 <span className="font-mono text-muted-foreground/50">Ping</span>
-                <span className="font-mono">{timeAgo(server.last_ping)}</span>
+                <span className="font-mono" title={formatWIB(server.last_ping)}>{timeAgo(server.last_ping)}</span>
               </div>
             </div>
           </div>

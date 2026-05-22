@@ -1,7 +1,8 @@
-import { MessagingProvider } from './types'
+import { MessagingProvider, SendMessageOptions } from './types'
 
 export class MetaProvider implements MessagingProvider {
-  async sendMessage(to: string, text: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async sendMessage(to: string, text: string, _options?: SendMessageOptions): Promise<void> {
     const phoneId = process.env.WA_PHONE_NUMBER_ID
     const token = process.env.WA_ACCESS_TOKEN
     if (!phoneId || !token) {

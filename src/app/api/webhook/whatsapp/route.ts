@@ -3,25 +3,10 @@ import { smartSearch, formatSearchContext } from '@/lib/search'
 import { askAlfredo } from '@/lib/llm'
 import { getMessagingProvider } from '@/lib/messaging'
 import { normalizePhone } from '@/lib/phone'
+import { shouldBotReply } from '@/lib/bot-mode'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
-
-function isWithinActiveHours(): boolean {
-  const tz = process.env.BOT_TIMEZONE || 'Asia/Jakarta'
-  const now = new Date().toLocaleString('en-US', { timeZone: tz })
-  const date = new Date(now)
-  const hours = date.getHours()
-  const minutes = date.getMinutes()
-  const current = hours * 60 + minutes
-
-  const [startH, startM] = (process.env.BOT_ACTIVE_START || '06:00').split(':').map(Number)
-  const [endH, endM] = (process.env.BOT_ACTIVE_END || '12:00').split(':').map(Number)
-  const start = startH * 60 + startM
-  const end = endH * 60 + endM
-
-  return current >= start && current <= end
-}
 
 export async function GET(request: NextRequest) {
   const provider = process.env.WA_PROVIDER || 'meta'
@@ -75,11 +60,16 @@ export async function POST(request: NextRequest) {
     from = normalizePhone(from)
     console.log('[WhatsApp] incoming - normalized:', from, 'text:', text)
 
-    if (!isWithinActiveHours()) {
-      return NextResponse.json({ ok: true, ignored: 'outside_hours' })
-    }
-
     const supabase = createAdminClient()
+    const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
+    if (!shouldReply) {
+      if (mode === 'human' && humanReply) {
+        const messenger = getMessagingProvider()
+        await messenger.sendMessage(from, humanReply)
+        await supabase.from('chat_logs').insert({ pm_number: from, pm_message: text, bot_reply: humanReply })
+      }
+      return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
+    }
 
     const { data: whitelist } = await supabase
       .from('whitelisted_pms')

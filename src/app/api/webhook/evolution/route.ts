@@ -3,39 +3,35 @@ import { smartSearch, formatSearchContext } from '@/lib/search'
 import { askAlfredo } from '@/lib/llm'
 import { getMessagingProvider } from '@/lib/messaging'
 import { normalizePhone } from '@/lib/phone'
+import { shouldBotReply } from '@/lib/bot-mode'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-function isWithinActiveHours(): boolean {
-  const tz = process.env.BOT_TIMEZONE || 'Asia/Jakarta'
-  const now = new Date().toLocaleString('en-US', { timeZone: tz })
-  const date = new Date(now)
-  const hours = date.getHours()
-  const minutes = date.getMinutes()
-  const current = hours * 60 + minutes
-
-  const [startH, startM] = (process.env.BOT_ACTIVE_START || '06:00').split(':').map(Number)
-  const [endH, endM] = (process.env.BOT_ACTIVE_END || '12:00').split(':').map(Number)
-  const start = startH * 60 + startM
-  const end = endH * 60 + endM
-
-  return current >= start && current <= end
-}
-
-function extractEvolutionMessage(body: Record<string, unknown>): { from: string; text: string } | null {
+function extractEvolutionMessage(body: Record<string, unknown>): {
+  from: string
+  text: string
+  isGroup: boolean
+  groupId?: string
+  participant?: string
+} | null {
   const data = (body?.data || body) as Record<string, unknown>
   const msgData = (data?.msg || data?.message || data) as Record<string, unknown> | undefined
   if (!msgData) return null
 
-  let from = ''
+  let remoteJid = ''
+  let participant = ''
   let text = ''
 
   const key = (msgData?.key || {}) as Record<string, unknown>
   if (key?.remoteJid) {
-    from = (key.remoteJid as string).split('@')[0]
+    remoteJid = key.remoteJid as string
   } else if (msgData?.from) {
-    from = msgData.from as string
+    remoteJid = msgData.from as string
+  }
+
+  if (key?.participant && typeof key.participant === 'string') {
+    participant = (key.participant as string).split('@')[0]
   }
 
   const bodyField = msgData?.body
@@ -52,8 +48,17 @@ function extractEvolutionMessage(body: Record<string, unknown>): { from: string;
     text = msgData.text as string
   }
 
-  if (!from || !text) return null
-  return { from, text }
+  if (!remoteJid || !text) return null
+
+  const isGroup = remoteJid.endsWith('@g.us')
+  const groupId = isGroup ? remoteJid : undefined
+
+  if (isGroup && participant) {
+    return { from: normalizePhone(participant), text, isGroup, groupId, participant: normalizePhone(participant) }
+  }
+
+  const fromPhone = remoteJid.split('@')[0]
+  return { from: normalizePhone(fromPhone), text, isGroup, groupId }
 }
 
 export async function POST(request: NextRequest) {
@@ -65,15 +70,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const { from: rawFrom, text } = msg
-    const from = normalizePhone(rawFrom)
-    console.log('[Evolution] incoming - raw:', rawFrom, 'normalized:', from, 'text:', text)
-
-    if (!isWithinActiveHours()) {
-      return NextResponse.json({ ok: true, ignored: 'outside_hours' })
-    }
+    const { from, text, isGroup, groupId, participant } = msg
+    console.log('[Evolution] incoming - from:', from, 'isGroup:', isGroup, 'groupId:', groupId, 'text:', text)
 
     const supabase = createAdminClient()
+    const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
+
+    const replyTarget = isGroup ? groupId! : from
+
+    if (!shouldReply) {
+      if (mode === 'human' && humanReply) {
+        const messenger = getMessagingProvider()
+        await messenger.sendMessage(replyTarget, humanReply, { isGroup, mentions: isGroup && participant ? [`${participant}@s.whatsapp.net`] : undefined })
+        await supabase.from('chat_logs').insert({ pm_number: from, pm_message: text, bot_reply: humanReply, is_group: isGroup, group_id: groupId || null })
+      }
+      return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
+    }
 
     const { data: whitelist } = await supabase
       .from('whitelisted_pms')
@@ -90,12 +102,14 @@ export async function POST(request: NextRequest) {
     const { reply } = await askAlfredo(context, text)
 
     const messenger = getMessagingProvider()
-    await messenger.sendMessage(from, reply)
+    await messenger.sendMessage(replyTarget, reply, { isGroup, mentions: isGroup && participant ? [`${participant}@s.whatsapp.net`] : undefined })
 
     await supabase.from('chat_logs').insert({
       pm_number: from,
       pm_message: text,
       bot_reply: reply,
+      is_group: isGroup,
+      group_id: groupId || null,
     })
 
     return NextResponse.json({ ok: true, replied: true })

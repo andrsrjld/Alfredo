@@ -3,36 +3,33 @@ import { smartSearch, formatSearchContext } from '@/lib/search'
 import { askAlfredo } from '@/lib/llm'
 import { getMessagingProvider } from '@/lib/messaging'
 import { normalizePhone } from '@/lib/phone'
+import { shouldBotReply } from '@/lib/bot-mode'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-function isWithinActiveHours(): boolean {
-  const tz = process.env.BOT_TIMEZONE || 'Asia/Jakarta'
-  const now = new Date().toLocaleString('en-US', { timeZone: tz })
-  const date = new Date(now)
-  const hours = date.getHours()
-  const minutes = date.getMinutes()
-  const current = hours * 60 + minutes
-
-  const [startH, startM] = (process.env.BOT_ACTIVE_START || '06:00').split(':').map(Number)
-  const [endH, endM] = (process.env.BOT_ACTIVE_END || '12:00').split(':').map(Number)
-  const start = startH * 60 + startM
-  const end = endH * 60 + endM
-
-  return current >= start && current <= end
-}
-
-async function extractFonnteMessage(request: NextRequest): Promise<{ from: string; text: string } | null> {
+async function extractFonnteMessage(request: NextRequest): Promise<{
+  from: string
+  text: string
+  isGroup: boolean
+  groupId?: string
+  senderInGroup?: string
+} | null> {
   const contentType = request.headers.get('content-type') || ''
 
   if (contentType.includes('application/json')) {
     try {
       const body = await request.json()
-      const from = body.number || body.phone || body.sender || ''
-      const text = body.message || body.text || body.content || ''
-      if (!from || !text) return null
-      return { from: String(from), text: String(text) }
+      const sender = String(body.sender || body.number || body.phone || '')
+      const text = String(body.message || body.text || body.content || '')
+      const member = body.member ? String(body.member) : undefined
+      if (!sender || !text) return null
+
+      const isGroup = !!member
+      const groupId = isGroup ? sender : undefined
+      const from = isGroup ? normalizePhone(member!) : normalizePhone(sender)
+
+      return { from, text, isGroup, groupId, senderInGroup: isGroup ? normalizePhone(member!) : undefined }
     } catch {
       return null
     }
@@ -40,10 +37,16 @@ async function extractFonnteMessage(request: NextRequest): Promise<{ from: strin
 
   try {
     const formData = await request.formData()
-    const from = (formData.get('number') || formData.get('phone') || formData.get('sender') || '') as string
+    const sender = (formData.get('sender') || formData.get('number') || formData.get('phone') || '') as string
     const text = (formData.get('message') || formData.get('text') || formData.get('content') || '') as string
-    if (!from || !text) return null
-    return { from, text }
+    const member = (formData.get('member') || '') as string
+    if (!sender || !text) return null
+
+    const isGroup = !!member
+    const groupId = isGroup ? sender : undefined
+    const from = isGroup ? normalizePhone(member) : normalizePhone(sender)
+
+    return { from, text, isGroup, groupId, senderInGroup: isGroup ? normalizePhone(member) : undefined }
   } catch {
     return null
   }
@@ -57,14 +60,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, detail: 'no_valid_message' })
     }
 
-    const { from: rawFrom, text } = msg
-    const from = normalizePhone(rawFrom)
-
-    if (!isWithinActiveHours()) {
-      return NextResponse.json({ ok: true, ignored: 'outside_hours' })
-    }
+    const { from, text, isGroup, groupId } = msg
 
     const supabase = createAdminClient()
+    const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
+
+    const replyTarget = isGroup ? groupId! : from
+
+    if (!shouldReply) {
+      if (mode === 'human' && humanReply) {
+        const messenger = getMessagingProvider()
+        await messenger.sendMessage(replyTarget, humanReply, { isGroup })
+        await supabase.from('chat_logs').insert({
+          pm_number: from,
+          pm_message: text,
+          bot_reply: humanReply,
+          is_group: isGroup,
+          group_id: groupId || null,
+        })
+      }
+      return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
+    }
 
     const { data: whitelist, error: whitelistError } = await supabase
       .from('whitelisted_pms')
@@ -86,12 +102,15 @@ export async function POST(request: NextRequest) {
     const { reply } = await askAlfredo(context, text)
 
     const messenger = getMessagingProvider()
-    await messenger.sendMessage(from, reply)
+    const sendOpts = isGroup ? { isGroup: true } : undefined
+    await messenger.sendMessage(replyTarget, reply, sendOpts)
 
     const { error: logError } = await supabase.from('chat_logs').insert({
       pm_number: from,
       pm_message: text,
       bot_reply: reply,
+      is_group: isGroup,
+      group_id: groupId || null,
     })
 
     if (logError) {
