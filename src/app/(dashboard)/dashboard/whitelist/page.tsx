@@ -146,17 +146,17 @@ export default function WhitelistPage() {
   }
 
   if (loading) {
-    return <div className="p-5 md:p-8"><p className="text-muted-foreground text-xs">Loading...</p></div>
+    return <div className="p-4 lg:p-6 xl:p-8"><p className="text-sm text-muted-foreground">Loading...</p></div>
   }
 
   return (
-    <div className="p-4 lg:p-6 xl:p-8 space-y-5 lg:max-w-2xl">
+    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 lg:p-6 xl:p-8">
       <div className="mb-2">
-        <p className="text-xs text-muted-foreground/60">Manage PM phone numbers allowed to chat with Alfredo</p>
+        <p className="text-sm text-muted-foreground">Manage PM phone numbers allowed to chat with Alfredo.</p>
       </div>
 
       {message && (
-        <div className={`text-xs px-3 py-2.5 border rounded-lg ${message.type === 'ok' ? 'border-primary/30 text-primary bg-primary/5' : 'border-destructive/30 text-destructive bg-destructive/5'}`}>
+        <div className={`rounded-md border px-3 py-2 text-sm ${message.type === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}>
           {message.text}
         </div>
       )}
@@ -166,9 +166,9 @@ export default function WhitelistPage() {
           <div className="flex items-center justify-between">
             <CardDescription>Add PM</CardDescription>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
-              <DialogTrigger render={<Button variant="link" size="xs" className="gap-1" />}>
-                <Upload className="h-3 w-3" /> Import
-              </DialogTrigger>
+                <DialogTrigger render={<Button variant="outline" size="sm" className="gap-2" />}>
+                  <Upload className="h-3 w-3" /> Import
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Import Contacts</DialogTitle>
@@ -180,7 +180,7 @@ export default function WhitelistPage() {
                     onChange={e => setImportText(e.target.value)}
                     placeholder={`628123456789, WIT Fahmi Sholat\n6282240274833, WIT Ganjar\n6285794005069`}
                     rows={6}
-                    className="font-mono text-xs"
+                    className="font-mono"
                   />
                   <div className="flex items-center gap-3">
                     <Button onClick={handleImport} disabled={importing || !importText.trim()}>
@@ -194,26 +194,26 @@ export default function WhitelistPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="label-sm text-muted-foreground/60 mb-1.5 block">Phone Number</label>
+              <label className="label-sm mb-2 block">Phone Number</label>
               <Input
                 placeholder="e.g. 081234567890"
                 value={newPhone}
                 onChange={e => setNewPhone(e.target.value)}
-                className="font-mono text-xs"
+                className="font-mono"
               />
               {preview && (
-                <p className="font-mono text-xs text-muted-foreground mt-1.5">→ {preview}</p>
+                <p className="mt-1.5 font-mono text-xs text-muted-foreground">→ {preview}</p>
               )}
             </div>
             <div>
-              <label className="label-sm text-muted-foreground/60 mb-1.5 block">Name</label>
+              <label className="label-sm mb-2 block">Name</label>
               <Input
                 placeholder="e.g. Budi Santoso"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                className="font-mono text-xs"
+                className="font-mono"
               />
             </div>
           </div>
@@ -230,10 +230,10 @@ export default function WhitelistPage() {
         <CardContent>
           <div>
             {paged.map(entry => (
-              <div key={entry.phone_number} className="flex items-center justify-between py-3 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors">
+              <div key={entry.phone_number} className="flex items-center justify-between border-b border-border py-3 transition-colors last:border-0 hover:bg-muted/50">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-mono text-xs text-foreground">{entry.phone_number}</span>
-                  {entry.pm_name && <span className="text-xs text-muted-foreground truncate">{entry.pm_name}</span>}
+                  <span className="font-mono text-sm text-foreground">{entry.phone_number}</span>
+                  {entry.pm_name && <span className="truncate text-sm text-muted-foreground">{entry.pm_name}</span>}
                 </div>
                 <Button variant="ghost" size="icon-xs" onClick={() => handleDelete(entry.phone_number)} className="text-muted-foreground hover:text-destructive">
                   <X className="h-3.5 w-3.5" />
@@ -241,13 +241,13 @@ export default function WhitelistPage() {
               </div>
             ))}
             {entries.length === 0 && (
-              <p className="text-xs text-muted-foreground py-8 text-center">No whitelisted PMs yet.</p>
+              <p className="py-8 text-center text-sm text-muted-foreground">No whitelisted PMs yet.</p>
             )}
           </div>
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 pt-3 border-t border-border/50 mt-3">
               <Button variant="outline" size="xs" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>Prev</Button>
-              <span className="text-xs font-mono text-muted-foreground">Page {page + 1} of {totalPages}</span>
+              <span className="font-mono text-sm text-muted-foreground">Page {page + 1} of {totalPages}</span>
               <Button variant="outline" size="xs" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
             </div>
           )}

@@ -100,15 +100,14 @@ export default function LogsPage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 xl:p-8 space-y-4">
+    <div className="mx-auto w-full max-w-[1440px] space-y-5 p-4 lg:p-6 xl:p-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-2">
-        <p className="text-xs text-muted-foreground/60">WhatsApp conversation history</p>
+        <p className="text-sm text-muted-foreground">WhatsApp conversation history.</p>
         <div className="flex items-center gap-2">
-          <Button variant="link" size="xs" onClick={expandAll} className="gap-1">
+          <Button variant="outline" size="sm" onClick={expandAll} className="gap-2">
             <ChevronsUpDown className="h-3 w-3" /> Expand All
           </Button>
-          <span className="text-muted-foreground/30">|</span>
-          <Button variant="link" size="xs" onClick={collapseAll} className="text-muted-foreground">
+          <Button variant="ghost" size="sm" onClick={collapseAll} className="text-muted-foreground">
             Collapse All
           </Button>
         </div>
@@ -122,11 +121,11 @@ export default function LogsPage() {
             placeholder="Search logs..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0) }}
-            className="pl-8 font-mono text-xs"
+            className="pl-8"
           />
         </div>
         {totalPages > 1 && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
+          <div className="flex items-center gap-1 font-mono text-sm text-muted-foreground">
             <Button variant="outline" size="xs" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>Prev</Button>
             <span className="px-2">{page + 1}/{totalPages}</span>
             <Button variant="outline" size="xs" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
@@ -134,7 +133,7 @@ export default function LogsPage() {
         )}
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-3">
         {paged.map((log) => {
           const isOpen = expanded.has(log.id)
           const needsExpand = log.bot_reply.length > TRUNCATE_LEN || log.pm_message.length > TRUNCATE_LEN
@@ -143,19 +142,19 @@ export default function LogsPage() {
             <Card key={log.id} size="sm">
               <CardContent>
                 <button
-                  className="w-full text-left flex items-start gap-3 hover:bg-muted/20 transition-colors -m-4 p-4"
+                  className="-m-4 flex w-full items-start gap-3 p-4 text-left transition-colors hover:bg-muted/50"
                   onClick={() => needsExpand && toggle(log.id)}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-mono text-xs text-foreground">{displayName}</span>
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">{displayName}</span>
                       {log.is_group && (
-                        <Badge variant="default" className="text-[10px]">group</Badge>
+                        <Badge variant="secondary">Group</Badge>
                       )}
-                      <span className="font-mono text-[10px] text-muted-foreground/50 ml-auto whitespace-nowrap">{formatWIB(log.created_at)}</span>
+                      <span className="ml-auto whitespace-nowrap font-mono text-xs text-muted-foreground">{formatWIB(log.created_at)}</span>
                     </div>
-                    <p className="text-xs text-foreground truncate">{log.pm_message}</p>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    <p className="truncate text-sm text-foreground">{log.pm_message}</p>
+                    <p className="mt-1 truncate text-sm text-muted-foreground">
                       🤖 {isOpen || !needsExpand ? '' : `${log.bot_reply.slice(0, TRUNCATE_LEN)}…`}
                     </p>
                   </div>
@@ -167,16 +166,16 @@ export default function LogsPage() {
                 </button>
               </CardContent>
               {isOpen && needsExpand && (
-                <div className="px-4 pb-4 space-y-2 border-t border-border/40 pt-2">
+                <div className="space-y-3 border-t border-border px-4 pb-4 pt-3">
                   <div>
-                    <p className="label-sm text-muted-foreground/60 mb-1">Message</p>
-                    <p className="text-xs text-foreground whitespace-pre-wrap break-words">{log.pm_message}</p>
+                    <p className="label-sm mb-1">Message</p>
+                    <p className="whitespace-pre-wrap break-words text-sm text-foreground">{log.pm_message}</p>
                   </div>
                   <div>
-                    <p className="label-sm text-muted-foreground/60 mb-1">Bot Reply</p>
-                    <p className="text-xs text-foreground whitespace-pre-wrap break-words">{log.bot_reply}</p>
+                    <p className="label-sm mb-1">Bot Reply</p>
+                    <p className="whitespace-pre-wrap break-words text-sm text-foreground">{log.bot_reply}</p>
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] text-muted-foreground/40 font-mono">
+                  <div className="flex items-center gap-3 font-mono text-xs text-muted-foreground">
                     <span>{formatWIB(log.created_at)}</span>
                     {log.is_group && <span>Group chat</span>}
                   </div>
@@ -186,14 +185,14 @@ export default function LogsPage() {
           )
         })}
         {paged.length === 0 && (
-          <div className="text-center text-xs text-muted-foreground py-8">No logs found.</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">No logs found.</div>
         )}
       </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 pt-2">
           <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>Prev</Button>
-          <span className="text-xs font-mono text-muted-foreground">
+          <span className="font-mono text-sm text-muted-foreground">
             Page {page + 1} of {totalPages} ({filtered.length} logs)
           </span>
           <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>

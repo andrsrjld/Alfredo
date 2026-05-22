@@ -19,10 +19,10 @@ type Server = {
   ping_secret?: string | null
 }
 
-const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary'; label: string }> = {
-  online: { variant: 'default', label: 'online' },
-  offline: { variant: 'destructive', label: 'offline' },
-  high_load: { variant: 'secondary', label: 'high_load' },
+const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
+  online: { variant: 'success', label: 'Online' },
+  offline: { variant: 'destructive', label: 'Offline' },
+  high_load: { variant: 'warning', label: 'High load' },
 }
 
 export default function OverridePage() {
@@ -120,11 +120,11 @@ export default function OverridePage() {
   }
 
   return (
-    <div className="p-4 lg:p-6 xl:p-8 space-y-5">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs text-muted-foreground/60">Manage servers &amp; override notes</p>
-        <Button variant="link" size="xs" className="gap-1" onClick={() => setShowAdd(!showAdd)}>
-          <Plus className="h-3.5 w-3.5" /> Add Server
+    <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 lg:p-6 xl:p-8">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">Manage servers and override notes.</p>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowAdd(!showAdd)}>
+          <Plus className="h-4 w-4" /> Add Server
         </Button>
       </div>
 
@@ -132,37 +132,37 @@ export default function OverridePage() {
         <Card>
           <CardHeader><CardDescription>Add Server</CardDescription></CardHeader>
           <CardContent className="space-y-3">
-            <form onSubmit={handleAddServer} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+            <form onSubmit={handleAddServer} className="grid grid-cols-1 items-end gap-4 md:grid-cols-[1fr_1fr_auto]">
               <div>
-                <label className="label-sm text-muted-foreground/60 mb-1.5 block">Server Name</label>
+                <label className="label-sm mb-2 block">Server Name</label>
                 <Input
                   value={addName}
                   onChange={e => setAddName(e.target.value)}
                   placeholder="app-prod-01"
                   required
                   pattern="^[a-zA-Z0-9][a-zA-Z0-9._-]*$"
-                  className="font-mono text-xs"
+                  className="font-mono"
                 />
               </div>
               <div>
-                <label className="label-sm text-muted-foreground/60 mb-1.5 block">IP Address (optional)</label>
+                <label className="label-sm mb-2 block">IP Address (optional)</label>
                 <Input
                   value={addIp}
                   onChange={e => setAddIp(e.target.value)}
                   placeholder="10.0.1.5"
-                  className="font-mono text-xs"
+                  className="font-mono"
                 />
               </div>
               <Button type="submit" disabled={adding || !addName.trim()}>
                 {adding ? 'Adding...' : 'Add'}
               </Button>
             </form>
-            {addError && <p className="text-xs text-destructive">{addError}</p>}
+            {addError && <p className="text-sm text-destructive">{addError}</p>}
             {crontab && (
               <div className="space-y-2 pt-2">
-                <p className="label-sm text-muted-foreground/60">Crontab — paste on your server:</p>
+                <p className="label-sm">Crontab - paste on your server:</p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-muted/50 border border-border rounded-lg px-3 py-2 font-mono text-xs text-foreground break-all select-all">
+                  <code className="flex-1 select-all break-all rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground">
                     {crontab}
                   </code>
                   <Button variant="ghost" size="icon-xs" onClick={copyCrontab}>
@@ -175,7 +175,7 @@ export default function OverridePage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {servers.map((server) => {
           const cfg = statusConfig[server.status] || { variant: 'secondary' as const, label: server.status }
           const isSaved = saved.has(server.id)
@@ -184,8 +184,8 @@ export default function OverridePage() {
             <Card key={server.id} size="sm">
               <CardContent>
                 <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-mono text-xs text-foreground truncate">{server.server_name}</span>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate font-mono text-sm font-medium text-foreground">{server.server_name}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <Badge variant={cfg.variant}>{cfg.label}</Badge>
@@ -200,7 +200,7 @@ export default function OverridePage() {
                     </Button>
                   </div>
                 </div>
-                <p className="font-mono text-xs text-muted-foreground mb-3">IP: {server.ip_address || '\u2014'}</p>
+                <p className="mb-3 font-mono text-sm text-muted-foreground">IP: {server.ip_address || '\u2014'}</p>
                 <div className="space-y-2">
                   <Textarea
                     value={editNote[server.id] || ''}
@@ -210,19 +210,18 @@ export default function OverridePage() {
                     }}
                     placeholder="Add override note..."
                     rows={2}
-                    className="font-mono text-xs"
+                    className="font-mono"
                   />
                   <div className="flex items-center gap-3">
                     <Button
-                      variant="link"
-                      size="xs"
-                      className="uppercase tracking-wider"
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleUpdate(server.id)}
                       disabled={savingId === server.id}
                     >
                       {savingId === server.id ? 'Saving...' : 'Save'}
                     </Button>
-                    {isSaved && <span className="font-mono text-xs text-primary/60">Saved</span>}
+                    {isSaved && <span className="text-sm text-muted-foreground">Saved</span>}
                   </div>
                 </div>
               </CardContent>
@@ -230,7 +229,7 @@ export default function OverridePage() {
           )
         })}
         {servers.length === 0 && (
-          <p className="text-xs text-muted-foreground col-span-full py-8 text-center">No servers found. Click &quot;Add Server&quot; to get started.</p>
+          <p className="col-span-full py-8 text-center text-sm text-muted-foreground">No servers found. Click &quot;Add Server&quot; to get started.</p>
         )}
       </div>
     </div>

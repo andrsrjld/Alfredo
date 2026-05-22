@@ -121,17 +121,17 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="p-5 md:p-8"><p className="text-muted-foreground text-xs">Loading...</p></div>
+    return <div className="p-4 lg:p-6 xl:p-8"><p className="text-sm text-muted-foreground">Loading...</p></div>
   }
 
   return (
-    <div className="p-4 lg:p-6 xl:p-8 space-y-5 lg:max-w-2xl">
+    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 lg:p-6 xl:p-8">
       <div className="mb-2">
-        <p className="text-xs text-muted-foreground/60">Configure AI provider, bot mode, API keys, and GitLab integration</p>
+        <p className="text-sm text-muted-foreground">Configure AI provider, bot mode, API keys, and GitLab integration.</p>
       </div>
 
       {message && (
-        <div className={`text-xs px-3 py-2.5 border rounded-lg ${message.type === 'ok' ? 'border-primary/30 text-primary bg-primary/5' : 'border-destructive/30 text-destructive bg-destructive/5'}`}>
+        <div className={`rounded-md border px-3 py-2 text-sm ${message.type === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}>
           {message.text}
         </div>
       )}
@@ -139,7 +139,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardDescription>Bot Mode</CardDescription></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {([
               { id: 'normal', icon: '🤖', label: 'Normal AI', desc: `${settings.active_start}–${settings.active_end} WIB` },
               { id: 'extended', icon: '🤖', label: 'Extended AI', desc: '24/7 active' },
@@ -149,35 +149,35 @@ export default function SettingsPage() {
                 key={mode.id}
                 variant={settings.bot_mode === mode.id ? 'default' : 'outline'}
                 size="sm"
-                className="flex flex-col items-center gap-1 h-auto py-3"
+                className="h-auto flex-col items-center gap-1 py-4"
                 onClick={() => setSettings(s => ({ ...s, bot_mode: mode.id }))}
               >
                 <span className="text-lg">{mode.icon}</span>
-                <span className="font-mono text-xs font-medium">{mode.label}</span>
-                <span className="text-[10px] text-muted-foreground/60">{mode.desc}</span>
+                <span className="text-sm font-medium">{mode.label}</span>
+                <span className="text-xs font-normal opacity-70">{mode.desc}</span>
               </Button>
             ))}
           </div>
           {settings.bot_mode === 'normal' && (
-            <div className="flex items-center gap-2 mt-3">
-              <label className="text-xs text-muted-foreground/60 shrink-0">Active hours</label>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <label className="label-sm shrink-0">Active hours</label>
               <Input
                 type="time"
                 value={settings.active_start}
                 onChange={e => setSettings(s => ({ ...s, active_start: e.target.value }))}
-                className="font-mono text-xs w-28"
+                className="w-32 font-mono"
               />
-              <span className="text-xs text-muted-foreground/40">—</span>
+              <span className="text-sm text-muted-foreground">—</span>
               <Input
                 type="time"
                 value={settings.active_end}
                 onChange={e => setSettings(s => ({ ...s, active_end: e.target.value }))}
-                className="font-mono text-xs w-28"
+                className="w-32 font-mono"
               />
-              <span className="text-xs text-muted-foreground/40">WIB</span>
+              <span className="text-sm text-muted-foreground">WIB</span>
             </div>
           )}
-          <p className="text-xs text-muted-foreground/50 mt-2">
+          <p className="mt-3 text-sm text-muted-foreground">
             {settings.bot_mode === 'normal' && 'Alfredo aktif sesuai jam kerja (default).'}
             {settings.bot_mode === 'extended' && 'Alfredo aktif 24 jam. Untuk saat Ijal AFK di luar jam kerja.'}
             {settings.bot_mode === 'human' && 'Alfredo offline. Semua pesan mendapat balasan Ijal sedang online.'}
@@ -191,7 +191,7 @@ export default function SettingsPage() {
           <select
             value={settings.provider}
             onChange={e => setSettings(s => ({ ...s, provider: e.target.value }))}
-            className="w-full md:w-64 bg-background border border-border rounded-lg px-3 py-2 font-mono text-xs text-foreground focus:border-ring focus:outline-none"
+            className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:w-72"
           >
             {PROVIDERS.map(p => (
               <option key={p.id} value={p.id}>{p.label}</option>
@@ -213,7 +213,7 @@ export default function SettingsPage() {
               onChange={e => setSettings(s => ({ ...s, temperature: parseFloat(e.target.value) }))}
               className="w-48 accent-primary"
             />
-            <span className="font-mono text-xs text-muted-foreground w-8">{settings.temperature.toFixed(1)}</span>
+            <span className="w-8 font-mono text-sm text-muted-foreground">{settings.temperature.toFixed(1)}</span>
           </div>
         </CardContent>
       </Card>
@@ -228,20 +228,20 @@ export default function SettingsPage() {
             return (
               <div key={p.id} className={`border-b border-border last:border-0 ${isActive ? 'bg-primary/[0.03]' : ''}`}>
                 <button
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/30 transition-colors"
+                  className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-muted/50"
                   onClick={() => toggleProvider(p.id)}
                 >
                   <div className="flex items-center gap-2.5">
                     {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
-                    <span className="font-mono text-xs text-foreground">{p.label}</span>
+                    <span className="text-sm font-medium text-foreground">{p.label}</span>
                     {isActive && <span className="label-sm text-primary">active</span>}
                   </div>
                   {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                 </button>
                 {isExpanded && (
-                  <div className="px-5 pb-4 space-y-3 bg-muted/10">
+                  <div className="space-y-4 bg-muted/30 px-5 pb-5 pt-1">
                     <div>
-                      <label className="label-sm text-muted-foreground/60 mb-1.5 block">API Key</label>
+                      <label className="label-sm mb-2 block">API Key</label>
                       <Input
                         type="password"
                         placeholder={modelCfg.apiKey ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'Enter API key'}
@@ -253,31 +253,31 @@ export default function SettingsPage() {
                             models: { ...s.models, [p.id]: { ...s.models[p.id], apiKey: val } },
                           }))
                         }}
-                        className="font-mono text-xs"
+                        className="font-mono"
                       />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className="label-sm text-muted-foreground/60 mb-1.5 block">Model</label>
+                        <label className="label-sm mb-2 block">Model</label>
                         <Input
                           value={modelCfg.model}
                           onChange={e => setSettings(s => ({
                             ...s,
                             models: { ...s.models, [p.id]: { ...s.models[p.id], model: e.target.value } },
                           }))}
-                          className="font-mono text-xs"
+                          className="font-mono"
                         />
-                        <p className="text-xs text-muted-foreground/40 mt-1">Available: {p.models}</p>
+                        <p className="mt-1.5 text-xs text-muted-foreground">Available: {p.models}</p>
                       </div>
                       <div>
-                        <label className="label-sm text-muted-foreground/60 mb-1.5 block">Base URL</label>
+                        <label className="label-sm mb-2 block">Base URL</label>
                         <Input
                           value={modelCfg.baseUrl}
                           onChange={e => setSettings(s => ({
                             ...s,
                             models: { ...s.models, [p.id]: { ...s.models[p.id], baseUrl: e.target.value } },
                           }))}
-                          className="font-mono text-xs"
+                          className="font-mono"
                         />
                       </div>
                     </div>
@@ -292,15 +292,15 @@ export default function SettingsPage() {
       <Card>
         <CardHeader><CardDescription>GitLab Integration</CardDescription></CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-xs text-muted-foreground/60">Used to fetch pipeline error logs for AI analysis. Scope required: <span className="font-mono text-foreground">api</span></p>
+          <p className="text-sm text-muted-foreground">Used to fetch pipeline error logs for AI analysis. Scope required: <span className="font-mono text-foreground">api</span></p>
           <div>
-            <label className="label-sm text-muted-foreground/60 mb-1.5 block">Personal Access Token</label>
+            <label className="label-sm mb-2 block">Personal Access Token</label>
             <Input
               type="password"
               placeholder={settings.gitlab_pat ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'glpat-xxxxxxxxxxxx'}
               value={settings.gitlab_pat.includes('\u2022') ? settings.gitlab_pat : ''}
               onChange={e => setSettings(s => ({ ...s, gitlab_pat: e.target.value }))}
-              className="font-mono text-xs"
+              className="font-mono"
             />
           </div>
         </CardContent>

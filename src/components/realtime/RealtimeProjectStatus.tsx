@@ -1,20 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '@/components/ui/table'
 
 type Project = {
   id: string
@@ -27,24 +19,22 @@ type Project = {
   last_updated: string
 }
 
-const STATUS_PAGE_SIZE = 50
+const MOBILE_PAGE_SIZE = 4
+const DESKTOP_PAGE_SIZE = 10
 
-const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
-  success: { variant: 'success', label: 'success' },
-  failed: { variant: 'destructive', label: 'failed' },
-  running: { variant: 'warning', label: 'running' },
-  canceled: { variant: 'secondary', label: 'canceled' },
-  pending: { variant: 'secondary', label: 'pending' },
-  skipped: { variant: 'secondary', label: 'skipped' },
-  manual: { variant: 'secondary', label: 'manual' },
-  created: { variant: 'secondary', label: 'created' },
+function capitalizeWords(s: string): string {
+  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function formatWIB(iso: string): string {
-  return new Date(iso).toLocaleString('id-ID', {
-    timeZone: 'Asia/Jakarta',
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
+const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
+  success: { variant: 'success', label: 'Success' },
+  failed: { variant: 'destructive', label: 'Failed' },
+  running: { variant: 'warning', label: 'Running' },
+  canceled: { variant: 'secondary', label: 'Canceled' },
+  pending: { variant: 'secondary', label: 'Pending' },
+  skipped: { variant: 'secondary', label: 'Skipped' },
+  manual: { variant: 'secondary', label: 'Manual' },
+  created: { variant: 'secondary', label: 'Created' },
 }
 
 function formatWIBShort(iso: string): string {
@@ -54,11 +44,60 @@ function formatWIBShort(iso: string): string {
   })
 }
 
+function ProjectCard({ project, expandedError, toggleError }: {
+  project: Project
+  expandedError: Set<string>
+  toggleError: (id: string) => void
+}) {
+  const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: capitalizeWords(project.status) }
+  const isOpen = expandedError.has(project.id)
+  return (
+    <Card size="sm" className="h-full">
+      <CardContent>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span className="truncate font-mono text-xs font-medium text-foreground sm:text-sm">{capitalizeWords(project.repo_name)}</span>
+          <Badge variant={cfg.variant} className="shrink-0">{cfg.label}</Badge>
+        </div>
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:gap-1.5 sm:text-sm">
+          <div className="flex items-center justify-between">
+            <span>Group</span>
+            <span className="ml-1 max-w-[80px] truncate">{project.project_group || '\u2014'}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Branch</span>
+            <span className="ml-1 truncate">{project.branch || '\u2014'}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Updated</span>
+            <span className="font-mono">{formatWIBShort(project.last_updated)}</span>
+          </div>
+        </div>
+        {project.error_detail && (
+          <Button
+            variant="link"
+            size="xs"
+            className="mt-1.5 text-destructive"
+            onClick={() => toggleError(project.id)}
+          >
+            {isOpen ? 'Hide' : 'Error'}
+          </Button>
+        )}
+        {isOpen && project.error_detail && (
+          <pre className="mt-2 whitespace-pre-wrap break-words border-t border-border pt-2 font-mono text-xs text-foreground">{project.error_detail}</pre>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function RealtimeProjectStatus() {
   const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
-  const [showCount, setShowCount] = useState(STATUS_PAGE_SIZE)
   const [expandedError, setExpandedError] = useState<Set<string>>(new Set())
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [mobilePage, setMobilePage] = useState(0)
+  const [desktopPage, setDesktopPage] = useState(0)
 
   useEffect(() => {
     const supabase = createClient()
@@ -86,10 +125,43 @@ export default function RealtimeProjectStatus() {
       (p.project_group || '').toLowerCase().includes(search.toLowerCase())
   )
 
-  const visible = filtered.slice(0, showCount)
+  const mobileTotalPages = Math.ceil(filtered.length / MOBILE_PAGE_SIZE)
+  const desktopTotalPages = Math.ceil(filtered.length / DESKTOP_PAGE_SIZE)
+  const desktopItems = filtered.slice(desktopPage * DESKTOP_PAGE_SIZE, (desktopPage + 1) * DESKTOP_PAGE_SIZE)
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const page = Math.round(el.scrollLeft / el.offsetWidth)
+    setMobilePage(page)
+  }, [])
+
+  function toggleError(id: string) {
+    setExpandedError(prev => {
+      const n = new Set(prev)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+
+  function renderDots(total: number, current: number, onChange: (i: number) => void) {
+    if (total <= 1) return null
+    return (
+      <div className="flex justify-center gap-1.5">
+        {Array.from({ length: total }).map((_, i) => (
+          <button
+            key={i}
+            onClick={() => onChange(i)}
+            className={`h-1.5 rounded-full transition-all ${i === current ? 'w-4 bg-foreground' : 'w-1.5 bg-muted-foreground/30'}`}
+          />
+        ))}
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center gap-3">
         <div className="relative flex-1 md:flex-none md:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
@@ -97,144 +169,50 @@ export default function RealtimeProjectStatus() {
             type="text"
             placeholder="Search project or group..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setShowCount(STATUS_PAGE_SIZE) }}
-            className="pl-8 font-mono text-xs"
+            onChange={(e) => { setSearch(e.target.value); setDesktopPage(0) }}
+            className="pl-8"
           />
         </div>
-        <span className="text-xs text-muted-foreground font-mono">{filtered.length} projects</span>
+        <span className="text-sm text-muted-foreground">{filtered.length} projects</span>
       </div>
 
-      {/* Card view */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 md:hidden">
-        {visible.map((project) => {
-          const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: project.status }
-          const isOpen = expandedError.has(project.id)
+      {/* Mobile: horizontal slider */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth md:hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex"
+      >
+        {Array.from({ length: mobileTotalPages }).map((_, pageIdx) => {
+          const pageItems = filtered.slice(pageIdx * MOBILE_PAGE_SIZE, (pageIdx + 1) * MOBILE_PAGE_SIZE)
           return (
-            <Card key={project.id} size="sm">
-              <CardContent>
-                <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                  <span className="font-mono text-[11px] text-foreground truncate min-w-0">{project.repo_name}</span>
-                  <Badge variant={cfg.variant} className="text-[10px] shrink-0">{cfg.label}</Badge>
-                </div>
-                <div className="text-[11px] text-muted-foreground space-y-0.5">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground/50">Group</span>
-                    <span className="truncate ml-1 max-w-[80px]">{project.project_group || '\u2014'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground/50">Branch</span>
-                    <span className="truncate ml-1">{project.branch || '\u2014'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground/50">Updated</span>
-                    <span>{formatWIBShort(project.last_updated)}</span>
-                  </div>
-                </div>
-                {project.error_detail && (
-                  <Button
-                    variant="link"
-                    size="xs"
-                    className="mt-1.5 text-destructive"
-                    onClick={() => {
-                      setExpandedError(prev => {
-                        const n = new Set(prev)
-                        if (n.has(project.id)) n.delete(project.id)
-                        else n.add(project.id)
-                        return n
-                      })
-                    }}
-                  >
-                    {isOpen ? 'Hide error' : 'Show error'}
-                  </Button>
-                )}
-                {isOpen && project.error_detail && (
-                  <pre className="mt-1 text-[10px] text-foreground whitespace-pre-wrap break-words font-mono border-t border-border/40 pt-1">{project.error_detail}</pre>
-                )}
-              </CardContent>
-            </Card>
+            <div key={pageIdx} className="grid grid-cols-2 gap-3 snap-start" style={{ minWidth: '100%', flexShrink: 0 }}>
+              {pageItems.map((project) => (
+                <ProjectCard key={project.id} project={project} expandedError={expandedError} toggleError={toggleError} />
+              ))}
+            </div>
           )
         })}
-        {visible.length === 0 && (
-          <p className="text-xs text-muted-foreground col-span-full py-6 text-center">No projects found.</p>
+        {filtered.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">No projects found.</p>
         )}
       </div>
+      {renderDots(mobileTotalPages, mobilePage, (i) => {
+        setMobilePage(i)
+        scrollRef.current?.scrollTo({ left: i * scrollRef.current.offsetWidth, behavior: 'smooth' })
+      })}
 
-      {/* Table view (desktop) */}
+      {/* Desktop: paginated card grid */}
       <div className="hidden md:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Repo</TableHead>
-              <TableHead>Group</TableHead>
-              <TableHead>Branch</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Commit</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {visible.map((project) => {
-              const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: project.status }
-              const isOpen = expandedError.has(project.id)
-              return (
-                <>
-                  <TableRow key={project.id}>
-                    <TableCell className="font-mono text-xs">
-                      {project.repo_name}
-                      {project.error_detail && (
-                        <Button
-                          variant="link"
-                          size="xs"
-                          className="ml-1.5 text-destructive p-0 h-auto"
-                          onClick={() => {
-                            setExpandedError(prev => {
-                              const n = new Set(prev)
-                              if (n.has(project.id)) n.delete(project.id)
-                              else n.add(project.id)
-                              return n
-                            })
-                          }}
-                        >
-                          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                        </Button>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{project.project_group || '\u2014'}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{project.branch || '\u2014'}</TableCell>
-                    <TableCell>
-                      <Badge variant={cfg.variant} className="text-[10px]">{cfg.label}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{project.commit_msg || '\u2014'}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">{formatWIB(project.last_updated)}</TableCell>
-                  </TableRow>
-                  {isOpen && project.error_detail && (
-                    <TableRow key={`${project.id}-error`}>
-                      <TableCell colSpan={6} className="bg-destructive/5">
-                        <p className="label-sm text-destructive mb-1">Error Detail</p>
-                        <pre className="text-xs text-foreground whitespace-pre-wrap break-words font-mono">{project.error_detail}</pre>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </>
-              )
-            })}
-            {visible.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-xs text-muted-foreground py-8">
-                  No projects found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      {showCount < filtered.length && (
-        <div className="flex justify-center pt-2">
-          <Button variant="outline" size="sm" onClick={() => setShowCount(c => c + STATUS_PAGE_SIZE)}>
-            Load more ({filtered.length - showCount} remaining)
-          </Button>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {desktopItems.map((project) => (
+            <ProjectCard key={project.id} project={project} expandedError={expandedError} toggleError={toggleError} />
+          ))}
         </div>
-      )}
+        {filtered.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">No projects found.</p>
+        )}
+      </div>
+      {renderDots(desktopTotalPages, desktopPage, setDesktopPage)}
     </div>
   )
 }

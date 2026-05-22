@@ -53,16 +53,16 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="p-4 lg:p-6 xl:p-8 space-y-6">
+    <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 lg:p-6 xl:p-8">
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {statCards.map((s) => (
           <Card key={s.label} size="sm">
             <CardContent>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-medium text-muted-foreground">{s.label}</p>
                 <s.icon className={`h-4 w-4 ${s.color}`} />
               </div>
-              <p className={`text-2xl font-semibold ${s.color}`}>{s.value}</p>
+              <p className={`text-2xl font-semibold tracking-tight ${s.color}`}>{s.value}</p>
             </CardContent>
           </Card>
         ))}

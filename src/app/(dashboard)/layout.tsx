@@ -34,26 +34,29 @@ export default function DashboardLayout({
   const pageTitle = pageTitles[pathname] || 'Dashboard'
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="flex min-h-screen bg-background">
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-56 border-r border-border bg-sidebar flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static',
+          'fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 ease-in-out lg:static lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="h-12 flex items-center justify-between px-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-primary flex items-center justify-center">
-              <Zap className="h-3 w-3 text-primary-foreground" />
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary shadow-sm">
+              <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="font-mono text-xs font-semibold tracking-widest text-foreground">ALFREDO</span>
+            <div>
+              <p className="text-sm font-semibold leading-none text-sidebar-foreground">Alfredo</p>
+              <p className="text-xs text-muted-foreground">DevOps Companion</p>
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -65,7 +68,7 @@ export default function DashboardLayout({
           </Button>
         </div>
 
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href
             return (
@@ -74,10 +77,10 @@ export default function DashboardLayout({
                 href={href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors',
+                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                   active
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -87,9 +90,9 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        <div className="p-2 border-t border-border shrink-0">
+        <div className="shrink-0 border-t border-sidebar-border p-3">
           <form action="/api/auth/signout" method="post" className="block">
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-sm text-muted-foreground">
+            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground">
               <LogOut className="h-4 w-4 shrink-0" />
               Sign out
             </Button>
@@ -97,9 +100,9 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-xl shrink-0">
-          <div className="flex h-12 items-center gap-3 px-4 lg:px-6">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/80 backdrop-blur-xl">
+          <div className="flex h-14 items-center gap-3 px-4 lg:px-8">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -108,7 +111,7 @@ export default function DashboardLayout({
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <span className="text-sm font-medium text-foreground truncate">{pageTitle}</span>
+            <span className="truncate text-sm font-semibold text-foreground">{pageTitle}</span>
             <div className="flex-1" />
             <ThemeToggle />
           </div>

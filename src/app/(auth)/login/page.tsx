@@ -3,6 +3,9 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Zap } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -30,56 +33,53 @@ export default function LoginPage() {
     window.location.href = '/dashboard'
   }
 
-  const inputClass = "w-full bg-card border border-border rounded-sm px-3 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
-
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-5">
-      <div className="w-full max-w-xs">
-        <div className="mb-10">
-          <div className="flex items-center gap-2.5 mb-3">
-            <div className="w-6 h-6 rounded-sm bg-primary flex items-center justify-center">
-              <Zap className="h-3.5 w-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-mono text-sm font-medium tracking-widest text-foreground">ALFREDO</span>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-sm">
+        <CardHeader className="space-y-4 text-center">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md bg-primary shadow-sm">
+            <Zap className="h-5 w-5 text-primary-foreground" />
           </div>
-          <p className="text-xs text-muted-foreground">DevOps AI Companion</p>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-5">
+          <div className="space-y-1">
+            <CardTitle>Alfredo</CardTitle>
+            <CardDescription>DevOps AI Companion</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="label-sm text-muted-foreground mb-1.5 block">Email</label>
-            <input
+            <label className="label-sm mb-2 block">Email</label>
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className={inputClass}
             />
           </div>
           <div>
-            <label className="label-sm text-muted-foreground mb-1.5 block">Password</label>
-            <input
+            <label className="label-sm mb-2 block">Password</label>
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className={inputClass}
             />
           </div>
           {error && (
-            <div className="text-xs px-3 py-2.5 rounded-sm border border-destructive/30 text-destructive bg-destructive/5">
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
               {error}
             </div>
           )}
-          <button
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2.5 rounded-sm font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+            className="w-full"
           >
             {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+          </Button>
         </form>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
