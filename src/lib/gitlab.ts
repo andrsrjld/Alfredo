@@ -13,18 +13,28 @@ export async function getGitLabPAT(): Promise<string | null> {
       .eq('key', 'ai_config')
       .single()
 
-    if (error || !data) return null
+    if (error || !data) {
+      console.error('[GitLab PAT] DB query failed:', error?.message || 'no data')
+      return null
+    }
 
     const raw = data.value as Record<string, unknown>
     const encryptedPat = raw.gitlab_pat as string | undefined
-    if (!encryptedPat) return null
+    if (!encryptedPat) {
+      console.warn('[GitLab PAT] No gitlab_pat found in ai_config. Keys present:', Object.keys(raw).join(', '))
+      return null
+    }
 
     try {
-      return decrypt(encryptedPat)
-    } catch {
+      const decrypted = decrypt(encryptedPat)
+      console.log(`[GitLab PAT] Decrypted successfully, length: ${decrypted.length}`)
+      return decrypted
+    } catch (err) {
+      console.error('[GitLab PAT] Decryption failed, trying raw value:', err)
       return encryptedPat
     }
-  } catch {
+  } catch (err) {
+    console.error('[GitLab PAT] Exception:', err)
     return null
   }
 }
