@@ -3,7 +3,6 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encrypt, maskKey } from '@/lib/encryption'
 import { invalidateConfigCache } from '@/lib/llm'
-import { invalidateBotModeCache } from '@/lib/bot-mode'
 
 const SUPPORTED_PROVIDERS = ['deepseek', 'openai', 'gemini', 'ollama']
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
@@ -153,7 +152,6 @@ export async function PUT(request: NextRequest) {
     }
 
     invalidateConfigCache()
-    invalidateBotModeCache()
     revalidatePath('/api/settings')
 
     return NextResponse.json({ ok: true }, noStore)
