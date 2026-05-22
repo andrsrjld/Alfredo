@@ -12,6 +12,12 @@ type Server = {
   last_ping: string
 }
 
+const statusConfig: Record<string, { dot: string; label: string }> = {
+  online: { dot: 'bg-primary', label: 'text-primary' },
+  offline: { dot: 'bg-destructive', label: 'text-destructive' },
+  high_load: { dot: 'bg-tertiary', label: 'text-tertiary' },
+}
+
 export default function RealtimeServerStatus() {
   const [servers, setServers] = useState<Server[]>([])
 
@@ -35,34 +41,53 @@ export default function RealtimeServerStatus() {
     }
   }, [])
 
-  const statusStyles: Record<string, string> = {
-    online: 'text-primary',
-    offline: 'text-destructive',
-    high_load: 'text-tertiary',
+  function timeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    return `${Math.floor(hrs / 24)}d ago`
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      {servers.map((server) => (
-        <div
-          key={server.id}
-          className="border border-border rounded-md p-4 bg-card"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-mono text-sm text-foreground">{server.server_name}</span>
-            <span className={`label-sm ${statusStyles[server.status] || 'text-muted-foreground'}`}>
-              {server.status}
-            </span>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {servers.map((server) => {
+        const cfg = statusConfig[server.status] || { dot: 'bg-muted-foreground', label: 'text-muted-foreground' }
+        return (
+          <div
+            key={server.id}
+            className="border border-border rounded-md p-4 bg-card"
+          >
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
+                <span className="font-mono text-xs text-foreground truncate">{server.server_name}</span>
+              </div>
+              <span className={`label-sm shrink-0 ${cfg.label}`}>{server.status}</span>
+            </div>
+            <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-muted-foreground/50">IP</span>
+                <span className="font-mono">{server.ip_address || '—'}</span>
+              </div>
+              {server.notes && (
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-muted-foreground/50">Note</span>
+                  <span className="truncate max-w-[160px]">{server.notes}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-muted-foreground/50">Ping</span>
+                <span className="font-mono">{timeAgo(server.last_ping)}</span>
+              </div>
+            </div>
           </div>
-          <div className="space-y-1">
-            <p className="font-mono text-xs text-muted-foreground">IP: {server.ip_address || '—'}</p>
-            {server.notes && <p className="text-xs text-muted-foreground">{server.notes}</p>}
-            <p className="text-xs text-muted-foreground">Last ping: {new Date(server.last_ping).toLocaleString('id-ID')}</p>
-          </div>
-        </div>
-      ))}
+        )
+      })}
       {servers.length === 0 && (
-        <p className="text-sm text-muted-foreground">No servers found.</p>
+        <p className="text-xs text-muted-foreground col-span-full py-8 text-center">No servers reporting.</p>
       )}
     </div>
   )

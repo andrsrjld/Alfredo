@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Zap } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -29,19 +30,24 @@ export default function LoginPage() {
     window.location.href = '/dashboard'
   }
 
-  const inputClass = "w-full bg-card border border-border rounded-sm px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
+  const inputClass = "w-full bg-card border border-border rounded-sm px-3 py-2.5 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none"
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-full max-w-sm px-6">
-        <div className="mb-12">
-          <h1 className="font-mono text-sm font-medium uppercase tracking-widest text-foreground">ALFREDO</h1>
-          <p className="mt-2 text-xs text-muted-foreground">DevOps AI Companion</p>
+    <div className="min-h-screen bg-background flex items-center justify-center px-5">
+      <div className="w-full max-w-xs">
+        <div className="mb-10">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-6 h-6 rounded-sm bg-primary flex items-center justify-center">
+              <Zap className="h-3.5 w-3.5 text-primary-foreground" />
+            </div>
+            <span className="font-mono text-sm font-medium tracking-widest text-foreground">ALFREDO</span>
+          </div>
+          <p className="text-xs text-muted-foreground">DevOps AI Companion</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="label-sm text-muted-foreground mb-2 block">Email</label>
+            <label className="label-sm text-muted-foreground mb-1.5 block">Email</label>
             <input
               type="email"
               value={email}
@@ -51,7 +57,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="label-sm text-muted-foreground mb-2 block">Password</label>
+            <label className="label-sm text-muted-foreground mb-1.5 block">Password</label>
             <input
               type="password"
               value={password}
@@ -61,12 +67,14 @@ export default function LoginPage() {
             />
           </div>
           {error && (
-            <p className="text-xs text-destructive">{error}</p>
+            <div className="text-xs px-3 py-2.5 rounded-sm border border-destructive/30 text-destructive bg-destructive/5">
+              {error}
+            </div>
           )}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-sm font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2.5 rounded-sm font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
