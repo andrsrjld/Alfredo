@@ -77,8 +77,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (!whitelist) {
-      console.log('[Fonnte] not whitelisted:', from)
-      return NextResponse.json({ ok: true, ignored: 'not_whitelisted', normalized: from })
+      const { data: allPms } = await supabase.from('whitelisted_pms').select('phone_number').limit(10)
+      console.log('[Fonnte] not whitelisted:', from, '| DB entries:', JSON.stringify(allPms))
+      return NextResponse.json({ ok: true, ignored: 'not_whitelisted', normalized: from, db_entries: allPms })
     }
 
     const results = await smartSearch(text)
