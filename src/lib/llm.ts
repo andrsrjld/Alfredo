@@ -43,43 +43,64 @@ function getLLMConfig(): LLMConfig {
   }
 }
 
-export async function askAlfredo(context: string, userMessage: string): Promise<string> {
-  if (!context.trim()) {
-    return FALLBACK_REPLY
+export async function askAlfredo(context: string, userMessage: string): Promise<{ reply: string; debug: { provider: string; hasContext: boolean; contextLength: number; status: number; error?: string } }> {
+  const config = getLLMConfig()
+  const debug = {
+    provider: process.env.AI_PROVIDER || 'groq',
+    hasContext: !!context.trim(),
+    contextLength: context.length,
+    status: 0,
+    error: undefined as string | undefined,
   }
 
-  const config = getLLMConfig()
+  if (!context.trim()) {
+    return { reply: FALLBACK_REPLY, debug: { ...debug, status: 0, error: 'empty_context' } }
+  }
 
   if (!config.key) {
     console.error(`[LLM] No API key configured for provider: ${process.env.AI_PROVIDER || 'groq'}`)
-    return FALLBACK_REPLY
+    return { reply: FALLBACK_REPLY, debug: { ...debug, status: 0, error: 'no_api_key' } }
   }
 
-  const response = await fetch(config.url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${config.key}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages: [
-        { role: 'system', content: createSystemPrompt(context) },
-        { role: 'user', content: userMessage },
-      ],
-      temperature: parseFloat(process.env.AI_TEMPERATURE || '0.0'),
-      max_tokens: 512,
-    }),
-  })
+  try {
+    const response = await fetch(config.url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.key}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          { role: 'system', content: createSystemPrompt(context) },
+          { role: 'user', content: userMessage },
+        ],
+        temperature: parseFloat(process.env.AI_TEMPERATURE || '0.0'),
+        max_tokens: 512,
+      }),
+    })
 
-  if (!response.ok) {
-    const errorBody = await response.text()
-    console.error(`[LLM] API error ${response.status}: ${errorBody}`)
-    return FALLBACK_REPLY
+    debug.status = response.status
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      console.error(`[LLM] API error ${response.status}: ${errorBody}`)
+      debug.error = errorBody.substring(0, 200)
+      return { reply: FALLBACK_REPLY, debug }
+    }
+
+    const data = await response.json()
+    const content = data?.choices?.[0]?.message?.content
+
+    if (!content) {
+      debug.error = 'empty_llm_response'
+      console.error('[LLM] Empty response from LLM:', JSON.stringify(data).substring(0, 300))
+    }
+
+    return { reply: content || FALLBACK_REPLY, debug }
+  } catch (err) {
+    console.error('[LLM] Exception:', err)
+    debug.error = String(err)
+    return { reply: FALLBACK_REPLY, debug }
   }
-
-  const data = await response.json()
-  const content = data?.choices?.[0]?.message?.content
-
-  return content || FALLBACK_REPLY
 }

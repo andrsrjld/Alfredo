@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     const results = await smartSearch(text)
     const context = formatSearchContext(results)
-    const reply = await askAlfredo(context, text)
+    const { reply } = await askAlfredo(context, text)
 
     const messenger = getMessagingProvider()
     await messenger.sendMessage(from, reply)

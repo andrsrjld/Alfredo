@@ -81,15 +81,7 @@ export async function POST(request: NextRequest) {
 
     const results = await smartSearch(text)
     const context = formatSearchContext(results)
-    let reply = ''
-    try {
-      reply = await askAlfredo(context, text)
-    } catch (llmErr) {
-      console.error('[Fonnte] LLM error:', llmErr)
-      reply = `DEBUG: context="${context.substring(0, 300)}" | error="${String(llmErr)}"`
-    }
-
-    console.log('[Fonnte] context:', context.substring(0, 200) || '(empty)', '| reply:', reply.substring(0, 200))
+    const { reply, debug: llmDebug } = await askAlfredo(context, text)
 
     const messenger = getMessagingProvider()
     await messenger.sendMessage(from, reply)
@@ -104,7 +96,7 @@ export async function POST(request: NextRequest) {
       console.error('Fonnte chat log error:', logError)
     }
 
-    return NextResponse.json({ ok: true, replied: true, reply_preview: reply.substring(0, 300) })
+    return NextResponse.json({ ok: true, replied: true, reply_preview: reply.substring(0, 300), debug: { search_results: results.length, llm: llmDebug } })
   } catch (err) {
     console.error('Fonnte webhook error:', err)
     return NextResponse.json({ error: 'Internal error', detail: String(err) }, { status: 500 })
