@@ -7,6 +7,8 @@ import { invalidateConfigCache } from '@/lib/llm'
 const SUPPORTED_PROVIDERS = ['deepseek', 'openai', 'gemini', 'ollama']
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const supabase = createAdminClient()

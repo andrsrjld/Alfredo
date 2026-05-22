@@ -5,6 +5,8 @@ import { getMessagingProvider } from '@/lib/messaging'
 import { normalizePhone } from '@/lib/phone'
 import { NextRequest, NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 function isWithinActiveHours(): boolean {
   const tz = process.env.BOT_TIMEZONE || 'Asia/Jakarta'
   const now = new Date().toLocaleString('en-US', { timeZone: tz })

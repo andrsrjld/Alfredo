@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const supabase = createAdminClient()
