@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS project_status (
     project_group TEXT,
     branch TEXT,
     commit_msg TEXT,
-    status TEXT CHECK (status IN ('success', 'failed', 'running', 'canceled')),
+    status TEXT CHECK (status IN ('success', 'failed', 'running', 'canceled', 'pending', 'skipped', 'manual', 'created')),
     error_detail TEXT,
     gitlab_project_id TEXT,
     pipeline_id TEXT,
