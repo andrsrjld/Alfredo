@@ -76,6 +76,7 @@ function ProjectDetailDialog({ project, open, onOpenChange }: {
   onOpenChange: (open: boolean) => void
 }) {
   const [showError, setShowError] = useState(false)
+  const [copiedError, setCopiedError] = useState(false)
 
   if (!project) return null
   const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: capitalizeWords(project.status) }
@@ -122,15 +123,25 @@ function ProjectDetailDialog({ project, open, onOpenChange }: {
 
           {project.error_detail && (
             <div className="space-y-1.5 border-t border-border pt-3">
-              <Button
-                variant="link"
-                size="xs"
-                className="text-destructive p-0"
-                onClick={() => setShowError(!showError)}
-              >
-                {showError ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
-                {showError ? 'Hide Error' : 'Show Error'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="link"
+                  size="xs"
+                  className="text-destructive p-0"
+                  onClick={() => setShowError(!showError)}
+                >
+                  {showError ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
+                  {showError ? 'Hide Error' : 'Show Error'}
+                </Button>
+                <Button
+                  variant="link"
+                  size="xs"
+                  className="text-muted-foreground p-0"
+                  onClick={() => { navigator.clipboard.writeText(project.error_detail!); setCopiedError(true); setTimeout(() => setCopiedError(false), 2000) }}
+                >
+                  {copiedError ? 'Copied!' : 'Copy'}
+                </Button>
+              </div>
               {showError && (
                 <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded bg-muted px-3 py-2 font-mono text-xs text-foreground">{project.error_detail}</pre>
               )}
@@ -219,7 +230,7 @@ export default function RealtimeProjectStatus() {
       if (data) setProjects(data)
     }
     fetchProjects()
-    const interval = setInterval(fetchProjects, 5000)
+    const interval = setInterval(fetchProjects, 2000)
 
     const channel = supabase
       .channel('project_status_changes')

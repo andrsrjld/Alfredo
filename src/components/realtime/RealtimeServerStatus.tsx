@@ -123,8 +123,8 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
     }
     fetchContainers()
     fetchServerMetrics()
-    const metricsInterval = setInterval(fetchServerMetrics, 5000)
-    const containerInterval = setInterval(fetchContainers, 5000)
+    const metricsInterval = setInterval(fetchServerMetrics, 2000)
+    const containerInterval = setInterval(fetchContainers, 2000)
     const channel = supabase
       .channel(`container_status_${serverName}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'container_status', filter: `server_name=eq.${serverName}` }, () => {
@@ -289,6 +289,7 @@ function ContainerItem({ container, expandedLog, onToggleLog }: {
   expandedLog: Set<string>
   onToggleLog: (name: string) => void
 }) {
+  const [copied, setCopied] = useState(false)
   const cfg = containerStatusConfig[container.status] || { variant: 'secondary' as const, label: container.status }
   const isLogOpen = expandedLog.has(container.container_name)
   const imageTag = container.image ? container.image.split('/').pop() || container.image : null
@@ -305,9 +306,14 @@ function ContainerItem({ container, expandedLog, onToggleLog }: {
       </div>
       {container.error_log && (
         <div>
-          <Button variant="link" size="xs" className="text-destructive p-0" onClick={() => onToggleLog(container.container_name)}>
-            {isLogOpen ? 'Hide Log' : 'Show Log'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="link" size="xs" className="text-destructive p-0" onClick={() => onToggleLog(container.container_name)}>
+              {isLogOpen ? 'Hide Log' : 'Show Log'}
+            </Button>
+            <Button variant="link" size="xs" className="text-muted-foreground p-0" onClick={() => { navigator.clipboard.writeText(container.error_log!); setCopied(true); setTimeout(() => setCopied(false), 2000) }}>
+              {copied ? 'Copied!' : 'Copy'}
+            </Button>
+          </div>
           {isLogOpen && (
             <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded bg-muted px-2 py-1.5 font-mono text-xs text-foreground">{container.error_log}</pre>
           )}
@@ -359,7 +365,7 @@ export default function RealtimeServerStatus() {
       if (data) setServers(data)
     }
     fetchServers()
-    const interval = setInterval(fetchServers, 5000)
+    const interval = setInterval(fetchServers, 2000)
 
     const channel = supabase
       .channel('server_status_changes')
