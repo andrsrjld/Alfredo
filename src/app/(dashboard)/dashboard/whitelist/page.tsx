@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Upload } from 'lucide-react'
 
 type WhitelistEntry = {
   phone_number: string
   pm_name: string | null
 }
 
-function normalizePhone(input: string): string {
+function normalizePhoneLocal(input: string): string {
   let num = input.replace(/[\s\-()+]/g, '')
   if (num.startsWith('08')) num = '628' + num.slice(2)
   else if (num.startsWith('8')) num = '628' + num
@@ -25,20 +25,28 @@ export default function WhitelistPage() {
   const [newName, setNewName] = useState('')
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
   const [preview, setPreview] = useState('')
+  const [showImport, setShowImport] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
-    fetch('/api/whitelist')
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) setEntries(data)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+    fetchWhitelist()
   }, [])
+
+  async function fetchWhitelist() {
+    try {
+      const res = await fetch('/api/whitelist')
+      const data = await res.json()
+      if (Array.isArray(data)) setEntries(data)
+    } catch {
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (newPhone) {
-      setPreview(normalizePhone(newPhone))
+      setPreview(normalizePhoneLocal(newPhone))
     } else {
       setPreview('')
     }
@@ -46,7 +54,7 @@ export default function WhitelistPage() {
 
   async function handleAdd() {
     if (!newPhone) return
-    const phone = normalizePhone(newPhone)
+    const phone = normalizePhoneLocal(newPhone)
     try {
       const res = await fetch('/api/whitelist', {
         method: 'POST',
@@ -86,6 +94,41 @@ export default function WhitelistPage() {
     }
   }
 
+  async function handleImport() {
+    if (!importText.trim()) return
+    setImporting(true)
+    const lines = importText.trim().split('\n').filter(l => l.trim())
+    const entries_import: Array<{ phone: string; name?: string }> = []
+
+    for (const line of lines) {
+      const parts = line.split(',').map(s => s.trim())
+      const phone = parts[0]
+      const name = parts[1] || undefined
+      if (phone) entries_import.push({ phone, name })
+    }
+
+    try {
+      const res = await fetch('/api/whitelist', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entries: entries_import }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setMessage({ type: 'ok', text: `Imported ${data.imported} contacts${data.skipped ? `, ${data.skipped} skipped` : ''}${data.errors ? `, ${data.errors.length} errors` : ''}` })
+        setImportText('')
+        setShowImport(false)
+        await fetchWhitelist()
+      } else {
+        setMessage({ type: 'err', text: data.error || 'Import failed' })
+      }
+    } catch {
+      setMessage({ type: 'err', text: 'Network error' })
+    } finally {
+      setImporting(false)
+    }
+  }
+
   if (loading) {
     return <div className="p-5 md:p-8"><p className="text-muted-foreground text-xs">Loading...</p></div>
   }
@@ -105,10 +148,48 @@ export default function WhitelistPage() {
       )}
 
       <div className="border border-border rounded-md bg-card">
-        <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
-          <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-          <p className="label-sm text-muted-foreground">Add PM</p>
+        <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+            <p className="label-sm text-muted-foreground">Add PM</p>
+          </div>
+          <button
+            onClick={() => setShowImport(!showImport)}
+            className="flex items-center gap-1.5 font-mono text-xs text-primary hover:text-primary/80 transition-colors"
+          >
+            <Upload className="h-3 w-3" />
+            Import
+          </button>
         </div>
+
+        {showImport && (
+          <div className="px-5 py-4 border-b border-border space-y-3">
+            <p className="text-xs text-muted-foreground/60">One entry per line: <code className="text-foreground">phone, name</code> or just <code className="text-foreground">phone</code></p>
+            <textarea
+              value={importText}
+              onChange={e => setImportText(e.target.value)}
+              placeholder={`628123456789, WIT Fahmi Sholat\n6282240274833, WIT Ganjar\n6285794005069`}
+              rows={5}
+              className="w-full bg-background border border-border rounded-sm px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-ring focus:outline-none resize-none"
+            />
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleImport}
+                disabled={importing || !importText.trim()}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-sm font-mono text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
+              >
+                {importing ? 'Importing...' : 'Import'}
+              </button>
+              <button
+                onClick={() => { setShowImport(false); setImportText('') }}
+                className="font-mono text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="px-5 py-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>

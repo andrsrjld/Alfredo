@@ -8,22 +8,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const WIT_PREFIX = /^wit\s+/i
-
-async function autoWhitelistIfWIT(phone: string, name: string | undefined): Promise<boolean> {
-  if (!name || !WIT_PREFIX.test(name)) return false
-  const supabase = createAdminClient()
-  const { error } = await supabase
-    .from('whitelisted_pms')
-    .upsert({ phone_number: phone, pm_name: name.trim() }, { onConflict: 'phone_number' })
-  if (error) {
-    console.error('[Fonnte] Auto-whitelist error:', error)
-    return false
-  }
-  console.log(`[Fonnte] Auto-whitelisted: ${phone} → ${name.trim()}`)
-  return true
-}
-
 async function extractFonnteMessage(request: NextRequest): Promise<{
   from: string
   text: string
@@ -37,8 +21,6 @@ async function extractFonnteMessage(request: NextRequest): Promise<{
   if (contentType.includes('application/json')) {
     try {
       const body = await request.json()
-      console.log('[Fonnte] JSON payload keys:', Object.keys(body).join(','), '| name:', body.name, '| senderName:', body.senderName, '| pushName:', body.pushName, '| contactName:', body.contactName, '| notifyName:', body.notifyName)
-
       const sender = String(body.sender || body.number || body.phone || '')
       const text = String(body.message || body.text || body.content || '')
       const member = body.member ? String(body.member) : undefined
@@ -82,17 +64,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, detail: 'no_valid_message' })
     }
 
-    const { from, text, isGroup, groupId, senderName } = msg
-    console.log('[Fonnte] from:', from, 'senderName:', senderName, 'text:', text?.slice(0, 50), 'isGroup:', isGroup)
+    const { from, text, isGroup, groupId } = msg
 
     if (isGroup && !/alfredo/i.test(text)) {
       return NextResponse.json({ ok: true, ignored: 'not_mentioned' })
     }
 
     const supabase = createAdminClient()
-
-    await autoWhitelistIfWIT(from, senderName)
-
     const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
 
     const replyTarget = isGroup ? groupId! : from

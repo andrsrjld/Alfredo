@@ -8,22 +8,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
-const WIT_PREFIX = /^wit\s+/i
-
-async function autoWhitelistIfWIT(phone: string, name: string | undefined): Promise<boolean> {
-  if (!name || !WIT_PREFIX.test(name)) return false
-  const supabase = createAdminClient()
-  const { error } = await supabase
-    .from('whitelisted_pms')
-    .upsert({ phone_number: phone, pm_name: name.trim() }, { onConflict: 'phone_number' })
-  if (error) {
-    console.error('[Evolution] Auto-whitelist error:', error)
-    return false
-  }
-  console.log(`[Evolution] Auto-whitelisted: ${phone} → ${name.trim()}`)
-  return true
-}
-
 function extractEvolutionMessage(body: Record<string, unknown>): {
   from: string
   text: string
@@ -92,17 +76,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const { from, text, isGroup, groupId, participant, senderName } = msg
-    console.log('[Evolution] incoming - from:', from, 'isGroup:', isGroup, 'groupId:', groupId, 'senderName:', senderName, 'text:', text)
+    const { from, text, isGroup, groupId, participant } = msg
 
     if (isGroup && !/alfredo/i.test(text)) {
       return NextResponse.json({ ok: true, ignored: 'not_mentioned' })
     }
 
     const supabase = createAdminClient()
-
-    await autoWhitelistIfWIT(from, senderName)
-
     const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
 
     const replyTarget = isGroup ? groupId! : from
