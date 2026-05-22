@@ -1,8 +1,11 @@
 import { createAdminClient } from "./supabase/admin";
 import { decrypt } from "./encryption";
 
-const FALLBACK_REPLY =
-  "Halo! 🤖 Data untuk pertanyaan itu belum tersedia di sistem saya. Ijal akan follow up secepatnya setelah online ya!";
+const FALLBACK_NO_CONTEXT =
+  "Halo! 🤖 Saya Alfredo, AI Companion Ijal. Data untuk pertanyaan itu belum tersedia di sistem saya. Silakan tanya tentang status server atau pipeline ya!";
+
+const FALLBACK_ERROR_REPLY =
+  "Maaf, terjadi gangguan. Silakan coba lagi dalam beberapa saat ya! 🤖";
 
 const GREETING_PATTERNS = [
   /^halo$/i, /^hallo$/i, /^hai$/i, /^hey$/i, /^hi$/i, /^p$/i,
@@ -375,7 +378,7 @@ export async function askAlfredo(
 
   if (!context.trim()) {
     return {
-      reply: FALLBACK_REPLY,
+      reply: FALLBACK_NO_CONTEXT,
       debug: { ...debug, status: 0, error: "empty_context" },
     };
   }
@@ -385,7 +388,7 @@ export async function askAlfredo(
       `[LLM] No API key configured for provider: ${config.provider}`,
     );
     return {
-      reply: FALLBACK_REPLY,
+      reply: FALLBACK_NO_CONTEXT,
       debug: { ...debug, status: 0, error: "no_api_key" },
     };
   }
@@ -406,10 +409,10 @@ export async function askAlfredo(
       console.error("[LLM] Empty response from LLM");
     }
 
-    return { reply: result.content || FALLBACK_REPLY, debug };
+    return { reply:       result.content || FALLBACK_ERROR_REPLY, debug };
   } catch (err) {
     console.error("[LLM] Exception:", err);
-    return { reply: FALLBACK_REPLY, debug: { ...debug, error: String(err) } };
+    return { reply: FALLBACK_ERROR_REPLY, debug: { ...debug, error: String(err) } };
   }
 }
 
