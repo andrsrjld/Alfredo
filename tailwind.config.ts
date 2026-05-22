@@ -46,7 +46,7 @@ const config: Config = {
         DEFAULT: "0.25rem",
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
+        sans: ["'Open Sans'", "system-ui", "sans-serif"],
         mono: ["var(--font-jetbrains-mono)", "JetBrains Mono", "monospace"],
       },
       spacing: {

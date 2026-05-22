@@ -119,7 +119,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-5 md:p-8 space-y-6 max-w-2xl">
+    <div className="p-4 lg:p-6 xl:p-8 space-y-5 lg:max-w-2xl">
       <div className="mb-2">
         <p className="text-xs text-muted-foreground/60">Configure AI provider, bot mode, API keys, and GitLab integration</p>
       </div>

@@ -100,7 +100,7 @@ export default function LogsPage() {
   }
 
   return (
-    <div className="p-5 md:p-8 space-y-4 max-w-[1280px]">
+    <div className="p-4 lg:p-6 xl:p-8 space-y-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-2">
         <p className="text-xs text-muted-foreground/60">WhatsApp conversation history</p>
         <div className="flex items-center gap-2">

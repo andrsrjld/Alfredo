@@ -4,13 +4,13 @@ import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/
 
 export default function DashboardPage() {
   return (
-    <div className="p-5 md:p-8 space-y-10 max-w-[1280px]">
+    <div className="p-4 lg:p-6 xl:p-8 space-y-6 lg:space-y-8">
       <Card>
         <CardHeader>
           <CardDescription>Servers</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-muted-foreground/60 mb-3">Real-time status from cron pings</p>
+          <p className="text-xs text-muted-foreground mb-3">Real-time status from cron pings</p>
           <RealtimeServerStatus />
         </CardContent>
       </Card>
@@ -19,7 +19,7 @@ export default function DashboardPage() {
           <CardDescription>Pipelines</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-muted-foreground/60 mb-3">GitLab CI/CD pipeline results</p>
+          <p className="text-xs text-muted-foreground mb-3">GitLab CI/CD pipeline results</p>
           <RealtimeProjectStatus />
         </CardContent>
       </Card>

@@ -120,7 +120,7 @@ export default function OverridePage() {
   }
 
   return (
-    <div className="p-5 md:p-8 space-y-6 max-w-[1280px]">
+    <div className="p-4 lg:p-6 xl:p-8 space-y-5">
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs text-muted-foreground/60">Manage servers &amp; override notes</p>
         <Button variant="link" size="xs" className="gap-1" onClick={() => setShowAdd(!showAdd)}>
@@ -175,7 +175,7 @@ export default function OverridePage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {servers.map((server) => {
           const cfg = statusConfig[server.status] || { variant: 'secondary' as const, label: server.status }
           const isSaved = saved.has(server.id)

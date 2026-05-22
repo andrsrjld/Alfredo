@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   --background: #080808;
@@ -7,7 +7,7 @@
   --card-foreground: #e5e2e1;
   --popover: #121212;
   --popover-foreground: #e5e2e1;
-  --primary: #4D7BFF;
+  --primary: #F97316;
   --primary-foreground: #ffffff;
   --secondary: #1A1A1A;
   --secondary-foreground: #e5e2e1;
@@ -19,23 +19,23 @@
   --destructive-foreground: #690005;
   --border: #27272A;
   --input: #27272A;
-  --ring: #4D7BFF;
-  --tertiary: #ffb688;
-  --tertiary-foreground: #512400;
-  --chart-1: #4D7BFF;
-  --chart-2: #ffb688;
+  --ring: #F97316;
+  --tertiary: #fbbf24;
+  --tertiary-foreground: #451a03;
+  --chart-1: #F97316;
+  --chart-2: #fbbf24;
   --chart-3: #c3c5d7;
   --chart-4: #8d90a0;
   --chart-5: #474746;
-  --radius: 0.25rem;
+  --radius: 0.375rem;
   --sidebar: #0e0e0e;
   --sidebar-foreground: #e5e2e1;
-  --sidebar-primary: #4D7BFF;
+  --sidebar-primary: #F97316;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #1A1A1A;
   --sidebar-accent-foreground: #e5e2e1;
   --sidebar-border: #27272A;
-  --sidebar-ring: #4D7BFF;
+  --sidebar-ring: #F97316;
 }
 
 .light {
@@ -45,7 +45,7 @@
   --card-foreground: #131313;
   --popover: #ffffff;
   --popover-foreground: #131313;
-  --primary: #1853d7;
+  --primary: #EA580C;
   --primary-foreground: #ffffff;
   --secondary: #f0f0f0;
   --secondary-foreground: #131313;
@@ -57,23 +57,23 @@
   --destructive-foreground: #ffffff;
   --border: #e0e0e0;
   --input: #e0e0e0;
-  --ring: #1853d7;
-  --tertiary: #e17214;
+  --ring: #EA580C;
+  --tertiary: #d97706;
   --tertiary-foreground: #ffffff;
-  --chart-1: #1853d7;
-  --chart-2: #e17214;
+  --chart-1: #EA580C;
+  --chart-2: #d97706;
   --chart-3: #6b6b6b;
   --chart-4: #434654;
   --chart-5: #a0a0a0;
-  --radius: 0.25rem;
+  --radius: 0.375rem;
   --sidebar: #f5f5f5;
   --sidebar-foreground: #131313;
-  --sidebar-primary: #1853d7;
+  --sidebar-primary: #EA580C;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #e8e8e8;
   --sidebar-accent-foreground: #131313;
   --sidebar-border: #e0e0e0;
-  --sidebar-ring: #1853d7;
+  --sidebar-ring: #EA580C;
 }
 
 @tailwind base;
@@ -86,10 +86,10 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    font-family: 'Open Sans', system-ui, sans-serif;
   }
   .font-mono {
-    font-family: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', monospace;
   }
   h1, h2, h3 {
     @apply font-medium tracking-tight;
