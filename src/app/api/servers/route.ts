@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { randomBytes } from 'crypto'
 
+const noStore = { headers: { 'Cache-Control': 'no-store' } }
+
 export async function GET() {
   try {
     const supabase = createAdminClient()
@@ -11,12 +13,12 @@ export async function GET() {
       .order('last_ping', { ascending: false })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500, ...noStore })
     }
-    return NextResponse.json(data)
+    return NextResponse.json(data, noStore)
   } catch (err) {
     console.error('[Servers GET]', err)
-    return NextResponse.json({ error: 'Failed to fetch servers' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch servers' }, { status: 500, ...noStore })
   }
 }
 
@@ -26,7 +28,7 @@ export async function POST(request: NextRequest) {
     const { server_name, ip_address } = body as { server_name: string; ip_address?: string }
 
     if (!server_name || !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(server_name)) {
-      return NextResponse.json({ error: 'Invalid server_name. Use alphanumeric, dots, hyphens, underscores.' }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid server_name. Use alphanumeric, dots, hyphens, underscores.' }, { status: 400, ...noStore })
     }
 
     const ping_secret = randomBytes(24).toString('hex')
@@ -46,18 +48,18 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       if (error.code === '23505') {
-        return NextResponse.json({ error: 'Server name already exists.' }, { status: 409 })
+        return NextResponse.json({ error: 'Server name already exists.' }, { status: 409, ...noStore })
       }
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500, ...noStore })
     }
 
     const webhookUrl = `${baseUrl}/api/server-ping`
     const crontab = `*/5 * * * * curl -s -X POST ${webhookUrl} -H "Content-Type: application/json" -d '{"server_name":"${server_name}","status":"online","ping_secret":"${ping_secret}"}' >/dev/null 2>&1`
 
-    return NextResponse.json({ server: data, crontab }, { status: 201 })
+    return NextResponse.json({ server: data, crontab }, { status: 201, ...noStore })
   } catch (err) {
     console.error('[Servers POST]', err)
-    return NextResponse.json({ error: 'Failed to add server' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to add server' }, { status: 500, ...noStore })
   }
 }
 
@@ -67,7 +69,7 @@ export async function DELETE(request: NextRequest) {
     const server_name = searchParams.get('server_name')
 
     if (!server_name) {
-      return NextResponse.json({ error: 'server_name required' }, { status: 400 })
+      return NextResponse.json({ error: 'server_name required' }, { status: 400, ...noStore })
     }
 
     const supabase = createAdminClient()
@@ -77,11 +79,11 @@ export async function DELETE(request: NextRequest) {
       .eq('server_name', server_name)
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ error: error.message }, { status: 500, ...noStore })
     }
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true }, noStore)
   } catch (err) {
     console.error('[Servers DELETE]', err)
-    return NextResponse.json({ error: 'Failed to delete server' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to delete server' }, { status: 500, ...noStore })
   }
 }

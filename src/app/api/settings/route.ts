@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encrypt, maskKey } from '@/lib/encryption'
 import { invalidateConfigCache } from '@/lib/llm'
 
 const SUPPORTED_PROVIDERS = ['deepseek', 'openai', 'gemini', 'ollama']
+const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
 export async function GET() {
   try {
@@ -15,7 +17,7 @@ export async function GET() {
       .single()
 
     if (error || !data) {
-      return NextResponse.json({ provider: 'deepseek', temperature: 0.0, models: {}, gitlab_pat: '' })
+      return NextResponse.json({ provider: 'deepseek', temperature: 0.0, models: {}, gitlab_pat: '' }, noStore)
     }
 
     const raw = data.value as Record<string, unknown>
@@ -34,10 +36,10 @@ export async function GET() {
       temperature: raw.temperature ?? 0.0,
       models: maskedModels,
       gitlab_pat: (raw.gitlab_pat as string) ? maskKey(raw.gitlab_pat as string) : '',
-    })
+    }, noStore)
   } catch (err) {
     console.error('[Settings GET]', err)
-    return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to load settings' }, { status: 500, ...noStore })
   }
 }
 
@@ -52,7 +54,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (!SUPPORTED_PROVIDERS.includes(provider)) {
-      return NextResponse.json({ error: `Unsupported provider: ${provider}` }, { status: 400 })
+      return NextResponse.json({ error: `Unsupported provider: ${provider}` }, { status: 400, ...noStore })
     }
 
     const clampedTemp = Math.max(0, Math.min(1, temperature ?? 0.0))
@@ -78,7 +80,7 @@ export async function PUT(request: NextRequest) {
         try {
           encryptedModels[prov].apiKey = encrypt(cfg.apiKey)
         } catch {
-          return NextResponse.json({ error: 'ENCRYPTION_KEY not set. Cannot save API keys.' }, { status: 500 })
+          return NextResponse.json({ error: 'ENCRYPTION_KEY not set. Cannot save API keys.' }, { status: 500, ...noStore })
         }
       } else if (cfg.apiKey && cfg.apiKey.includes('\u2022')) {
         encryptedModels[prov].apiKey = existingModels[prov]?.apiKey || ''
@@ -92,7 +94,7 @@ export async function PUT(request: NextRequest) {
       try {
         encryptedGitlabPat = encrypt(gitlab_pat)
       } catch {
-        return NextResponse.json({ error: 'ENCRYPTION_KEY not set. Cannot save GitLab PAT.' }, { status: 500 })
+        return NextResponse.json({ error: 'ENCRYPTION_KEY not set. Cannot save GitLab PAT.' }, { status: 500, ...noStore })
       }
     } else if (gitlab_pat === '') {
       encryptedGitlabPat = ''
@@ -113,14 +115,15 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('[Settings PUT] DB error:', error)
-      return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to save settings' }, { status: 500, ...noStore })
     }
 
     invalidateConfigCache()
+    revalidatePath('/api/settings')
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true }, noStore)
   } catch (err) {
     console.error('[Settings PUT]', err)
-    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500, ...noStore })
   }
 }
