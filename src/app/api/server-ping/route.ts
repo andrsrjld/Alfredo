@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true }, noStore)
+    return NextResponse.json({ ok: true, stored: { cpu, memory, disk, uptime_hours } }, noStore)
   } catch (err) {
     console.error('[Server ping] POST error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500, ...noStore })
