@@ -4,12 +4,17 @@ import { getGitLabPAT, fetchFailedJobLog } from '@/lib/gitlab'
 
 export const dynamic = 'force-dynamic'
 
+const TERMINAL_STATES = ['success', 'failed', 'canceled']
+
 function extractGitLabTimestamp(payload: Record<string, unknown>, status: string): string | null {
   const attrs = payload.object_attributes as Record<string, unknown> | undefined
   if (!attrs) return null
 
-  if ((status === 'success' || status === 'failed' || status === 'canceled') && attrs.finished_at) {
+  if (TERMINAL_STATES.includes(status) && attrs.finished_at) {
     return String(attrs.finished_at)
+  }
+  if (attrs.updated_at) {
+    return String(attrs.updated_at)
   }
   if (attrs.created_at) {
     return String(attrs.created_at)
@@ -48,19 +53,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing repo name' }, { status: 400 })
     }
 
-    if (eventTime) {
-      const { data: existing } = await supabase
-        .from('project_status')
-        .select('gitlab_event_time, pipeline_id')
-        .eq('repo_name', repoName)
-        .maybeSingle()
+    const { data: existing } = await supabase
+      .from('project_status')
+      .select('status, gitlab_event_time, pipeline_id')
+      .eq('repo_name', repoName)
+      .maybeSingle()
 
-      if (existing?.gitlab_event_time) {
-        const existingTime = new Date(existing.gitlab_event_time).getTime()
+    if (existing) {
+      if (TERMINAL_STATES.includes(existing.status) && !TERMINAL_STATES.includes(status)) {
+        console.log(`[GitLab webhook] Skipping ${status} for ${repoName}: existing ${existing.status} is terminal`)
+        return NextResponse.json({ ok: true, ignored: 'terminal_state_unchanged' })
+      }
+
+      if (eventTime && existing.gitlab_event_time) {
         const incomingTime = new Date(eventTime).getTime()
-
-        if (incomingTime <= existingTime) {
-          console.log(`[GitLab webhook] Stale event for ${repoName}: incoming=${eventTime} <= existing=${existing.gitlab_event_time}, skipping`)
+        const existingTime = new Date(existing.gitlab_event_time).getTime()
+        if (incomingTime < existingTime) {
+          console.log(`[GitLab webhook] Stale event for ${repoName}: incoming=${eventTime} < existing=${existing.gitlab_event_time}, skipping`)
           return NextResponse.json({ ok: true, ignored: 'stale_event' })
         }
       }
