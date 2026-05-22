@@ -12,7 +12,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type Server = {
   id: string
@@ -120,6 +120,36 @@ function DetailRow({ label, value, mono }: { label: string; value: string | null
   )
 }
 
+function ArrowPagination({ page, total, onPrev, onNext }: {
+  page: number
+  total: number
+  onPrev: () => void
+  onNext: () => void
+}) {
+  if (total <= 1) return null
+  return (
+    <div className="flex items-center justify-center gap-3 pt-1">
+      <Button
+        variant="outline"
+        size="icon-sm"
+        disabled={page === 0}
+        onClick={onPrev}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="min-w-[3rem] text-center text-xs text-muted-foreground">{page + 1} / {total}</span>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        disabled={page >= total - 1}
+        onClick={onNext}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+}
+
 export default function RealtimeServerStatus() {
   const [servers, setServers] = useState<Server[]>([])
   const [mobilePage, setMobilePage] = useState(0)
@@ -184,24 +214,9 @@ export default function RealtimeServerStatus() {
     )
   }
 
-  function renderDots(total: number, current: number, onChange: (i: number) => void) {
-    if (total <= 1) return null
-    return (
-      <div className="flex justify-center gap-1.5">
-        {Array.from({ length: total }).map((_, i) => (
-          <button
-            key={i}
-            onClick={() => onChange(i)}
-            className={`h-1.5 rounded-full transition-all ${i === current ? 'w-4 bg-foreground' : 'w-1.5 bg-muted-foreground/30'}`}
-          />
-        ))}
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-3">
-      {/* Mobile: slider */}
+      {/* Mobile: horizontal slider */}
       <div
         className="snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth md:hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex"
         ref={(el) => {
@@ -223,14 +238,25 @@ export default function RealtimeServerStatus() {
           <p className="py-6 text-center text-sm text-muted-foreground">No servers reporting.</p>
         )}
       </div>
-      {renderDots(mobileTotalPages, mobilePage, (i) => {
-        setMobilePage(i)
-        const el = document.querySelector('[data-server-scroll]') as HTMLDivElement
-        el?.scrollTo({ left: i * el.offsetWidth, behavior: 'smooth' })
-      })}
+      <ArrowPagination
+        page={mobilePage}
+        total={mobileTotalPages}
+        onPrev={() => {
+          const p = Math.max(0, mobilePage - 1)
+          setMobilePage(p)
+          const el = document.querySelector('[data-server-mobile]') as HTMLDivElement
+          el?.scrollTo({ left: p * el.offsetWidth, behavior: 'smooth' })
+        }}
+        onNext={() => {
+          const p = Math.min(mobileTotalPages - 1, mobilePage + 1)
+          setMobilePage(p)
+          const el = document.querySelector('[data-server-mobile]') as HTMLDivElement
+          el?.scrollTo({ left: p * el.offsetWidth, behavior: 'smooth' })
+        }}
+      />
 
       {/* Desktop: paginated grid */}
-      <div className="hidden md:block" data-server-scroll>
+      <div className="hidden md:block">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {desktopItems.map(s => renderCard(s))}
         </div>
@@ -238,7 +264,12 @@ export default function RealtimeServerStatus() {
           <p className="py-6 text-center text-sm text-muted-foreground">No servers reporting.</p>
         )}
       </div>
-      {renderDots(desktopTotalPages, desktopPage, setDesktopPage)}
+      <ArrowPagination
+        page={desktopPage}
+        total={desktopTotalPages}
+        onPrev={() => setDesktopPage(p => Math.max(0, p - 1))}
+        onNext={() => setDesktopPage(p => Math.min(desktopTotalPages - 1, p + 1))}
+      />
 
       <ServerDetailDialog
         server={selectedServer}

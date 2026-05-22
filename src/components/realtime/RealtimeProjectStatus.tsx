@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react'
+import { Search, ExternalLink, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -173,6 +173,36 @@ function ProjectCard({ project, onClick }: {
   )
 }
 
+function ArrowPagination({ page, total, onPrev, onNext }: {
+  page: number
+  total: number
+  onPrev: () => void
+  onNext: () => void
+}) {
+  if (total <= 1) return null
+  return (
+    <div className="flex items-center justify-center gap-3 pt-1">
+      <Button
+        variant="outline"
+        size="icon-sm"
+        disabled={page === 0}
+        onClick={onPrev}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="min-w-[3rem] text-center text-xs text-muted-foreground">{page + 1} / {total}</span>
+      <Button
+        variant="outline"
+        size="icon-sm"
+        disabled={page >= total - 1}
+        onClick={onNext}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+}
+
 export default function RealtimeProjectStatus() {
   const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
@@ -219,21 +249,6 @@ export default function RealtimeProjectStatus() {
     setMobilePage(page)
   }, [])
 
-  function renderDots(total: number, current: number, onChange: (i: number) => void) {
-    if (total <= 1) return null
-    return (
-      <div className="flex justify-center gap-1.5">
-        {Array.from({ length: total }).map((_, i) => (
-          <button
-            key={i}
-            onClick={() => onChange(i)}
-            className={`h-1.5 rounded-full transition-all ${i === current ? 'w-4 bg-foreground' : 'w-1.5 bg-muted-foreground/30'}`}
-          />
-        ))}
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -270,10 +285,20 @@ export default function RealtimeProjectStatus() {
           <p className="py-6 text-center text-sm text-muted-foreground">No projects found.</p>
         )}
       </div>
-      {renderDots(mobileTotalPages, mobilePage, (i) => {
-        setMobilePage(i)
-        scrollRef.current?.scrollTo({ left: i * scrollRef.current.offsetWidth, behavior: 'smooth' })
-      })}
+      <ArrowPagination
+        page={mobilePage}
+        total={mobileTotalPages}
+        onPrev={() => {
+          const p = Math.max(0, mobilePage - 1)
+          setMobilePage(p)
+          scrollRef.current?.scrollTo({ left: p * (scrollRef.current?.offsetWidth || 0), behavior: 'smooth' })
+        }}
+        onNext={() => {
+          const p = Math.min(mobileTotalPages - 1, mobilePage + 1)
+          setMobilePage(p)
+          scrollRef.current?.scrollTo({ left: p * (scrollRef.current?.offsetWidth || 0), behavior: 'smooth' })
+        }}
+      />
 
       {/* Desktop: paginated card grid */}
       <div className="hidden md:block">
@@ -286,7 +311,12 @@ export default function RealtimeProjectStatus() {
           <p className="py-6 text-center text-sm text-muted-foreground">No projects found.</p>
         )}
       </div>
-      {renderDots(desktopTotalPages, desktopPage, setDesktopPage)}
+      <ArrowPagination
+        page={desktopPage}
+        total={desktopTotalPages}
+        onPrev={() => setDesktopPage(p => Math.max(0, p - 1))}
+        onNext={() => setDesktopPage(p => Math.min(desktopTotalPages - 1, p + 1))}
+      />
 
       <ProjectDetailDialog
         project={selectedProject}
