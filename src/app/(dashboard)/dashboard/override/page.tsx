@@ -36,7 +36,9 @@ export default function OverridePage() {
   const [addError, setAddError] = useState('')
   const [adding, setAdding] = useState(false)
   const [crontab, setCrontab] = useState('')
-  const [copied, setCopied] = useState(false)
+  const [instructions, setInstructions] = useState('')
+  const [pingUrl, setPingUrl] = useState('')
+  const [copied, setCopied] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState<string | null>(null)
 
   useEffect(() => {
@@ -86,6 +88,12 @@ export default function OverridePage() {
       if (data.crontab) {
         setCrontab(data.crontab)
       }
+      if (data.instructions) {
+        setInstructions(data.instructions)
+      }
+      if (data.ping_url) {
+        setPingUrl(data.ping_url)
+      }
       if (data.server) {
         setServers(prev => [data.server, ...prev])
         setEditNote(prev => ({ ...prev, [data.server.id]: '' }))
@@ -113,10 +121,10 @@ export default function OverridePage() {
     }
   }
 
-  function copyCrontab() {
-    navigator.clipboard.writeText(crontab)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  function copyToClipboard(text: string, key: string) {
+    navigator.clipboard.writeText(text)
+    setCopied(prev => { const n = new Set(prev); n.add(key); return n })
+    setTimeout(() => setCopied(prev => { const n = new Set(prev); n.delete(key); return n }), 2000)
   }
 
   return (
@@ -159,16 +167,39 @@ export default function OverridePage() {
             </form>
             {addError && <p className="text-sm text-destructive">{addError}</p>}
             {crontab && (
-              <div className="space-y-2 pt-2">
-                <p className="label-sm">Crontab - paste on your server:</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 select-all break-all rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground">
-                    {crontab}
-                  </code>
-                  <Button variant="ghost" size="icon-xs" onClick={copyCrontab}>
-                    {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
-                  </Button>
-                </div>
+              <div className="space-y-3 pt-2">
+                {pingUrl && (
+                  <div className="space-y-1.5">
+                    <p className="label-sm">Ping URL</p>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                      <code className="min-w-0 overflow-x-auto rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground">{pingUrl}</code>
+                      <Button variant="ghost" size="icon-xs" onClick={() => copyToClipboard(pingUrl, 'url')}>
+                        {copied.has('url') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {instructions && (
+                  <div className="space-y-1.5">
+                    <p className="label-sm">Setup Instructions</p>
+                    <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-all">{instructions}</pre>
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => copyToClipboard(instructions, 'instructions')}>
+                      {copied.has('instructions') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                      Copy All
+                    </Button>
+                  </div>
+                )}
+                {!instructions && crontab && (
+                  <div className="space-y-1.5">
+                    <p className="label-sm">Crontab</p>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                      <code className="min-w-0 select-all break-all rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground">{crontab}</code>
+                      <Button variant="ghost" size="icon-xs" onClick={() => copyToClipboard(crontab, 'crontab')}>
+                        {copied.has('crontab') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

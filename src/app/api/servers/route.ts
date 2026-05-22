@@ -55,10 +55,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500, ...noStore })
     }
 
-    const webhookUrl = `${baseUrl}/api/server-ping`
-    const crontab = `* * * * * curl -s -X POST ${webhookUrl} -H "Content-Type: application/json" -d '{"server_name":"${server_name}","status":"online","ping_secret":"${ping_secret}"}' >/dev/null 2>&1`
+    const webhookUrl = `${baseUrl}/api/server-ping?secret=${ping_secret}`
+    const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
+    const scriptUrl = `${baseUrl}/scripts/alfredo-ping.sh`
+    const instructions = [
+      `# 1. Download and install the ping script:`,
+      `curl -sL ${scriptUrl} -o /usr/local/bin/alfredo-ping.sh && chmod +x /usr/local/bin/alfredo-ping.sh`,
+      `# 2. Edit the SECRET in the script:`,
+      `sed -i 's|<YOUR_SERVER_PING_SECRET>|${ping_secret}|' /usr/local/bin/alfredo-ping.sh`,
+      `# 3. Add to crontab (runs every minute):`,
+      `(crontab -l 2>/dev/null; echo "${crontab}") | crontab -`,
+    ].join('\n')
 
-    return NextResponse.json({ server: data, crontab }, { status: 201, ...noStore })
+    return NextResponse.json({ server: data, crontab, instructions, ping_url: webhookUrl, ping_secret }, { status: 201, ...noStore })
   } catch (err) {
     console.error('[Servers POST]', err)
     return NextResponse.json({ error: 'Failed to add server' }, { status: 500, ...noStore })
