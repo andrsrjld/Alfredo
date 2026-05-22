@@ -20,15 +20,41 @@ function isWithinActiveHours(): boolean {
   return current >= start && current <= end
 }
 
-export async function POST(request: NextRequest) {
+async function extractFonnteMessage(request: NextRequest): Promise<{ from: string; text: string } | null> {
+  const contentType = request.headers.get('content-type') || ''
+
+  if (contentType.includes('application/json')) {
+    try {
+      const body = await request.json()
+      const from = body.number || body.phone || body.sender || ''
+      const text = body.message || body.text || body.content || ''
+      if (!from || !text) return null
+      return { from: String(from), text: String(text) }
+    } catch {
+      return null
+    }
+  }
+
   try {
     const formData = await request.formData()
-    const from = (formData.get('number') as string) || ''
-    const text = (formData.get('message') as string) || ''
+    const from = (formData.get('number') || formData.get('phone') || formData.get('sender') || '') as string
+    const text = (formData.get('message') || formData.get('text') || formData.get('content') || '') as string
+    if (!from || !text) return null
+    return { from, text }
+  } catch {
+    return null
+  }
+}
 
-    if (!from || !text) {
-      return NextResponse.json({ ok: true })
+export async function POST(request: NextRequest) {
+  try {
+    const msg = await extractFonnteMessage(request)
+
+    if (!msg) {
+      return NextResponse.json({ ok: true, detail: 'no_valid_message' })
     }
+
+    const { from, text } = msg
 
     if (!isWithinActiveHours()) {
       return NextResponse.json({ ok: true, ignored: 'outside_hours' })
@@ -36,11 +62,16 @@ export async function POST(request: NextRequest) {
 
     const supabase = createAdminClient()
 
-    const { data: whitelist } = await supabase
+    const { data: whitelist, error: whitelistError } = await supabase
       .from('whitelisted_pms')
       .select('*')
       .eq('phone_number', from)
       .maybeSingle()
+
+    if (whitelistError) {
+      console.error('Fonnte whitelist query error:', whitelistError)
+      return NextResponse.json({ ok: false, error: 'db_error', detail: whitelistError.message }, { status: 500 })
+    }
 
     if (!whitelist) {
       return NextResponse.json({ ok: true, ignored: 'not_whitelisted' })
@@ -53,15 +84,19 @@ export async function POST(request: NextRequest) {
     const messenger = getMessagingProvider()
     await messenger.sendMessage(from, reply)
 
-    await supabase.from('chat_logs').insert({
+    const { error: logError } = await supabase.from('chat_logs').insert({
       pm_number: from,
       pm_message: text,
       bot_reply: reply,
     })
 
+    if (logError) {
+      console.error('Fonnte chat log error:', logError)
+    }
+
     return NextResponse.json({ ok: true, replied: true })
   } catch (err) {
     console.error('Fonnte webhook error:', err)
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal error', detail: String(err) }, { status: 500 })
   }
 }
