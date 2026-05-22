@@ -3,7 +3,7 @@ import Groq from 'groq-sdk'
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 const FALLBACK_REPLY =
-  'Mohon maaf Bapak/Ibu, status mengenai [QUERY] tidak tercatat dalam log serah terima sistem kami semalam. Christian akan melakukan pengecekan manual dan merespons setelah pukul 12.00.'
+  'Mohon maaf Bapak/Ibu, status yang Bapak/Ibu tanyakan tidak tercatat dalam log serah terima sistem kami. Christian akan melakukan pengecekan manual dan merespons setelah pukul 12.00.'
 
 function createSystemPrompt(context: string): string {
   const start = process.env.BOT_ACTIVE_START || '06:00'
@@ -15,10 +15,7 @@ Jam aktif bot adalah ${start} hingga ${end} WIB karena Christian sedang istiraha
 ATURAN MUTLAK (ZERO-HALLUCINATION):
 1. Anda HANYA BOLEH menjawab berdasarkan data di dalam blok [CONTEXT_DATABASE] di bawah ini.
 2. Jika PM menanyakan status server atau project yang TIDAK ADA dalam [CONTEXT_DATABASE], Anda DILARANG KERAS menebak, berasumsi, atau mengarang jawaban.
-3. Jika data tidak ditemukan, jawab dengan format: "${FALLBACK_REPLY.replace(
-    '[QUERY]',
-    '[Nama Project/Server]'
-  )}"
+3. Jika data tidak ditemukan, jawab: "${FALLBACK_REPLY}"
 
 [CONTEXT_DATABASE]
 ${context}`
@@ -26,7 +23,7 @@ ${context}`
 
 export async function askAlfredo(context: string, userMessage: string): Promise<string> {
   if (!context.trim()) {
-    return FALLBACK_REPLY.replace('[QUERY]', userMessage)
+    return FALLBACK_REPLY
   }
 
   const chatCompletion = await groq.chat.completions.create({
@@ -41,6 +38,6 @@ export async function askAlfredo(context: string, userMessage: string): Promise<
 
   return (
     chatCompletion.choices[0]?.message?.content ||
-    FALLBACK_REPLY.replace('[QUERY]', userMessage)
+    FALLBACK_REPLY
   )
 }

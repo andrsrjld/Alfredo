@@ -6,36 +6,61 @@ interface SearchResult {
   score: number
 }
 
-export async function smartSearch(keyword: string): Promise<SearchResult[]> {
-  const supabase = createAdminClient()
-  const term = keyword.trim()
-
-  if (!term) return []
-
-  const [projectRes, serverRes] = await Promise.all([
-    supabase
-      .from('project_status')
-      .select('*')
-      .or(`repo_name.ilike.%${term}%,project_group.ilike.%${term}%`)
-      .limit(10),
-    supabase
-      .from('server_status')
-      .select('*')
-      .or(`server_name.ilike.%${term}%,ip_address.ilike.%${term}%`)
-      .limit(10),
+function extractKeywords(query: string): string[] {
+  const stopWords = new Set([
+    'status', 'server', 'project', 'apa', 'kabar', 'bagaimana', 'gimana',
+    'tolong', 'cek', 'check', 'cek', 'lihat', 'info', 'informasi', 'tentang',
+    'dari', 'yang', 'di', 'ke', 'pada', 'untuk', 'dengan', 'adalah', 'itu',
+    'ini', 'sudah', 'belum', 'kah', 'sih', 'dong', 'deh', 'nah', 'oh',
   ])
+  return query
+    .toLowerCase()
+    .replace(/[^a-z0-9\-_.]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 1 && !stopWords.has(w))
+}
+
+export async function smartSearch(query: string): Promise<SearchResult[]> {
+  const supabase = createAdminClient()
+  const keywords = extractKeywords(query)
+
+  if (keywords.length === 0) return []
 
   const results: SearchResult[] = []
+  const seen = new Set<string>()
 
-  if (projectRes.data) {
-    for (const row of projectRes.data) {
-      results.push({ type: 'project', data: row, score: 1.0 })
+  for (const keyword of keywords) {
+    const [projectRes, serverRes] = await Promise.all([
+      supabase
+        .from('project_status')
+        .select('*')
+        .or(`repo_name.ilike.%${keyword}%,project_group.ilike.%${keyword}%`)
+        .limit(10),
+      supabase
+        .from('server_status')
+        .select('*')
+        .or(`server_name.ilike.%${keyword}%,ip_address.ilike.%${keyword}%`)
+        .limit(10),
+    ])
+
+    if (projectRes.data) {
+      for (const row of projectRes.data) {
+        const key = `project:${row.repo_name}`
+        if (!seen.has(key)) {
+          seen.add(key)
+          results.push({ type: 'project', data: row, score: 1.0 })
+        }
+      }
     }
-  }
 
-  if (serverRes.data) {
-    for (const row of serverRes.data) {
-      results.push({ type: 'server', data: row, score: 1.0 })
+    if (serverRes.data) {
+      for (const row of serverRes.data) {
+        const key = `server:${row.server_name}`
+        if (!seen.has(key)) {
+          seen.add(key)
+          results.push({ type: 'server', data: row, score: 1.0 })
+        }
+      }
     }
   }
 
