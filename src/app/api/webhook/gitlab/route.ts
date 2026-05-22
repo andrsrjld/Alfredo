@@ -82,10 +82,18 @@ export async function POST(request: NextRequest) {
         const pat = await getGitLabPAT()
         if (pat) {
           errorDetail = await fetchFailedJobLog(pat, gitlabProjectId, pipelineId)
+          console.log(`[GitLab webhook] Fetched error detail for ${repoName}: ${errorDetail ? errorDetail.length + ' chars' : 'null'}`)
+        } else {
+          console.warn(`[GitLab webhook] No GitLab PAT configured, cannot fetch error detail for ${repoName}`)
+          errorDetail = 'Pipeline failed. GitLab PAT not configured — unable to fetch error details.'
         }
       } catch (err) {
         console.error('[GitLab webhook] Failed to fetch job log:', err)
+        errorDetail = `Pipeline failed. Error fetching job log: ${err instanceof Error ? err.message : String(err)}`
       }
+    } else if (status === 'failed') {
+      console.warn(`[GitLab webhook] Pipeline failed for ${repoName} but missing gitlabProjectId or pipelineId — cannot fetch error detail`)
+      errorDetail = 'Pipeline failed. Unable to fetch error details (missing project or pipeline ID).'
     }
 
     const upsertData: Record<string, unknown> = {
@@ -100,7 +108,7 @@ export async function POST(request: NextRequest) {
       last_updated: eventTime || new Date().toISOString(),
     }
 
-    if (status === 'failed' && errorDetail) {
+    if (status === 'failed') {
       upsertData.error_detail = errorDetail
     } else if (status === 'success') {
       upsertData.error_detail = null
