@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
     const instructions = [
       `# 1. Download the ping script (secret pre-filled):`,
-      `curl -sL "${scriptUrl}" -o /usr/local/bin/alfredo-ping.sh && chmod +x /usr/local/bin/alfredo-ping.sh`,
+      `sudo curl -sL "${scriptUrl}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
       `# 2. Add to crontab (runs every minute):`,
       `(crontab -l 2>/dev/null; echo "${crontab}") | crontab -`,
     ].join('\n')
