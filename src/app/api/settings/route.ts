@@ -126,6 +126,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ ok: true }, noStore)
   } catch (err) {
     console.error('[Settings PUT]', err)
-    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500, ...noStore })
+    return NextResponse.json({ error: 'Failed to save settings', detail: String(err) }, { status: 500, ...noStore })
   }
 }
