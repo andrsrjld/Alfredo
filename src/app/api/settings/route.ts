@@ -50,7 +50,7 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { provider, temperature, models, gitlab_pat } = body as {
+    const { provider, temperature, models, gitlab_pat, bot_mode } = body as {
       provider: string
       temperature: number
       models: Record<string, Record<string, string>>
