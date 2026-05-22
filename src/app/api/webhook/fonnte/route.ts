@@ -62,6 +62,10 @@ export async function POST(request: NextRequest) {
 
     const { from, text, isGroup, groupId } = msg
 
+    if (isGroup && !/alfredo/i.test(text)) {
+      return NextResponse.json({ ok: true, ignored: 'not_mentioned' })
+    }
+
     const supabase = createAdminClient()
     const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
 
