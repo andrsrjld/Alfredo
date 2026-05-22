@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('GitLab webhook upsert error:', error)
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
+      return NextResponse.json({ error: 'Database error', detail: error.message, code: error.code, hint: error.hint }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true })
