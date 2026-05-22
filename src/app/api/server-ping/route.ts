@@ -78,8 +78,6 @@ export async function POST(request: NextRequest) {
 
     const { cpu, memory, disk, uptime_hours, containers } = metrics
 
-    console.log('[Server ping] POST received:', { serverName, cpu, memory, disk, uptime_hours, containers })
-
     const { error: serverError } = await supabase
       .from('server_status')
       .update({
