@@ -63,9 +63,9 @@ function formatWIBShort(iso: string): string {
 
 function DetailRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
-      <span className={`min-w-0 truncate text-right ${mono ? 'font-mono' : ''} text-xs`}>{value || '\u2014'}</span>
+    <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className={`min-w-0 break-words text-xs sm:text-right ${mono ? 'font-mono' : ''}`}>{value || '\u2014'}</span>
     </div>
   )
 }
@@ -89,10 +89,10 @@ function ProjectDetailDialog({ project, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span className="font-mono">{capitalizeWords(project.repo_name)}</span>
+          <DialogTitle className="flex min-w-0 flex-wrap items-center gap-2 pr-8">
+            <span className="min-w-0 break-words font-mono">{capitalizeWords(project.repo_name)}</span>
             <Badge variant={cfg.variant}>{cfg.label}</Badge>
           </DialogTitle>
           <DialogDescription>Pipeline details</DialogDescription>
@@ -132,7 +132,7 @@ function ProjectDetailDialog({ project, open, onOpenChange }: {
                 {showError ? 'Hide Error' : 'Show Error'}
               </Button>
               {showError && (
-                <pre className="whitespace-pre-wrap break-words rounded bg-muted px-3 py-2 font-mono text-xs text-foreground">{project.error_detail}</pre>
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all rounded bg-muted px-3 py-2 font-mono text-xs text-foreground">{project.error_detail}</pre>
               )}
             </div>
           )}

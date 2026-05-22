@@ -159,22 +159,32 @@ export default function SettingsPage() {
             ))}
           </div>
           {settings.bot_mode === 'normal' && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <label className="label-sm shrink-0">Active hours</label>
-              <Input
-                type="time"
-                value={settings.active_start}
-                onChange={e => setSettings(s => ({ ...s, active_start: e.target.value }))}
-                className="w-32 font-mono"
-              />
-              <span className="text-sm text-muted-foreground">—</span>
-              <Input
-                type="time"
-                value={settings.active_end}
-                onChange={e => setSettings(s => ({ ...s, active_end: e.target.value }))}
-                className="w-32 font-mono"
-              />
-              <span className="text-sm text-muted-foreground">WIB</span>
+            <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <label className="label-sm">Active hours</label>
+                <span className="text-xs text-muted-foreground">WIB</span>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+                <div className="min-w-0 space-y-1">
+                  <span className="block text-xs text-muted-foreground">Start</span>
+                  <Input
+                    type="time"
+                    value={settings.active_start}
+                    onChange={e => setSettings(s => ({ ...s, active_start: e.target.value }))}
+                    className="w-full font-mono"
+                  />
+                </div>
+                <span className="pb-2 text-sm text-muted-foreground">to</span>
+                <div className="min-w-0 space-y-1">
+                  <span className="block text-xs text-muted-foreground">End</span>
+                  <Input
+                    type="time"
+                    value={settings.active_end}
+                    onChange={e => setSettings(s => ({ ...s, active_end: e.target.value }))}
+                    className="w-full font-mono"
+                  />
+                </div>
+              </div>
             </div>
           )}
           <p className="mt-3 text-sm text-muted-foreground">

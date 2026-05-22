@@ -61,10 +61,10 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span className="font-mono">{server.server_name}</span>
+          <DialogTitle className="flex min-w-0 flex-wrap items-center gap-2 pr-8">
+            <span className="min-w-0 break-words font-mono">{server.server_name}</span>
             <Badge variant={cfg.variant}>{cfg.label}</Badge>
           </DialogTitle>
           <DialogDescription>Server details</DialogDescription>
@@ -76,8 +76,8 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
           {server.ping_secret && (
             <div className="space-y-1.5">
               <span className="text-xs text-muted-foreground">Ping Secret</span>
-              <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs">{server.ping_secret}</code>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                <code className="min-w-0 overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-xs">{server.ping_secret}</code>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -92,8 +92,8 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
           {pingUrl && (
             <div className="space-y-1.5">
               <span className="text-xs text-muted-foreground">Ping URL</span>
-              <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-xs break-all">{pingUrl}</code>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                <code className="min-w-0 whitespace-normal break-all rounded bg-muted px-2 py-1 font-mono text-xs">{pingUrl}</code>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -113,9 +113,9 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
 
 function DetailRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
-      <span className={`min-w-0 truncate text-right ${mono ? 'font-mono' : ''} text-xs`}>{value || '\u2014'}</span>
+    <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+      <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span className={`min-w-0 break-words text-xs sm:text-right ${mono ? 'font-mono' : ''}`}>{value || '\u2014'}</span>
     </div>
   )
 }
