@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { smartSearch, formatSearchContext } from '@/lib/search'
 import { askAlfredo } from '@/lib/llm'
+import { getMessagingProvider } from '@/lib/messaging'
 import { NextRequest, NextResponse } from 'next/server'
 
 function isWithinActiveHours(): boolean {
@@ -19,7 +20,92 @@ function isWithinActiveHours(): boolean {
   return current >= start && current <= end
 }
 
-function extractMessage(body: unknown): { from: string; text: string } | null {
+export async function GET(request: NextRequest) {
+  const provider = process.env.WA_PROVIDER || 'meta'
+
+  if (provider === 'meta') {
+    const searchParams = request.nextUrl.searchParams
+    const mode = searchParams.get('hub.mode')
+    const token = searchParams.get('hub.verify_token')
+    const challenge = searchParams.get('hub.challenge')
+
+    if (mode === 'subscribe' && token === process.env.WA_WEBHOOK_VERIFY_TOKEN) {
+      return new NextResponse(challenge, { status: 200 })
+    }
+    return NextResponse.json({ error: 'Verification failed' }, { status: 403 })
+  }
+
+  return NextResponse.json({ ok: true })
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const provider = process.env.WA_PROVIDER || 'meta'
+
+    let from = ''
+    let text = ''
+
+    if (provider === 'fonnte') {
+      const formData = await request.formData()
+      from = (formData.get('number') as string) || ''
+      text = (formData.get('message') as string) || ''
+    } else if (provider === 'evolution') {
+      const body = await request.json()
+      const data = body?.data || body
+      const msgData = data?.msg || data?.message || data
+      from = msgData?.from || msgData?.remoteJid?.split('@')[0] || ''
+      text = msgData?.text || msgData?.body?.conversation || msgData?.conversation || ''
+    } else {
+      const body = await request.json()
+      const parsed = extractMetaMessage(body)
+      if (!parsed) {
+        return NextResponse.json({ ok: true })
+      }
+      from = parsed.from
+      text = parsed.text
+    }
+
+    if (!from || !text) {
+      return NextResponse.json({ ok: true })
+    }
+
+    if (!isWithinActiveHours()) {
+      return NextResponse.json({ ok: true, ignored: 'outside_hours' })
+    }
+
+    const supabase = createAdminClient()
+
+    const { data: whitelist } = await supabase
+      .from('whitelisted_pms')
+      .select('*')
+      .eq('phone_number', from)
+      .maybeSingle()
+
+    if (!whitelist) {
+      return NextResponse.json({ ok: true, ignored: 'not_whitelisted' })
+    }
+
+    const results = await smartSearch(text)
+    const context = formatSearchContext(results)
+    const reply = await askAlfredo(context, text)
+
+    const messenger = getMessagingProvider()
+    await messenger.sendMessage(from, reply)
+
+    await supabase.from('chat_logs').insert({
+      pm_number: from,
+      pm_message: text,
+      bot_reply: reply,
+    })
+
+    return NextResponse.json({ ok: true, replied: true })
+  } catch (err) {
+    console.error('Messaging webhook error:', err)
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  }
+}
+
+function extractMetaMessage(body: unknown): { from: string; text: string } | null {
   try {
     const b = body as Record<string, unknown>
     const entry = (b.entry as Record<string, unknown>[] | undefined)?.[0]
@@ -33,86 +119,5 @@ function extractMessage(body: unknown): { from: string; text: string } | null {
     }
   } catch {
     return null
-  }
-}
-
-export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const mode = searchParams.get('hub.mode')
-  const token = searchParams.get('hub.verify_token')
-  const challenge = searchParams.get('hub.challenge')
-
-  if (mode === 'subscribe' && token === process.env.WA_WEBHOOK_VERIFY_TOKEN) {
-    return new NextResponse(challenge, { status: 200 })
-  }
-
-  return NextResponse.json({ error: 'Verification failed' }, { status: 403 })
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const msg = extractMessage(body)
-
-    if (!msg) {
-      return NextResponse.json({ ok: true })
-    }
-
-    const { from, text } = msg
-
-    // Gatekeeper 1: time window
-    if (!isWithinActiveHours()) {
-      return NextResponse.json({ ok: true, ignored: 'outside_hours' })
-    }
-
-    const supabase = createAdminClient()
-
-    // Gatekeeper 2: whitelist
-    const { data: whitelist } = await supabase
-      .from('whitelisted_pms')
-      .select('*')
-      .eq('phone_number', from)
-      .maybeSingle()
-
-    if (!whitelist) {
-      return NextResponse.json({ ok: true, ignored: 'not_whitelisted' })
-    }
-
-    // Context retrieval
-    const results = await smartSearch(text)
-    const context = formatSearchContext(results)
-
-    // LLM invocation
-    const reply = await askAlfredo(context, text)
-
-    // Send reply via Meta API
-    const phoneId = process.env.WA_PHONE_NUMBER_ID
-    const token = process.env.WA_ACCESS_TOKEN
-    if (phoneId && token) {
-      await fetch(`https://graph.facebook.com/v18.0/${phoneId}/messages`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: from,
-          text: { body: reply },
-        }),
-      })
-    }
-
-    // Logging
-    await supabase.from('chat_logs').insert({
-      pm_number: from,
-      pm_message: text,
-      bot_reply: reply,
-    })
-
-    return NextResponse.json({ ok: true, replied: true })
-  } catch (err) {
-    console.error('WhatsApp webhook error:', err)
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }
