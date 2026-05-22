@@ -43,9 +43,6 @@ export async function smartSearch(query: string): Promise<SearchResult[]> {
         .limit(10),
     ])
 
-    if (projectRes.error) console.error('[Search] project query error for keyword "%s":', keyword, projectRes.error.message)
-    if (serverRes.error) console.error('[Search] server query error for keyword "%s":', keyword, serverRes.error.message)
-
     if (projectRes.data) {
       for (const row of projectRes.data) {
         const key = `project:${row.repo_name}`

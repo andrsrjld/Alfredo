@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
 
     const results = await smartSearch(text)
     const context = formatSearchContext(results)
-    console.log('[Fonnte] search results:', results.length, 'keywords:', text, 'context preview:', context.substring(0, 200))
     const reply = await askAlfredo(context, text)
 
     const messenger = getMessagingProvider()
@@ -97,7 +96,7 @@ export async function POST(request: NextRequest) {
       console.error('Fonnte chat log error:', logError)
     }
 
-    return NextResponse.json({ ok: true, replied: true, context_preview: context.substring(0, 200) || '(empty)' })
+    return NextResponse.json({ ok: true, replied: true })
   } catch (err) {
     console.error('Fonnte webhook error:', err)
     return NextResponse.json({ error: 'Internal error', detail: String(err) }, { status: 500 })
