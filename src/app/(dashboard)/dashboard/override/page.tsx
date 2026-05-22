@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Copy, Check, Trash2 } from 'lucide-react'
+import { Plus, Copy, Check, Trash2, Terminal } from 'lucide-react'
 import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 
 type Server = {
   id: string
@@ -41,6 +48,7 @@ export default function OverridePage() {
   const [pingUrl, setPingUrl] = useState('')
   const [copied, setCopied] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [setupServer, setSetupServer] = useState<Server | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -122,6 +130,29 @@ export default function OverridePage() {
     navigator.clipboard.writeText(text)
     setCopied(prev => { const n = new Set(prev); n.add(key); return n })
     setTimeout(() => setCopied(prev => { const n = new Set(prev); n.delete(key); return n }), 2000)
+  }
+
+  function generateSetupInstructions(server: Server, mode: 'daemon' | 'cron') {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app'
+    const secret = server.ping_secret
+    if (!secret) return 'No ping secret available for this server.'
+    if (mode === 'daemon') {
+      return [
+        `# 1. Download daemon script (secrets embedded):`,
+        `sudo curl -sL "${baseUrl}/api/daemon?secret=${secret}" -o /usr/local/bin/alfredo-daemon.mjs && sudo chmod +x /usr/local/bin/alfredo-daemon.mjs`,
+        `# 2. Download systemd service unit:`,
+        `sudo curl -sL "${baseUrl}/api/daemon/service?secret=${secret}" -o /etc/systemd/system/alfredo-daemon.service`,
+        `# 3. Enable and start:`,
+        `sudo systemctl daemon-reload && sudo systemctl enable --now alfredo-daemon`,
+      ].join('\n')
+    }
+    const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
+    return [
+      `# 1. Download ping script:`,
+      `sudo curl -sL "${baseUrl}/api/scripts/alfredo-ping.sh?secret=${secret}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
+      `# 2. Add to crontab:`,
+      `(crontab -l 2>/dev/null; echo "${crontab}") | crontab -`,
+    ].join('\n')
   }
 
   const activeInstructions = setupMode === 'daemon' ? daemonInstructions : cronInstructions
@@ -238,6 +269,14 @@ export default function OverridePage() {
                     <Button
                       variant="ghost"
                       size="icon-xs"
+                      onClick={() => setSetupServer(server)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Terminal className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => handleDelete(server.server_name, server.id)}
                       disabled={isDeleting}
                       className="text-muted-foreground hover:text-destructive"
@@ -278,6 +317,37 @@ export default function OverridePage() {
           <p className="col-span-full py-8 text-center text-sm text-muted-foreground">No servers found. Click &quot;Add Server&quot; to get started.</p>
         )}
       </div>
+
+      <Dialog open={!!setupServer} onOpenChange={(open) => { if (!open) setSetupServer(null) }}>
+        <DialogContent className="overflow-x-hidden">
+          <DialogHeader>
+            <DialogTitle className="font-mono">{setupServer?.server_name}</DialogTitle>
+            <DialogDescription>Setup instructions</DialogDescription>
+          </DialogHeader>
+          {setupServer && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Mode:</span>
+                <Button variant={setupMode === 'daemon' ? 'default' : 'outline'} size="xs" onClick={() => setSetupMode('daemon')}>Realtime</Button>
+                <Button variant={setupMode === 'cron' ? 'default' : 'outline'} size="xs" onClick={() => setSetupMode('cron')}>Cron</Button>
+              </div>
+              {setupMode === 'daemon' && (
+                <p className="text-xs text-muted-foreground">systemd daemon — 2s streaming, real-time metrics. Requires Node.js 18+.</p>
+              )}
+              {setupMode === 'cron' && (
+                <p className="text-xs text-muted-foreground">Cron — 1-min interval, no streaming. Simple but slower.</p>
+              )}
+              <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-all">
+                {generateSetupInstructions(setupServer, setupMode)}
+              </pre>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => copyToClipboard(generateSetupInstructions(setupServer, setupMode), 'server-setup')}>
+                {copied.has('server-setup') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                Copy All
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
