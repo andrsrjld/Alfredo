@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { smartSearch, formatSearchContext } from '@/lib/search'
 import { askAlfredo } from '@/lib/llm'
 import { getMessagingProvider } from '@/lib/messaging'
+import { normalizePhone } from '@/lib/phone'
 import { NextRequest, NextResponse } from 'next/server'
 
 function isWithinActiveHours(): boolean {
@@ -68,6 +69,9 @@ export async function POST(request: NextRequest) {
     if (!from || !text) {
       return NextResponse.json({ ok: true })
     }
+
+    from = normalizePhone(from)
+    console.log('[WhatsApp] incoming - normalized:', from, 'text:', text)
 
     if (!isWithinActiveHours()) {
       return NextResponse.json({ ok: true, ignored: 'outside_hours' })

@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { smartSearch, formatSearchContext } from '@/lib/search'
 import { askAlfredo } from '@/lib/llm'
 import { getMessagingProvider } from '@/lib/messaging'
+import { normalizePhone } from '@/lib/phone'
 import { NextRequest, NextResponse } from 'next/server'
 
 function isWithinActiveHours(): boolean {
@@ -62,7 +63,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     }
 
-    const { from, text } = msg
+    const { from: rawFrom, text } = msg
+    const from = normalizePhone(rawFrom)
+    console.log('[Evolution] incoming - raw:', rawFrom, 'normalized:', from, 'text:', text)
 
     if (!isWithinActiveHours()) {
       return NextResponse.json({ ok: true, ignored: 'outside_hours' })

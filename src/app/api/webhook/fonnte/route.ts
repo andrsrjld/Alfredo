@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { smartSearch, formatSearchContext } from '@/lib/search'
 import { askAlfredo } from '@/lib/llm'
 import { getMessagingProvider } from '@/lib/messaging'
+import { normalizePhone } from '@/lib/phone'
 import { NextRequest, NextResponse } from 'next/server'
 
 function isWithinActiveHours(): boolean {
@@ -54,7 +55,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, detail: 'no_valid_message' })
     }
 
-    const { from, text } = msg
+    const { from: rawFrom, text } = msg
+    const from = normalizePhone(rawFrom)
+    console.log('[Fonnte] incoming - raw:', rawFrom, 'normalized:', from, 'text:', text)
 
     if (!isWithinActiveHours()) {
       return NextResponse.json({ ok: true, ignored: 'outside_hours' })
@@ -74,7 +77,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!whitelist) {
-      return NextResponse.json({ ok: true, ignored: 'not_whitelisted' })
+      console.log('[Fonnte] not whitelisted:', from)
+      return NextResponse.json({ ok: true, ignored: 'not_whitelisted', normalized: from })
     }
 
     const results = await smartSearch(text)
