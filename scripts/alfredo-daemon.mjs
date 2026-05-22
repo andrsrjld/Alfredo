@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Alfredo Daemon — systemd real-time metrics broadcaster
 // Generated dynamically by /api/daemon — secrets embedded at generation time
 // Requires: Node.js 18+ (no npm dependencies)

@@ -36,8 +36,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-Environment=NODE_OPTIONS="--experimental-network-imports"
-ExecStart=/bin/sh -c 'exec "$(which node)" /usr/local/bin/alfredo-daemon.mjs'
+Environment=NODE_OPTIONS=--experimental-network-imports
+ExecStart=/usr/bin/env node /usr/local/bin/alfredo-daemon.mjs
 Restart=always
 RestartSec=5
 StandardOutput=journal
