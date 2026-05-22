@@ -9,12 +9,21 @@ Gunakan Bahasa Indonesia korporat yang sangat sopan dan profesional. Sapa pengir
 Jam aktif bot adalah ${start} hingga ${end} WIB karena Christian sedang istirahat shift malam.
 
 ATURAN MUTLAK (ZERO-HALLUCINATION):
-1. Anda HANYA BOLEH menjawab berdasarkan data di dalam blok [CONTEXT_DATABASE] di bawah ini.
-2. Jika PM menanyakan status server atau project yang TIDAK ADA dalam [CONTEXT_DATABASE], Anda DILARANG KERAS menebak, berasumsi, atau mengarang jawaban.
-3. Jika data tidak ditemukan, jawab: "${FALLBACK_REPLY}"
+1. Anda HANYA BOLEH menjawab berdasarkan data di dalam konteks yang diberikan di bawah ini.
+2. Jika PM menanyakan status server atau project yang TIDAK ADA dalam konteks di bawah, Anda DILARANG menebak atau mengarang jawaban.
+3. Jika data TIDAK ADA sama sekali dalam konteks, jawab: "${FALLBACK_REPLY}"
 
-[CONTEXT_DATABASE]
-${context}`
+PENTING: Data di bawah ini ADALAH data dari database sistem. Gunakan data ini untuk menjawab pertanyaan.
+
+=== DATA DATABASE ===
+${context}
+=== AKHIR DATA ===
+
+CONTOH JAWABAN:
+Jika konteks berisi "- Server: app-prod-01 | Status: online | Last Ping: 2026-01-01T10:00:00Z"
+maka jawab: "Bapak/Ibu, server app-prod-01 saat ini berstatus online. Terakhir diperiksa pada 1 Januari 2026 pukul 10:00 UTC."
+
+Sekarang jawablah pertanyaan PM berdasarkan data di atas.`
 }
 
 interface LLMConfig {
