@@ -16,19 +16,22 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 └─────────────┘     └──────────────────┘
                                                  ▲
 ┌─────────────┐     ┌──────────────────┐        │
-│  WhatsApp   │────▶│ /api/webhook/    │────▶   │
-│  Cloud API  │     │ whatsapp         │        │
-└─────────────┘     └──────────────────┘
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │  Groq API    │
-                    │  (LLM)       │
-                    └──────────────┘
+│  Messaging  │────▶│ /api/webhook/    │────────┘
+│  Provider    │     │ {whatsapp,       │
+│  (meta/      │     │  fonnte,         │
+│   fonnte/    │     │  evolution}      │
+│   evolution) │     └──────────────────┘
+└─────────────┘              │
+                              ▼
+                       ┌──────────────┐
+                       │  Groq API    │
+                       │  (LLM)       │
+                       └──────────────┘
 ```
 
 ## Key Features
 
+- **Multi-Provider Messaging** — Choose between Meta WhatsApp Cloud API, **Fonnte** (no Meta approval needed, recommended for Indonesia), or **Evolution API** (self-hosted, free). Switch via `WA_PROVIDER` env var.
 - **WhatsApp Bot** — Responds to whitelisted PMs during configurable active hours (default 06:00–12:00 WIB).
 - **Zero-Hallucination** — Alfredo only answers from database context. If data is missing, it returns a polite fallback message.
 - **GitLab Integration** — Receives pipeline status updates from GitLab Group Webhooks and stores them in real-time.
@@ -43,7 +46,7 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 | Framework | Next.js 14 (App Router) |
 | Hosting | Vercel (Serverless) |
 | Database | Supabase (PostgreSQL, Auth, Realtime) |
-| Messaging | WhatsApp Business Cloud API (Meta Graph API v18+) |
+| Messaging | Meta WhatsApp Cloud API / Fonnte / Evolution API |
 | AI Engine | Groq API (`llama-3.1-70b-versatile`) |
 | Styling | Tailwind CSS + shadcn/ui |
 
@@ -54,7 +57,7 @@ Alfredo is an AI-powered L1 Support chatbot for WhatsApp, designed to answer pro
 - Node.js 18+ and npm
 - A Supabase project
 - A Groq API key
-- (Optional) WhatsApp Business Cloud API credentials
+- A messaging provider account (Fonnte recommended, or Meta WhatsApp, or Evolution API)
 
 ### 1. Install dependencies
 
@@ -94,13 +97,40 @@ Open [http://localhost:3000](http://localhost:3000). The root redirects to `/das
 
 > **Important:** After setting these, go to Supabase Dashboard → **Authentication** → **URL Configuration** and set **Site URL** to your app URL (`http://localhost:3000` for dev, your Vercel URL for prod). Otherwise login will fail with a CORS error.
 
-### WhatsApp Cloud API
+### Messaging Provider
+
+Set `WA_PROVIDER` to choose your provider: `meta`, `fonnte`, or `evolution`.
+
+#### Fonnte (Recommended — No Meta Approval Needed)
+
+Best choice for Indonesia. Register at [fonnte.com](https://fonnte.com), get an API key, and you're ready.
 
 | Variable | How to Generate |
 |---|---|
+| `WA_PROVIDER` | Set to `fonnte` |
+| `FONNTE_API_KEY` | [fonnte.com](https://fonnte.com) → Dashboard → **API Key** |
+
+#### Meta WhatsApp Cloud API
+
+Official WhatsApp Business API. Requires Meta for Developers account and app review.
+
+| Variable | How to Generate |
+|---|---|
+| `WA_PROVIDER` | Set to `meta` |
 | `WA_PHONE_NUMBER_ID` | [Meta for Developers](https://developers.facebook.com) → Your App → **WhatsApp** → **API Setup** → Phone Number ID |
 | `WA_ACCESS_TOKEN` | Meta for Developers → Your App → **WhatsApp** → **API Setup** → **Generate Access Token** (use a permanent token for production) |
-| `WA_WEBHOOK_VERIFY_TOKEN` | Self-generated arbitrary string. You choose this value — just use the same one when configuring the Meta webhook. Example: `alfredo_verify_2026` |
+| `WA_WEBHOOK_VERIFY_TOKEN` | Self-generated arbitrary string. Use the same value when configuring the Meta webhook. Example: `alfredo_verify_2026` |
+
+#### Evolution API (Self-Hosted, Free)
+
+Open-source WhatsApp API. Requires a VPS to host. [GitHub repo](https://github.com/EvolutionAPI/evolution-api).
+
+| Variable | How to Generate |
+|---|---|
+| `WA_PROVIDER` | Set to `evolution` |
+| `EVOLUTION_API_URL` | Your Evolution API base URL (e.g., `https://evolution.yourdomain.com`) |
+| `EVOLUTION_API_KEY` | Set during Evolution API installation |
+| `EVOLUTION_INSTANCE_NAME` | Created in Evolution API dashboard after connecting a WhatsApp number |
 
 ### GitLab
 
@@ -133,7 +163,7 @@ For self-generated secrets (`WA_WEBHOOK_VERIFY_TOKEN`, `GITLAB_WEBHOOK_SECRET`, 
 # macOS / Linux
 openssl rand -hex 24
 
-# Or use any password manager to generate a 32+ character string
+# Or use any password manager to generate a 48+ character string
 ```
 
 ## Deployment
@@ -153,18 +183,31 @@ openssl rand -hex 24
 - Create an admin user via Supabase Auth (email/password) for dashboard access.
 - Enable Realtime for `project_status` and `server_status` tables in the Supabase dashboard.
 
-#### 2. GitLab Webhook
+#### 2. Messaging Provider Webhook
+
+Choose **one** section based on your `WA_PROVIDER`:
+
+**Fonnte (recommended):**
+1. Go to [fonnte.com](https://fonnte.com) dashboard → **Webhook**.
+2. Set the webhook URL to `https://<your-vercel-url>/api/webhook/fonnte`.
+3. The dedicated endpoint accepts `number` and `message` fields from Fonnte's formData payload.
+
+**Meta WhatsApp Cloud API:**
+1. In [Meta for Developers](https://developers.facebook.com), configure your WhatsApp app webhook URL to `https://<your-vercel-url>/api/webhook/whatsapp`.
+2. Set the Verify Token to match `WA_WEBHOOK_VERIFY_TOKEN`.
+3. Subscribe to the `messages` field.
+4. The endpoint also serves GET requests for Meta's webhook verification.
+
+**Evolution API:**
+1. In your Evolution API dashboard, set the webhook URL to `https://<your-vercel-url>/api/webhook/evolution`.
+2. The dedicated endpoint parses Evolution's JSON message format including `remoteJid` and `body.conversation`.
+
+#### 3. GitLab Webhook
 
 - Go to your GitLab Group → Settings → Webhooks.
 - Add a new webhook pointing to `https://<your-vercel-url>/api/webhook/gitlab`.
 - Set the Secret Token to match `GITLAB_WEBHOOK_SECRET`.
 - Trigger on **Pipeline events** only.
-
-#### 3. WhatsApp Cloud API
-
-- In Meta for Developers, configure your WhatsApp app webhook URL to `https://<your-vercel-url>/api/webhook/whatsapp`.
-- Set the Verify Token to match `WA_WEBHOOK_VERIFY_TOKEN`.
-- Subscribe to the `messages` field.
 
 #### 4. Server Cron Pings
 
@@ -195,33 +238,41 @@ Phone numbers must be in international format without `+` (e.g., `628123456789`)
 src/
 ├── app/
 │   ├── api/
-│   │   ├── auth/signout/route.ts    # Sign out action
-│   │   ├── server-ping/route.ts     # Server cron ping endpoint
+│   │   ├── auth/signout/route.ts       # Sign out action
+│   │   ├── server-ping/route.ts        # Server cron ping endpoint
 │   │   └── webhook/
-│   │       ├── gitlab/route.ts      # GitLab pipeline webhook
-│   │       └── whatsapp/route.ts    # WhatsApp Cloud API webhook
-│   ├── (auth)/login/page.tsx        # Admin login
+│   │       ├── gitlab/route.ts          # GitLab pipeline webhook
+│   │       ├── whatsapp/route.ts        # Meta WhatsApp webhook (GET verify + POST)
+│   │       ├── fonnte/route.ts          # Fonnte webhook (formData)
+│   │       └── evolution/route.ts       # Evolution API webhook (JSON)
+│   ├── (auth)/login/page.tsx            # Admin login
 │   ├── (dashboard)/
-│   │   ├── dashboard/page.tsx       # Main monitoring view
-│   │   ├── logs/page.tsx            # Chat logs
-│   │   ├── override/page.tsx        # Manual server note editor
-│   │   └── layout.tsx               # Dashboard shell with sidebar
-│   ├── layout.tsx                   # Root layout
-│   └── page.tsx                     # Redirects to /dashboard
+│   │   ├── dashboard/page.tsx           # Main monitoring view
+│   │   ├── logs/page.tsx               # Chat logs
+│   │   ├── override/page.tsx           # Manual server note editor
+│   │   └── layout.tsx                  # Dashboard shell with sidebar
+│   ├── layout.tsx                      # Root layout
+│   └── page.tsx                        # Redirects to /dashboard
 ├── components/
-│   ├── realtime/                    # Supabase Realtime subscriptions
+│   ├── realtime/                       # Supabase Realtime subscriptions
 │   │   ├── RealtimeServerStatus.tsx
 │   │   └── RealtimeProjectStatus.tsx
-│   └── ui/                          # shadcn/ui components
+│   └── ui/                             # shadcn/ui components
 ├── lib/
+│   ├── messaging/                      # Provider abstraction
+│   │   ├── types.ts                    # MessagingProvider interface
+│   │   ├── index.ts                    # Factory (getMessagingProvider)
+│   │   ├── meta.ts                     # Meta WhatsApp Cloud API
+│   │   ├── fonnte.ts                   # Fonnte API
+│   │   └── evolution.ts                # Evolution API
 │   ├── supabase/
-│   │   ├── client.ts                # Browser Supabase client
-│   │   ├── server.ts                # Server-side Supabase client (SSR)
-│   │   └── admin.ts                 # Service-role client (webhooks, bypasses RLS)
-│   ├── llm.ts                       # Groq API wrapper + system prompt
-│   ├── search.ts                    # Keyword-based context retrieval
-│   └── utils.ts                     # shadcn/ui cn() helper
-└── middleware.ts                     # Supabase Auth route protection
+│   │   ├── client.ts                   # Browser Supabase client
+│   │   ├── server.ts                   # Server-side Supabase client (SSR)
+│   │   └── admin.ts                    # Service-role client (webhooks, bypasses RLS)
+│   ├── llm.ts                          # Groq API wrapper + system prompt
+│   ├── search.ts                       # Keyword-based context retrieval
+│   └── utils.ts                        # shadcn/ui cn() helper
+└── middleware.ts                        # Supabase Auth route protection
 ```
 
 ## Scripts
