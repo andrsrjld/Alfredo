@@ -43,8 +43,22 @@ type Server = {
 
 const MOBILE_PAGE_SIZE = 4
 const DESKTOP_PAGE_SIZE = 8
+const STALE_THRESHOLD_MS = 6000
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app'
+
+function isStale(server: Server): boolean {
+  if (server.status !== 'online') return false
+  return Date.now() - new Date(server.last_ping).getTime() > STALE_THRESHOLD_MS
+}
+
+function staleLabel(server: Server): string {
+  if (!isStale(server)) return ''
+  const diff = Date.now() - new Date(server.last_ping).getTime()
+  const secs = Math.floor(diff / 1000)
+  if (secs < 60) return `${secs}s stale`
+  return `${Math.floor(secs / 60)}m stale`
+}
 
 const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
   online: { variant: 'success', label: 'Online' },
@@ -123,17 +137,18 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
     }
     fetchContainers()
     fetchServerMetrics()
-    const metricsInterval = setInterval(fetchServerMetrics, 2000)
-    const containerInterval = setInterval(fetchContainers, 2000)
     const dbChannel = supabase
-      .channel(`container_status_${serverName}`)
+      .channel(`container_status_${encodeURIComponent(serverName)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'container_status', filter: `server_name=eq.${serverName}` }, () => {
         fetchContainers()
       })
       .subscribe()
+    const staleTimeout = setTimeout(() => {
+      fetchServerMetrics()
+      fetchContainers()
+    }, STALE_THRESHOLD_MS + 1000)
     return () => {
-      clearInterval(metricsInterval)
-      clearInterval(containerInterval)
+      clearTimeout(staleTimeout)
       supabase.removeChannel(dbChannel)
       setLiveServer(null)
     }
@@ -141,7 +156,10 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
 
   if (!server) return null
   const displayServer = liveServer || server
-  const cfg = statusConfig[displayServer.status] || { variant: 'secondary' as const, label: displayServer.status }
+  const stale = isStale(displayServer)
+  const cfg = stale
+    ? { variant: 'warning' as const, label: staleLabel(displayServer) }
+    : (statusConfig[displayServer.status] || { variant: 'secondary' as const, label: displayServer.status })
   const pingUrl = displayServer.ping_secret ? `${APP_URL}/api/server-ping?secret=${displayServer.ping_secret}` : null
 
   const problemContainers = containers.filter(c => c.status !== 'running')
@@ -187,10 +205,13 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
         </DialogHeader>
         <div className="space-y-4 text-sm">
           <div className="space-y-2.5">
-            {displayServer.cpu_usage !== null && <MetricBar label="CPU" value={displayServer.cpu_usage} />}
-            {displayServer.memory_usage !== null && <MetricBar label="Memory" value={displayServer.memory_usage} />}
-            {displayServer.disk_usage !== null && <MetricBar label="Disk" value={displayServer.disk_usage} />}
-            {displayServer.cpu_usage === null && displayServer.memory_usage === null && displayServer.disk_usage === null && (
+            {!stale && displayServer.cpu_usage !== null && <MetricBar label="CPU" value={displayServer.cpu_usage} />}
+            {!stale && displayServer.memory_usage !== null && <MetricBar label="Memory" value={displayServer.memory_usage} />}
+            {!stale && displayServer.disk_usage !== null && <MetricBar label="Disk" value={displayServer.disk_usage} />}
+            {stale && (
+              <p className="text-xs text-amber-500 font-medium">Server stale — metrics unavailable (last ping: {formatWIB(displayServer.last_ping)})</p>
+            )}
+            {!stale && displayServer.cpu_usage === null && displayServer.memory_usage === null && displayServer.disk_usage === null && (
               <p className="text-xs text-muted-foreground">No metrics reported. Update cron script to enable.</p>
             )}
           </div>
@@ -395,8 +416,11 @@ export default function RealtimeServerStatus() {
   const desktopItems = servers.slice(desktopPage * DESKTOP_PAGE_SIZE, (desktopPage + 1) * DESKTOP_PAGE_SIZE)
 
   function renderCard(server: Server, compact?: boolean) {
-    const cfg = statusConfig[server.status] || { variant: 'secondary' as const, label: server.status }
-    const hasMetrics = server.cpu_usage !== null || server.memory_usage !== null
+    const stale = isStale(server)
+    const cfg = stale
+      ? { variant: 'warning' as const, label: staleLabel(server) }
+      : (statusConfig[server.status] || { variant: 'secondary' as const, label: server.status })
+    const hasMetrics = !stale && (server.cpu_usage !== null || server.memory_usage !== null)
     return (
       <Card key={server.id} size="sm" className="h-full cursor-pointer" onClick={() => setSelectedServer(server)}>
         <CardContent>

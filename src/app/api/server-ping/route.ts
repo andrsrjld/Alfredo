@@ -113,32 +113,21 @@ export async function POST(request: NextRequest) {
         }))
 
       if (containerUpserts.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('container_status')
+          .delete()
+          .eq('server_name', serverName)
+
+        if (deleteError) {
+          console.error('[Server ping] Container stale delete error:', deleteError)
+        }
+
         const { error: containerError } = await supabase
           .from('container_status')
           .upsert(containerUpserts, { onConflict: 'server_name,container_name' })
 
         if (containerError) {
           console.error('[Server ping] Container upsert error:', containerError)
-        }
-
-        const incomingNames = containerUpserts.map(c => c.container_name)
-        const { data: existingContainers } = await supabase
-          .from('container_status')
-          .select('container_name')
-          .eq('server_name', serverName)
-
-        if (existingContainers) {
-          const stale = existingContainers
-            .filter(c => !incomingNames.includes(c.container_name))
-            .map(c => c.container_name)
-
-          if (stale.length > 0) {
-            await supabase
-              .from('container_status')
-              .delete()
-              .eq('server_name', serverName)
-              .in('container_name', stale)
-          }
         }
       }
     }
