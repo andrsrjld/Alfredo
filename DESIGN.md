@@ -1,5 +1,6 @@
 ---
 name: Precision Minimalist
+version: 1.0.0
 colors:
   surface: '#f9f9f9'
   surface-dim: '#dadada'

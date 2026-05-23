@@ -73,7 +73,6 @@ export async function shouldBotReply(): Promise<{ reply: boolean; mode: BotMode;
   }
 
   const withinHours = isWithinActiveHours(activeStart, activeEnd)
-  console.log(`[shouldBotReply] mode=${mode} activeHours=${activeStart}-${activeEnd} withinHours=${withinHours}`)
   return { reply: withinHours, mode: 'normal' }
 }
 

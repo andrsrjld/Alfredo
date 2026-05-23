@@ -1,4 +1,4 @@
-# AGENTS.md
+# AGENTS.md — Alfredo v1.0.0
 
 ## Commands
 - Package manager: `npm` (`package-lock.json` is present)
@@ -131,9 +131,9 @@
 13. Set up server daemon via Dashboard → Override → Add Server (daemon setup)
 
 ## Critical Context
+- Version: 1.0.0
 - Supabase: `https://hltaugtnqzqfhgcfvnet.supabase.co`
 - Vercel: `https://alfredo-pi.vercel.app`
 - Daemon endpoint: `/api/daemon?secret=<ping_secret>`
 - Service endpoint: `/api/daemon?type=service&secret=<ping_secret>`
-- Metrics bug fixes deployed: CPU uses `/proc/stat` delta, Memory reads MemTotal+MemAvailable, Docker sends on first ping
 - Re-download daemon script after any daemon-related code changes

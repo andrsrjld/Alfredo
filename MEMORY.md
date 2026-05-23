@@ -1,4 +1,4 @@
-# MEMORY.md — Alfredo Project Context
+# MEMORY.md — Alfredo v1.0.0
 
 ## Project Overview
 Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps Engineer) managing 40+ servers and 600+ GitLab repos. Bot answers PM questions during 03:00–12:00 WIB using real-time DB data with zero-hallucination policy. Ambiguity detection asks for clarification when same repo name exists across different GitLab groups.
@@ -185,15 +185,27 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 - [x] Stale threshold (10s) + Offline badge on dashboard
 - [x] Copy button on container error logs + pipeline error logs
 - [x] Vercel deployment fixes (force-dynamic, Cache-Control no-store)
+- [x] Donut charts: servers & pipeline stats, responsive side-by-side layout
+- [x] Whitelist contact cards: avatar initials, search, bulk import
+- [x] Chat logs: responsive layout, expand/collapse, search
+- [x] Indonesian greeting patterns (pagi, siang, sore, malam + titles)
+- [x] Server card stable sort order (server_name asc)
+- [x] Dialog truncation: long data trimmed with "..." no horizontal scroll
 - [x] Build passes clean, lint passes
 
-## What's Not Done Yet
+## What's Not Done (Planned for v1.1)
 - [ ] pgvector embedding search (env vars exist, schema not)
-- [ ] Pagination on logs/projects for 600+ records
 - [ ] Tests (no test framework set up)
 - [ ] Meta WhatsApp group support (needs Group API setup)
 
-## Current Issues (Debugging)
-- Dashboard showing 0% CPU/memory/disk → re-download daemon script from dashboard, restart systemd service
-- Daemon sending 0 values → check `journalctl -u alfredo-daemon -f` for debug output
-- API returns stored values correctly → issue is daemon script version (re-download to get latest)
+## Changelog v1.0.0
+- Initial production release
+- Real-time server monitoring with bash daemon (3s interval) + systemd unit
+- Multi-provider messaging: Fonnte, Meta, Evolution API
+- Multi-provider AI: DeepSeek, OpenAI, Gemini, Ollama Cloud
+- GitLab pipeline webhook with auto error log fetch
+- WhatsApp bot with zero-hallucination, ambiguity detection, WIB timestamps
+- Admin dashboard with donut charts, server management, AI settings
+- Responsive mobile layout with swipeable server/project cards
+- Contact management with avatar cards, search, bulk import
+- Encrypted API key storage (AES-256-GCM)

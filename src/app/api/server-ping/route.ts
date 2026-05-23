@@ -92,9 +92,6 @@ export async function POST(request: NextRequest) {
       .update(update)
       .eq('server_name', serverName)
 
-    const { data: verify } = await supabase.from('server_status').select('cpu_usage,memory_usage,disk_usage').eq('server_name', serverName).single()
-    console.log('[Server ping] POST received:', { serverName, cpu, memory, disk, verify })
-
     if (serverError) {
       console.error('[Server ping] POST server upsert error:', serverError)
       return NextResponse.json({ error: 'Database error' }, { status: 500, ...noStore })

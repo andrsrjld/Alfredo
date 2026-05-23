@@ -2,6 +2,8 @@
 
 > 🤖 Your always-on DevOps buddy that answers server status questions so you can sleep.
 
+**v1.0.0** — Production-ready. Monitoring 40+ servers in real time via bash daemon.
+
 Alfredo is an AI-powered WhatsApp chatbot that monitors **40+ servers**, **600+ GitLab repos**, and responds to questions in Indonesian. No more 3 AM wake-up calls — Alfredo answers what failed, why it failed, and how long it's been down.
 
 ```mermaid
@@ -32,6 +34,7 @@ sequenceDiagram
 - **Systemd service**: Auto-restart on failure, logs to journal
 - **Metrics**: CPU (delta from `/proc/stat`), Memory (`/proc/meminfo`), Disk (`df`), Uptime
 - **Docker containers**: Auto-detected, shows status + last 100 lines of error logs
+- **Stale detection**: 10-second threshold, Offline badge with dimmed metrics
 
 ### 🔍 GitLab Pipeline Intelligence
 - **Webhook-driven**: Receives pipeline events, stores status in real-time
@@ -46,10 +49,12 @@ sequenceDiagram
 - **WIB timestamps**: All times converted to Asia/Jakarta before reaching LLM
 
 ### 🎛️ Dashboard
-- **Real-time status cards**: 2-second polling via Supabase Realtime
-- **Server management**: Add/edit/remove servers, copy-paste crontab
+- **Donut charts**: Servers & pipeline success rates with side-by-side responsive layout
+- **Real-time status cards**: 2-second polling via Supabase Realtime, stable sort order
+- **Server management**: Add/edit/remove servers, copy-paste daemon setup commands
 - **Override notes**: Add human notes to servers (e.g., "maintenance until 2 AM")
 - **AI settings**: Switch between DeepSeek/OpenAI/Gemini/Ollama, configure active hours, manage bot mode
+- **Contact management**: Whitelist page with avatar cards, search, bulk import
 - **Encrypted secrets**: API keys AES-256-GCM encrypted, masked on read
 
 ### 🌐 Cloud-Native Stack
@@ -412,4 +417,4 @@ Private — all rights reserved. Contact Christian Rizaldi for access.
 
 ---
 
-**Built with ☕ by Christian Rizaldi** — Alfredo is a personal project, maintained when coffee allows.
+**Built with ☕ by Christian Rizaldi** — Alfredo v1.0.0
