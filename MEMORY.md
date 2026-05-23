@@ -1,7 +1,7 @@
 # MEMORY.md — Alfredo Project Context
 
 ## Project Overview
-Alfredo is a WhatsApp-based DevOps AI Companion for Ijal (DevOps Engineer) managing 40+ servers and 600+ GitLab repos. Bot answers PM questions during 03:00–12:00 WIB using real-time DB data with zero-hallucination policy. Ambiguity detection asks for clarification when same repo name exists across different GitLab groups.
+Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps Engineer) managing 40+ servers and 600+ GitLab repos. Bot answers PM questions during 03:00–12:00 WIB using real-time DB data with zero-hallucination policy. Ambiguity detection asks for clarification when same repo name exists across different GitLab groups.
 
 ## Tech Stack
 - **Framework**: Next.js 14 App Router (`src/app/`)
@@ -12,7 +12,7 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Ijal (DevOps Engineer) manag
 - **Styling**: Tailwind CSS v3 + shadcn/ui (Outfit font, zinc/neutral palette, dark mode via `next-themes`)
 
 ## Bot Personality & Language
-- Identity: **Alfredo 🤖**, DevOps AI Companion milik Ijal
+- Identity: **Alfredo 🤖**, DevOps AI Companion milik Christian Rizaldi
 - Style: santai profesional, sapaan "Halo", jawab ringkas to-the-point
 - Perkenalkan diri di pesan pertama
 - Fallback: "Halo! 🤖 Data untuk pertanyaan itu belum tersedia di sistem saya. Ijal akan follow up secepatnya setelah online ya!"

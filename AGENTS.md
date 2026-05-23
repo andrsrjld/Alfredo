@@ -78,7 +78,7 @@
 - Fallback: DB → `BOT_ACTIVE_START`/`BOT_ACTIVE_END` env → default `03:00`/`12:00`
 
 ### Bot Personality
-- Alfredo 🤖, DevOps AI Companion milik Ijal
+- Alfredo 🤖, DevOps AI Companion milik Christian Rizaldi
 - System prompt uses `=== DATA DATABASE ===` / `=== AKHIR DATA ===` markers with few-shot example
 - All timestamps converted to WIB via `convertTimestampsToWIB()` before LLM
 - Zero-hallucination: empty context → fallback message without LLM call

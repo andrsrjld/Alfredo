@@ -25,7 +25,7 @@ sequenceDiagram
 - **Multi-provider**: Fonnte (recommended for Indonesia), Meta WhatsApp Cloud API, or self-hosted Evolution API
 - **Group chat aware**: Only responds when mentioned
 - **Group chat support**: Fonnte + Evolution API groups
-- **Bot modes**: Normal hours (06:00–12:00 WIB), Extended AI (24/7), or Human Mode (pass to Ijal)
+- **Bot modes**: Normal hours (06:00–12:00 WIB), Extended AI (24/7), or Human Mode (pass to Christian Rizaldi)
 
 ### 🖥️ Real-Time Server Monitoring
 - **Per-server daemon**: 3-second interval bash script, no Node.js dependency
@@ -209,7 +209,7 @@ Dashboard settings take priority over env vars.
 |---|---|---|
 | Active hours | 06:00–12:00 WIB | Bot only answers during these hours in Normal mode |
 | Timezone | Asia/Jakarta | All timestamps displayed in WIB |
-| Bot mode | Normal | Normal (hours), Extended (24/7 AI), Human (pass to Ijal) |
+| Bot mode | Normal | Normal (hours), Extended (24/7 AI), Human (pass to Christian Rizaldi) |
 
 ## 📁 Project Structure
 
@@ -302,8 +302,8 @@ curl -X POST "https://your-domain.com/api/server-ping?secret=YOUR_SECRET" \
 
 ## 📄 License
 
-Private — all rights reserved. Contact Ijal for access.
+Private — all rights reserved. Contact Christian Rizaldi for access.
 
 ---
 
-**Built with ☕ by Ijal** — Alfredo is a personal project, maintained when coffee allows.
+**Built with ☕ by Christian Rizaldi** — Alfredo is a personal project, maintained when coffee allows.
