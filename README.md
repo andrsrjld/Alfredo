@@ -1,346 +1,309 @@
-# Alfredo — DevOps AI Companion
+# Alfredo — DevOps AI Companion for WhatsApp
 
-Alfredo is an AI-powered WhatsApp chatbot that acts as Ijal's DevOps AI Companion. It answers project manager questions about server, pipeline, and deployment status — so Ijal doesn't get woken up. It enforces a **zero-hallucination** policy: answers only from real-time database context, and falls back gracefully when data is unavailable. When project names are ambiguous (same repo name across different GitLab groups), Alfredo asks for clarification before answering.
+> 🤖 Your always-on DevOps buddy that answers server status questions so you can sleep.
 
-## Architecture
+Alfredo is an AI-powered WhatsApp chatbot that monitors **40+ servers**, **600+ GitLab repos**, and responds to questions in Indonesian. No more 3 AM wake-up calls — Alfredo answers what failed, why it failed, and how long it's been down.
+
+```mermaid
+sequenceDiagram
+    participant PM as WhatsApp User
+    participant Bot as Alfredo
+    participant DB as Supabase
+    participant GL as GitLab
+    participant SRV as Servers
+
+    PM->>Bot: "server produksi status apa?"
+    Bot->>DB: search context
+    DB-->>Bot: server metrics, pipeline status
+    Bot->>Bot: ask LLM (DeepSeek)
+    Bot-->>PM: "Server PROD-01 online ✅<br>CPU 45%, Memory 62%<br>Pipeline main: ✅ passed"
+```
+
+## ✨ Features
+
+### 💬 Natural WhatsApp Interface
+- **Multi-provider**: Fonnte (recommended for Indonesia), Meta WhatsApp Cloud API, or self-hosted Evolution API
+- **Group chat aware**: Only responds when mentioned
+- **Group chat support**: Fonnte + Evolution API groups
+- **Bot modes**: Normal hours (06:00–12:00 WIB), Extended AI (24/7), or Human Mode (pass to Ijal)
+
+### 🖥️ Real-Time Server Monitoring
+- **Per-server daemon**: 3-second interval bash script, no Node.js dependency
+- **Systemd service**: Auto-restart on failure, logs to journal
+- **Metrics**: CPU (delta from `/proc/stat`), Memory (`/proc/meminfo`), Disk (`df`), Uptime
+- **Docker containers**: Auto-detected, shows status + last 100 lines of error logs
+
+### 🔍 GitLab Pipeline Intelligence
+- **Webhook-driven**: Receives pipeline events, stores status in real-time
+- **Auto error fetch**: On pipeline failure, fetches last 2KB of job log → stored for AI analysis
+- **Bulk webhook setup**: CLI tool to create project-level webhooks for entire GitLab groups
+- **Group support**: Distinguishes duplicate repo names across different GitLab groups
+
+### 🤖 Zero-Hallucination AI
+- **Only answers from DB**: All responses grounded in real-time Supabase data
+- **Fallback without LLM call**: Empty context → friendly message, no wasted API credits
+- **Ambiguity detection**: Same repo name across groups → asks for clarification before answering
+- **WIB timestamps**: All times converted to Asia/Jakarta before reaching LLM
+
+### 🎛️ Dashboard
+- **Real-time status cards**: 2-second polling via Supabase Realtime
+- **Server management**: Add/edit/remove servers, copy-paste crontab
+- **Override notes**: Add human notes to servers (e.g., "maintenance until 2 AM")
+- **AI settings**: Switch between DeepSeek/OpenAI/Gemini/Ollama, configure active hours, manage bot mode
+- **Encrypted secrets**: API keys AES-256-GCM encrypted, masked on read
+
+### 🌐 Cloud-Native Stack
+- **Vercel serverless**: Zero cold starts, global edge
+- **Supabase**: PostgreSQL + Auth + Realtime — no self-hosted DB needed
+- **OpenAI-compatible LLM API**: DeepSeek (default), OpenAI, Gemini, Ollama Cloud — all use raw `fetch`
+
+## 🏗️ Architecture
 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
 │  GitLab     │────▶│ /api/webhook/    │────▶│  Supabase    │
-│  Webhooks   │     │ gitlab           │     │  (Postgres)  │
-└─────────────┘     └──────────────────┘     └──────────────┘
-                                                 ▲
-┌─────────────┐     ┌──────────────────┐         │
-│  40+ Servers│────▶│ /api/server-ping │─────────┘
-│  (cron)     │     │                  │
+│  Webhooks    │     │ gitlab           │     │  PostgreSQL   │
+└─────────────┘     └──────────────────┘     │  + Realtime   │
+                                             └──────────────┘
+┌─────────────┐     ┌──────────────────┐           ▲
+│  Servers    │────▶│ /api/server-ping │───────────┘
+│  (daemon)   │     │                  │
 └─────────────┘     └──────────────────┘
-                                                 ▲
-┌─────────────┐     ┌──────────────────┐         │
-│  Messaging  │────▶│ /api/webhook/    │─────────┘
-│  Provider   │     │ {whatsapp,        │
-│  (meta/     │     │  fonnte,          │
-│   fonnte/   │     │  evolution}       │
-│   evolution)│     └──────────────────┘
-└─────────────┘              │
+                                              ▲
+┌─────────────┐     ┌──────────────────┐     │
+│  WhatsApp   │────▶│ /api/webhook/    │─────┘
+│  PMs        │     │ {fonnte/meta/     │
+└─────────────┘     │  evolution}      │
+                    └──────────────────┘
+                              │
                               ▼
                        ┌──────────────┐
-                       │  DeepSeek API │
-                       │  (LLM)        │
+                       │  DeepSeek   │
+                       │  (or any LLM)│
                        └──────────────┘
 ```
 
-## Key Features
-
-- **Multi-Provider Messaging** — Choose between Meta WhatsApp Cloud API, **Fonnte** (no Meta approval needed, recommended for Indonesia), or **Evolution API** (self-hosted, free). Switch via `WA_PROVIDER` env var.
-- **WhatsApp Bot** — Responds to whitelisted PMs during configurable active hours (default 06:00–12:00 WIB).
-- **Zero-Hallucination** — Alfredo only answers from database context with an explicit `=== DATA DATABASE ===` block. If data is missing, it returns a friendly fallback message without calling the LLM.
-- **Ambiguity Detection** — When multiple projects share the same repo name across different GitLab groups, Alfredo asks for clarification before answering. Both prompt-level rules and code-level safety net enforce this.
-- **WIB Timestamps** — All timestamps are converted to Asia/Jakarta (WIB) before reaching the LLM, so responses use local time.
-- **Switchable AI Provider** — Choose between DeepSeek (default), OpenAI, Google Gemini, or Ollama Cloud via dashboard or `AI_PROVIDER` env var. All calls use raw `fetch` to OpenAI-compatible endpoints — no SDK dependency.
-- **GitLab Integration** — Receives pipeline status from GitLab webhooks and auto-fetches failed job logs for AI-powered error analysis.
-- **Server Monitoring** — Accepts cron-based pings from 40+ servers to track online/offline/high_load status.
-- **Web Dashboard** — Internal admin UI with Supabase Auth, real-time status cards, chat logs, and manual server note overrides.
-- **Smart Search** — Keyword-based retrieval with stop-word filtering via Supabase `ILIKE` and trigram similarity (pgvector embeddings planned).
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 14 (App Router) |
-| Hosting | Vercel (Serverless) |
-| Database | Supabase (PostgreSQL, Auth, Realtime) |
-| Messaging | Meta WhatsApp Cloud API / Fonnte / Evolution API |
-| AI Engine | DeepSeek / OpenAI / Gemini / Ollama Cloud (switchable via dashboard) |
-| Styling | Tailwind CSS v3 + shadcn/ui |
-
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
-
 - Node.js 18+ and npm
-- A Supabase project
-- A DeepSeek API key (or Groq API key)
-- A messaging provider account (Fonnte recommended, or Meta WhatsApp, or Evolution API)
+- A Supabase project ([Create one free](https://supabase.com))
+- A DeepSeek API key ([Get from platform.deepseek.com](https://platform.deepseek.com))
+- A Fonnte account ([Register at fonnte.com](https://fonnte.com))
 
-### 1. Install dependencies
+### 1. Install
 
 ```bash
+git clone https://github.com/ijalalfr/alfredo.git
+cd alfredo
 npm install
-```
-
-### 2. Set up environment variables
-
-```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local` with your actual values. See [Environment Variables](#environment-variables) below.
+### 2. Configure
 
-### 3. Run database migrations
+Edit `.env.local`:
 
-Execute `supabase/schema.sql` in your Supabase SQL Editor. This creates all tables, RLS policies, and trigram indexes.
+```env
+# Supabase — from supabase.com → Settings → API
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
-### 4. Start the dev server
+# Encryption key — generate with: openssl rand -hex 32
+ENCRYPTION_KEY=your-32-byte-hex-key
+
+# Messaging — Fonnte recommended for Indonesia
+WA_PROVIDER=fonnte
+FONNTE_API_KEY=your-fonnte-api-key
+
+# AI — DeepSeek default
+AI_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-...
+```
+
+### 3. Database Setup
+
+Run in Supabase SQL Editor (`supabase.com → your project → SQL Editor`):
+
+```sql
+-- Run the full schema (tables, RLS policies, trigram indexes)
+\i supabase/schema.sql
+
+-- Run migrations
+\i supabase/migrations/001_add_columns.sql
+\i supabase/migrations/002_add_group_support.sql
+\i supabase/migrations/003_add_bot_mode.sql
+\i supabase/migrations/004_add_metrics.sql
+
+-- Disable RLS on app_settings (admin-only table)
+ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
+```
+
+### 4. Start
 
 ```bash
 npm run dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The root redirects to `/dashboard` (requires Supabase Auth login).
+Login at `/login`, then go to `/dashboard`.
 
-## Environment Variables
+## 📡 Setting Up Webhooks
 
-### Supabase
+### Fonnte (Recommended)
 
-| Variable | How to Generate |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → **Settings** → **API** → **Project URL** (use `.supabase.co`, not `.supabase.com`) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → **Settings** → **API** → **Project API keys** → `anon` `public` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → **Settings** → **API** → **Project API keys** → `service_role` `secret` |
-
-> **Important:** After setting these, go to Supabase Dashboard → **Authentication** → **URL Configuration** and set **Site URL** to your app URL (`http://localhost:3000` for dev, your Vercel URL for prod). Otherwise login will fail with a CORS error.
-
-### Messaging Provider
-
-Set `WA_PROVIDER` to choose your provider: `meta`, `fonnte`, or `evolution`.
-
-#### Fonnte (Recommended — No Meta Approval Needed)
-
-Best choice for Indonesia. Register at [fonnte.com](https://fonnte.com), get an API key, and you're ready.
-
-| Variable | How to Generate |
-|---|---|
-| `WA_PROVIDER` | Set to `fonnte` |
-| `FONNTE_API_KEY` | [fonnte.com](https://fonnte.com) → Dashboard → **API Key** |
-
-#### Meta WhatsApp Cloud API
-
-Official WhatsApp Business API. Requires Meta for Developers account and app review.
-
-| Variable | How to Generate |
-|---|---|
-| `WA_PROVIDER` | Set to `meta` |
-| `WA_PHONE_NUMBER_ID` | [Meta for Developers](https://developers.facebook.com) → Your App → **WhatsApp** → **API Setup** → Phone Number ID |
-| `WA_ACCESS_TOKEN` | Meta for Developers → Your App → **WhatsApp** → **API Setup** → **Generate Access Token** (use a permanent token for production) |
-| `WA_WEBHOOK_VERIFY_TOKEN` | Self-generated arbitrary string. Use the same value when configuring the Meta webhook. Example: `alfredo_verify_2026` |
-
-#### Evolution API (Self-Hosted, Free)
-
-Open-source WhatsApp API. Requires a VPS to host. [GitHub repo](https://github.com/EvolutionAPI/evolution-api).
-
-| Variable | How to Generate |
-|---|---|
-| `WA_PROVIDER` | Set to `evolution` |
-| `EVOLUTION_API_URL` | Your Evolution API base URL (e.g., `https://evolution.yourdomain.com`) |
-| `EVOLUTION_API_KEY` | Set during Evolution API installation |
-| `EVOLUTION_INSTANCE_NAME` | Created in Evolution API dashboard after connecting a WhatsApp number |
-
-### AI Provider
-
-Set `AI_PROVIDER` or configure via dashboard: `deepseek` (default), `openai`, `gemini`, or `ollama`. Dashboard settings take priority over env vars.
-
-#### DeepSeek (Default)
-
-| Variable | How to Generate |
-|---|---|
-| `AI_PROVIDER` | Set to `deepseek` |
-| `DEEPSEEK_API_KEY` | [platform.deepseek.com](https://platform.deepseek.com) → **API Keys** → Create |
-
-#### OpenAI
-
-| Variable | How to Generate |
-|---|---|
-| `AI_PROVIDER` | Set to `openai` |
-| `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com) → **API Keys** → Create |
-
-#### Google Gemini
-
-| Variable | How to Generate |
-|---|---|
-| `AI_PROVIDER` | Set to `gemini` |
-| `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) → **API Keys** → Create |
-
-#### Ollama Cloud
-
-| Variable | How to Generate |
-|---|---|
-| `AI_PROVIDER` | Set to `ollama` |
-| `OLLAMA_API_KEY` | [ollama.com](https://ollama.com) → Account → API Key |
-
-| Variable | Applies to | Description |
-|---|---|---|
-| `AI_TEMPERATURE` | All | Float `0.0`–`1.0`. Lower = more deterministic. Default: `0.0` (zero-hallucination) |
+1. Go to [fonnte.com](https://fonnte.com) → Dashboard → Webhook
+2. Set URL to `https://your-domain.com/api/webhook/fonnte`
+3. Save
 
 ### GitLab
 
-| Variable | How to Generate |
-|---|---|
-| `GITLAB_WEBHOOK_SECRET` | Self-generated arbitrary string. Enter the same value when creating the GitLab Group Webhook. Example: `gl-wh-alfredo-2026` |
-| `SERVER_PING_SECRET` | Self-generated arbitrary string. Include this in your server cron ping payloads. Example: `ping-secret-alfredo-2026` |
-
-### Bot Config
-
-| Variable | How to Generate |
-|---|---|
-| `BOT_ACTIVE_START` | Time in `HH:MM` format when bot starts responding. Default: `06:00` |
-| `BOT_ACTIVE_END` | Time in `HH:MM` format when bot stops responding. Default: `12:00` |
-| `BOT_TIMEZONE` | IANA timezone string. Default: `Asia/Jakarta`. [Full list](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) |
-
-### Quick secret generation
-
-For self-generated secrets (`WA_WEBHOOK_VERIFY_TOKEN`, `GITLAB_WEBHOOK_SECRET`, `SERVER_PING_SECRET`), generate a random string:
+**Option A — Bulk setup (for 600+ repos):**
 
 ```bash
-# macOS / Linux
-openssl rand -hex 24
-
-# Or use any password manager to generate a 48+ character string
-```
-
-## Deployment
-
-### Vercel
-
-1. Push this repo to GitLab or GitHub.
-2. Connect the repo to a new Vercel project.
-3. Set all environment variables listed above in the Vercel project settings.
-4. Deploy. Vercel will automatically run `npm run build`.
-
-### Post-Deployment Setup
-
-#### 1. Supabase
-
-- Run `supabase/schema.sql` in the Supabase SQL Editor.
-- Create an admin user via Supabase Auth (email/password) for dashboard access.
-- Enable Realtime for `project_status` and `server_status` tables in the Supabase dashboard.
-
-#### 2. Messaging Provider Webhook
-
-Choose **one** section based on your `WA_PROVIDER`:
-
-**Fonnte (recommended):**
-1. Go to [fonnte.com](https://fonnte.com) dashboard → **Webhook**.
-2. Set the webhook URL to `https://<your-vercel-url>/api/webhook/fonnte`.
-3. The dedicated endpoint accepts `number` and `message` fields from Fonnte's formData payload.
-
-**Meta WhatsApp Cloud API:**
-1. In [Meta for Developers](https://developers.facebook.com), configure your WhatsApp app webhook URL to `https://<your-vercel-url>/api/webhook/whatsapp`.
-2. Set the Verify Token to match `WA_WEBHOOK_VERIFY_TOKEN`.
-3. Subscribe to the `messages` field.
-4. The endpoint also serves GET requests for Meta's webhook verification.
-
-**Evolution API:**
-1. In your Evolution API dashboard, set the webhook URL to `https://<your-vercel-url>/api/webhook/evolution`.
-2. The dedicated endpoint parses Evolution's JSON message format including `remoteJid` and `body.conversation`.
-
-#### 3. GitLab Webhook
-
-**Option A: Project-level webhooks (works on GitLab Free tier)**
-
-Use the CLI script to bulk-create webhooks for all projects in a group:
-
-```bash
-GITLAB_PAT=glpat-xxxxx \
-GITLAB_WEBHOOK_SECRET=your_secret \
+GITLAB_PAT=glpat-xxxx \
+GITLAB_WEBHOOK_SECRET=your-secret \
 GITLAB_GROUP_ID=12345 \
 node scripts/setup-gitlab-webhooks.mjs
 ```
 
-**Option B: Group-level webhook (requires GitLab Premium)**
+**Option B — Single group webhook (requires GitLab Premium):**
 
-- Go to your GitLab Group → Settings → Webhooks.
-- Add a new webhook pointing to `https://<your-vercel-url>/api/webhook/gitlab`.
-- Set the Secret Token to match `GITLAB_WEBHOOK_SECRET`.
-- Trigger on **Pipeline events** only.
+1. GitLab → Group → Settings → Webhooks
+2. URL: `https://your-domain.com/api/webhook/gitlab`
+3. Secret: `your-secret`
+4. Trigger: **Pipeline events**
 
-**Error analysis:** Save a GitLab PAT (scope: `api`) in Dashboard → Settings → GitLab Integration. When a pipeline fails, Alfredo auto-fetches the failed job log and stores it in `error_detail` — enabling AI-powered error analysis and suggestions.
+## 🖥️ Server Monitoring Setup
 
-#### 4. Server Cron Pings
-
-On each server, add a cron job that runs every 5 minutes. Use the **Add Server** feature in the dashboard (`/dashboard/override`) to auto-generate a unique `ping_secret` and ready-to-use crontab:
+On each server, run the dashboard-generated setup commands:
 
 ```bash
-*/5 * * * * curl -s -X POST https://<your-vercel-url>/api/server-ping \
-  -H "Content-Type: application/json" \
-  -d '{"server_name":"my-server-01","status":"online","ping_secret":"AUTO_GENERATED_SECRET"}' >/dev/null 2>&1
+# 1. Download daemon script (bash only, secrets embedded)
+sudo curl -sL "https://your-domain.com/api/daemon?secret=YOUR_SECRET" \
+  -o /usr/local/bin/alfredo-daemon.sh && sudo chmod +x /usr/local/bin/alfredo-daemon.sh
+
+# 2. Download systemd unit
+sudo curl -sL "https://your-domain.com/api/daemon?type=service&secret=YOUR_SECRET" \
+  -o /etc/systemd/system/alfredo-daemon.service
+
+# 3. Enable and start
+sudo systemctl daemon-reload && sudo systemctl enable --now alfredo-daemon
 ```
 
-Per-server `ping_secret` (recommended) takes priority. The global `SERVER_PING_SECRET` still works as a fallback for existing setups.
+The daemon sends metrics every 3 seconds. Systemd auto-restarts if it crashes.
 
-#### 5. Whitelist PMs
+## 🤖 AI Provider Configuration
 
-Insert authorized PM phone numbers into the `whitelisted_pms` table in Supabase:
+Alfredo supports **DeepSeek** (default), **OpenAI**, **Google Gemini**, and **Ollama Cloud**. Configure via:
 
-```sql
-INSERT INTO whitelisted_pms (phone_number, pm_name)
-VALUES ('628123456789', 'John Doe');
-```
+1. **Dashboard** (`/dashboard/settings`) — click the provider card to switch, enter API key
+2. **Environment variable** — `AI_PROVIDER=deepseek|openai|gemini|ollama`
 
-Phone numbers must be in international format without `+` (e.g., `628123456789`). The bot normalizes common Indonesian formats (`08xx` → `628xx`, `+62xx` → `62xx`, `8xx` → `628xx`).
+Dashboard settings take priority over env vars.
 
-## Project Structure
+## 🌏 Bot Configuration
+
+| Setting | Default | Description |
+|---|---|---|
+| Active hours | 06:00–12:00 WIB | Bot only answers during these hours in Normal mode |
+| Timezone | Asia/Jakarta | All timestamps displayed in WIB |
+| Bot mode | Normal | Normal (hours), Extended (24/7 AI), Human (pass to Ijal) |
+
+## 📁 Project Structure
 
 ```
 src/
 ├── app/
 │   ├── api/
-│   │   ├── auth/signout/route.ts        # Sign out action
-│   │   ├── server-ping/route.ts          # Server cron ping (per-server ping_secret auth)
-│   │   ├── servers/route.ts              # Server management CRUD (GET/POST/DELETE)
-│   │   ├── settings/route.ts             # AI config + GitLab PAT (GET/PUT)
-│   │   ├── whitelist/route.ts            # PM whitelist CRUD
+│   │   ├── daemon/                    # Generates bash daemon script
+│   │   ├── server-ping/               # Receives metrics from servers
+│   │   ├── servers/                   # Server CRUD
+│   │   ├── settings/                  # AI config + GitLab PAT
+│   │   ├── whitelist/                 # PM whitelist
 │   │   └── webhook/
-│   │       ├── gitlab/route.ts           # GitLab pipeline webhook + auto error fetch
-│   │       ├── whatsapp/route.ts         # Meta WhatsApp webhook (GET verify + POST)
-│   │       ├── fonnte/route.ts           # Fonnte webhook (formData + JSON)
-│   │       └── evolution/route.ts        # Evolution API webhook (JSON)
-│   ├── (auth)/login/page.tsx             # Admin login
+│   │       ├── gitlab/                # Pipeline events
+│   │       ├── fonnte/                # Fonnte messages
+│   │       ├── whatsapp/              # Meta WhatsApp
+│   │       └── evolution/             # Evolution API
 │   ├── (dashboard)/
-│   │   ├── dashboard/page.tsx            # Main monitoring view
-│   │   ├── logs/page.tsx                 # Chat logs
-│   │   ├── override/page.tsx             # Server management + note editor + crontab gen
-│   │   ├── settings/page.tsx             # AI provider, API keys, GitLab PAT config
-│   │   ├── whitelist/page.tsx            # PM whitelist management
-│   │   └── layout.tsx                    # Dashboard shell with sidebar
-│   ├── layout.tsx                        # Root layout
-│   └── page.tsx                          # Redirects to /dashboard
+│   │   ├── dashboard/                 # Main monitoring view
+│   │   ├── logs/                      # Chat history
+│   │   ├── override/                  # Server + note management
+│   │   ├── settings/                  # AI + bot configuration
+│   │   └── whitelist/                 # PM whitelist management
+│   └── layout.tsx
 ├── components/
-│   ├── realtime/                         # Supabase Realtime subscriptions
-│   │   ├── RealtimeServerStatus.tsx
-│   │   └── RealtimeProjectStatus.tsx
-│   └── ui/                               # shadcn/ui components
-├── lib/
-│   ├── messaging/                        # Provider abstraction
-│   │   ├── types.ts                      # MessagingProvider interface
-│   │   ├── index.ts                      # Factory (getMessagingProvider)
-│   │   ├── meta.ts                       # Meta WhatsApp Cloud API
-│   │   ├── fonnte.ts                     # Fonnte API
-│   │   └── evolution.ts                  # Evolution API
-│   ├── supabase/
-│   │   ├── client.ts                     # Browser Supabase client
-│   │   ├── server.ts                     # Server-side Supabase client (SSR)
-│   │   └── admin.ts                      # Service-role client (webhooks, bypasses RLS)
-│   ├── encryption.ts                     # AES-256-GCM encrypt/decrypt/maskKey
-│   ├── gitlab.ts                         # GitLab PAT fetch + failed job log retrieval
-│   ├── llm.ts                            # Multi-provider LLM + system prompt + WIB conversion + ambiguity detection
-│   ├── search.ts                         # Keyword-based context retrieval (includes project_group in dedup)
-│   ├── phone.ts                          # Indonesia phone number normalization
-│   └── utils.ts                          # shadcn/ui cn() helper
-├── middleware.ts                          # Supabase Auth route protection
+│   ├── realtime/                      # 2s polling + Supabase Realtime
+│   └── ui/                            # shadcn/ui
+└── lib/
+    ├── supabase/                      # client / server / admin clients
+    ├── messaging/                     # fonnte / meta / evolution providers
+    ├── encryption.ts                  # AES-256-GCM
+    ├── llm.ts                         # Multi-provider LLM
+    ├── search.ts                      # Keyword search + ambiguity detection
+    ├── bot-mode.ts                    # Normal / Extended / Human
+    └── phone.ts                       # Indonesian phone normalization
+
 scripts/
-├── migrate.sh                            # Local DB migration runner
-└── setup-gitlab-webhooks.mjs             # Bulk create GitLab project webhooks
+├── setup-gitlab-webhooks.mjs          # Bulk webhook creator
+└── migrate.sh                         # Local DB migration runner
+
+supabase/
+├── schema.sql                         # Full schema
+└── migrations/                        # Incremental migrations
 ```
 
-## Scripts
+## 🧪 Development
 
-| Command | Description |
+```bash
+npm run dev        # Start dev server at localhost:3000
+npm run build      # Production build
+npm run lint       # ESLint
+npm run start      # Serve production build
+```
+
+**Key dev notes:**
+- All API routes have `export const dynamic = 'force-dynamic'` — required for Vercel
+- All API routes set `Cache-Control: no-store` — prevents edge caching
+- `createClient()` (browser Supabase) called inside `useEffect` — not at component top level
+- Use `src/lib/supabase/admin.ts` for webhook routes — bypasses RLS
+
+## 🐛 Debugging
+
+**Daemon not sending metrics?**
+```bash
+# Check systemd logs
+journalctl -u alfredo-daemon -f
+
+# Manually test the ping endpoint
+curl -X POST "https://your-domain.com/api/server-ping?secret=YOUR_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"cpu": 50, "memory": 60, "disk": 25}'
+```
+
+**Dashboard shows 0% CPU/memory?**
+1. Re-download the daemon script (it's updated via GitHub push)
+2. Restart: `sudo systemctl restart alfredo-daemon`
+3. Check: `journalctl -u alfredo-daemon --no-pager -n 20`
+
+## 📜 Tech Stack
+
+| Layer | Technology |
 |---|---|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm run start` | Serve production build |
-| `npm run lint` | Run ESLint |
+| Framework | Next.js 14 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS v3 + shadcn/ui |
+| Database | Supabase (PostgreSQL, Auth, Realtime) |
+| Hosting | Vercel (Serverless) |
+| AI | DeepSeek / OpenAI / Gemini / Ollama Cloud |
+| Messaging | Fonnte / Meta WhatsApp / Evolution API |
 
-## License
+## 📄 License
 
-Private — all rights reserved.
+Private — all rights reserved. Contact Ijal for access.
+
+---
+
+**Built with ☕ by Ijal** — Alfredo is a personal project, maintained when coffee allows.

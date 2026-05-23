@@ -24,7 +24,6 @@ import {
   hasReportedMetrics,
   isStale,
   metricsLookEmpty,
-  staleLabel,
   statusConfig,
   timeAgo,
 } from '@/lib/servers'

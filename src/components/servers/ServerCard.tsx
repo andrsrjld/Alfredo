@@ -7,7 +7,6 @@ import {
   type ServerRecord,
   hasReportedMetrics,
   isStale,
-  staleLabel,
   statusConfig,
   timeAgo,
   formatWIB,
