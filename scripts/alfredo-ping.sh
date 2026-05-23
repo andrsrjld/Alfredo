@@ -9,10 +9,36 @@ PING_URL="https://alfredo-pi.vercel.app/api/server-ping"
 SECRET="<YOUR_SERVER_PING_SECRET>"
 
 # --- System Metrics ---
-CPU=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
-MEM=$(free | grep Mem | awk '{printf "%.1f", $3/$2*100}')
-DISK=$(df / | tail -1 | awk '{print $5}' | tr -d '%')
-UPTIME=$(awk '{printf "%.1f", $1/3600}' /proc/uptime)
+read_cpu() {
+  local s1 s2
+  s1=$(grep '^cpu ' /proc/stat 2>/dev/null) || { echo "0"; return; }
+  sleep 1
+  s2=$(grep '^cpu ' /proc/stat 2>/dev/null) || { echo "0"; return; }
+  awk -v a="$s1" -v b="$s2" 'BEGIN {
+    split(a, x); split(b, y)
+    idle1 = x[5] + x[6]; idle2 = y[5] + y[6]
+    t1 = 0; t2 = 0
+    for (i = 2; i <= length(x); i++) t1 += x[i] + 0
+    for (i = 2; i <= length(y); i++) t2 += y[i] + 0
+    dt = t2 - t1
+    if (dt <= 0) { print "0"; exit }
+    printf "%.1f", (1 - (idle2 - idle1) / dt) * 100
+  }'
+}
+read_mem() {
+  awk '/MemTotal/{t=$2}/MemAvailable/{a=$2}END{if(t>0)printf "%.1f",(1-a/t)*100;else print "0"}' /proc/meminfo 2>/dev/null \
+    || free | awk '/Mem:/{printf "%.1f", $3/$2*100}'
+}
+read_disk() {
+  df / -P 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5); print $5}' || echo "0"
+}
+read_uptime() {
+  awk '{printf "%.1f", $1/3600}' /proc/uptime 2>/dev/null || echo "0"
+}
+CPU=$(read_cpu)
+MEM=$(read_mem)
+DISK=$(read_disk)
+UPTIME=$(read_uptime)
 
 # --- Docker Containers ---
 TMPFILE=$(mktemp)

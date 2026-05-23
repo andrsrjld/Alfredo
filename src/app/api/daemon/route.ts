@@ -70,17 +70,37 @@ INTERVAL=3
 CONTAINER_INTERVAL=60
 
 last_container=-999999
+cpu_prev_idle=""
+cpu_prev_total=""
 
 read_cpu() {
-  top -bn1 | grep "Cpu(s)" | awk '{print $2}' 2>/dev/null || echo "0"
+  local line idle total dt di
+  line=$(grep '^cpu ' /proc/stat 2>/dev/null) || { echo "0"; return; }
+  idle=$(echo "$line" | awk '{print $5 + $6}')
+  total=$(echo "$line" | awk '{s=0; for(i=2;i<=NF;i++) s+=$i; print s}')
+  if [ -z "$cpu_prev_total" ]; then
+    cpu_prev_idle=$idle
+    cpu_prev_total=$total
+    echo "0"
+    return
+  fi
+  dt=$((total - cpu_prev_total))
+  di=$((idle - cpu_prev_idle))
+  cpu_prev_idle=$idle
+  cpu_prev_total=$total
+  if [ "$dt" -le 0 ]; then
+    echo "0"
+    return
+  fi
+  awk -v used=$((dt - di)) -v dt="$dt" 'BEGIN{printf "%.1f", used*100/dt}'
 }
 
 read_mem() {
-  awk '/MemTotal/{t=$2}/MemAvailable/{a=$2}END{if(t>0)printf "%.1f",(1-a/t)*100;else print "0"}' /proc/meminfo 2>/dev/null || free | awk '/Mem/{printf "%.1f",$3/$2*100}'
+  awk '/MemTotal/{t=$2}/MemAvailable/{a=$2}END{if(t>0)printf "%.1f",(1-a/t)*100;else print "0"}' /proc/meminfo 2>/dev/null || free | awk '/Mem:/{printf "%.1f",$3/$2*100}'
 }
 
 read_disk() {
-  df / | awk 'NR==2{print $5}' | tr -d '%'
+  df / -P 2>/dev/null | awk 'NR==2{gsub(/%/,"",$5); print $5}' || echo "0"
 }
 
 read_uptime() {
@@ -100,8 +120,6 @@ read_containers() {
     echo '[]'
     return
   fi
-  local first=1
-  echo -n '['
   while IFS='|' read -r name image state started_at exit_code state_error ports_raw; do
     [ -z "\${name:-}" ] && continue
     name="\${name#/}"
@@ -117,11 +135,19 @@ read_containers() {
     else
       [ "\${exit_code:-}" != "" ] && [ "\${exit_code:-}" != "0" ] && error_log="exit_code=\${exit_code}"
       [ -n "\${state_error:-}" ] && error_log="\${error_log:+\${error_log}; }\${state_error}"
+      if command -v docker &>/dev/null; then
+        error_log="\$(docker logs --tail 100 "\${name}" 2>&1 | tail -c 2000)"
+      fi
     fi
-    [ $first -eq 1 ] && first=0 || echo -n ','
-    printf '{"name":"%s","image":"%s","status":"%s","uptime":"%s","ports":"%s","error_log":"%s"}' "\${name:-}" "\${image:-}" "\${state:-unknown}" "\${uptime_str:-}" "\${ports:-}" "\${error_log:-}"
-  done < "$tmpfile"
-  echo -n ']'
+    jq -n \\
+      --arg n "\${name:-}" \\
+      --arg i "\${image:-}" \\
+      --arg s "\${state:-unknown}" \\
+      --arg u "\${uptime_str:-}" \\
+      --arg p "\${ports:-}" \\
+      --arg e "\${error_log:-}" \\
+      '{name:$n,image:$i,status:$s,uptime:$u,ports:$p,error_log:$e}'
+  done < "$tmpfile" | jq -s '.' 2>/dev/null || echo '[]'
   rm -f "$tmpfile"
 }
 

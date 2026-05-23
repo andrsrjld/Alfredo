@@ -52,6 +52,17 @@ function isStale(server: Server): boolean {
   return Date.now() - new Date(server.last_ping).getTime() > STALE_THRESHOLD_MS
 }
 
+function hasReportedMetrics(server: Server): boolean {
+  return server.cpu_usage !== null || server.memory_usage !== null || server.disk_usage !== null
+}
+
+function metricsLookEmpty(server: Server): boolean {
+  return hasReportedMetrics(server)
+    && (server.cpu_usage ?? 0) === 0
+    && (server.memory_usage ?? 0) === 0
+    && (server.disk_usage ?? 0) === 0
+}
+
 function staleLabel(server: Server): string {
   if (!isStale(server)) return ''
   const diff = Date.now() - new Date(server.last_ping).getTime()
@@ -113,6 +124,7 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
   const [containerPage, setContainerPage] = useState(0)
   const [expandedLog, setExpandedLog] = useState<Set<string>>(new Set())
   const [liveServer, setLiveServer] = useState<Server | null>(null)
+  const [containersLoading, setContainersLoading] = useState(false)
   const CONTAINER_PAGE_SIZE = 10
 
   useEffect(() => {
@@ -120,27 +132,35 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
     const serverName = server.server_name
     const supabase = createClient()
     async function fetchContainers() {
-      const { data } = await supabase
+      setContainersLoading(true)
+      const { data, error } = await supabase
         .from('container_status')
         .select('*')
         .eq('server_name', serverName)
         .order('status', { ascending: true })
-      if (data) setContainers(data)
+      if (!error && data) setContainers(data)
+      setContainersLoading(false)
     }
     async function fetchServerMetrics() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('server_status')
         .select('*')
         .eq('server_name', serverName)
         .maybeSingle()
-      if (data) setLiveServer(data as Server)
+      if (!error && data) setLiveServer(data as Server)
     }
     fetchContainers()
     fetchServerMetrics()
-    const dbChannel = supabase
+    const containerChannel = supabase
       .channel(`container_status_${encodeURIComponent(serverName)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'container_status', filter: `server_name=eq.${serverName}` }, () => {
         fetchContainers()
+      })
+      .subscribe()
+    const serverChannel = supabase
+      .channel(`server_status_${encodeURIComponent(serverName)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'server_status', filter: `server_name=eq.${serverName}` }, () => {
+        fetchServerMetrics()
       })
       .subscribe()
     const staleTimeout = setTimeout(() => {
@@ -149,8 +169,11 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
     }, STALE_THRESHOLD_MS + 1000)
     return () => {
       clearTimeout(staleTimeout)
-      supabase.removeChannel(dbChannel)
+      supabase.removeChannel(containerChannel)
+      supabase.removeChannel(serverChannel)
       setLiveServer(null)
+      setContainers([])
+      setContainersLoading(false)
     }
   }, [server, open])
 
@@ -211,8 +234,11 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
             {stale && (
               <p className="text-xs text-amber-500 font-medium">Server stale — metrics unavailable (last ping: {formatWIB(displayServer.last_ping)})</p>
             )}
-            {!stale && displayServer.cpu_usage === null && displayServer.memory_usage === null && displayServer.disk_usage === null && (
-              <p className="text-xs text-muted-foreground">No metrics reported. Update cron script to enable.</p>
+            {!stale && !hasReportedMetrics(displayServer) && (
+              <p className="text-xs text-muted-foreground">No metrics reported. Re-download ping script from dashboard and restart cron/daemon.</p>
+            )}
+            {!stale && metricsLookEmpty(displayServer) && (
+              <p className="text-xs text-amber-600">Metrics are all 0% — re-download the latest ping/daemon script and restart the agent on this server.</p>
             )}
           </div>
 
@@ -246,10 +272,12 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
             </div>
           )}
 
-          {containers.length > 0 && (
-            <div className="border-t border-border pt-3 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-foreground">Containers</span>
+          <div className="border-t border-border pt-3 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-foreground">
+                Containers{containers.length > 0 ? ` (${containers.length})` : ''}
+              </span>
+              {containers.length > 0 && (
                 <Input
                   type="text"
                   placeholder="Filter..."
@@ -257,8 +285,20 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
                   onChange={e => { setContainerSearch(e.target.value); setContainerPage(0) }}
                   className="h-7 w-28 text-xs px-2"
                 />
-              </div>
+              )}
+            </div>
 
+            {containersLoading && (
+              <p className="text-xs text-muted-foreground">Loading containers...</p>
+            )}
+            {!containersLoading && containers.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No containers in database. Ensure Docker is running and ping/daemon script includes jq.
+              </p>
+            )}
+
+            {containers.length > 0 && (
+              <>
               {filteredProblem.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-xs font-medium text-destructive">Problem ({filteredProblem.length})</span>
@@ -297,8 +337,9 @@ function ServerDetailDialog({ server, open, onOpenChange }: {
               {filteredProblem.length === 0 && filteredRunning.length === 0 && containerSearch && (
                 <p className="text-xs text-muted-foreground">No matching containers.</p>
               )}
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -520,7 +561,7 @@ export default function RealtimeServerStatus() {
       )}
 
       <ServerDetailDialog
-        server={selectedServer}
+        server={selectedServer ? (servers.find(s => s.id === selectedServer.id) ?? selectedServer) : null}
         open={!!selectedServer}
         onOpenChange={(open) => { if (!open) setSelectedServer(null) }}
       />

@@ -78,16 +78,18 @@ export async function POST(request: NextRequest) {
 
     const { cpu, memory, disk, uptime_hours, containers } = metrics
 
+    const update: Record<string, unknown> = {
+      status: 'online',
+      last_ping: new Date().toISOString(),
+    }
+    if (typeof cpu === 'number' && !Number.isNaN(cpu)) update.cpu_usage = cpu
+    if (typeof memory === 'number' && !Number.isNaN(memory)) update.memory_usage = memory
+    if (typeof disk === 'number' && !Number.isNaN(disk)) update.disk_usage = disk
+    if (typeof uptime_hours === 'number' && !Number.isNaN(uptime_hours)) update.uptime_hours = uptime_hours
+
     const { error: serverError } = await supabase
       .from('server_status')
-      .update({
-        status: 'online',
-        cpu_usage: cpu ?? null,
-        memory_usage: memory ?? null,
-        disk_usage: disk ?? null,
-        uptime_hours: uptime_hours ?? null,
-        last_ping: new Date().toISOString(),
-      })
+      .update(update)
       .eq('server_name', serverName)
 
     const { data: verify } = await supabase.from('server_status').select('cpu_usage,memory_usage,disk_usage').eq('server_name', serverName).single()
