@@ -90,7 +90,7 @@ function ProjectDetailDialog({ project, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-x-hidden">
+      <DialogContent className="overflow-y-auto max-h-[calc(100dvh-1rem)]">
         <DialogHeader>
           <DialogTitle className="flex min-w-0 flex-wrap items-center gap-2 pr-8">
             <span className="min-w-0 break-words font-mono">{capitalizeWords(project.repo_name)}</span>
@@ -168,7 +168,7 @@ function ProjectCard({ project, onClick }: {
         <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:gap-1.5 sm:text-sm">
           <div className="flex items-center justify-between">
             <span>Group</span>
-            <span className="ml-1 max-w-[80px] truncate">{project.project_group || '\u2014'}</span>
+            <span className="ml-1 truncate max-w-[5rem] sm:max-w-none">{project.project_group || '\u2014'}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>Branch</span>
@@ -251,8 +251,8 @@ export default function RealtimeProjectStatus() {
       (p.project_group || '').toLowerCase().includes(search.toLowerCase())
   )
 
-  const mobileTotalPages = Math.ceil(filtered.length / MOBILE_PAGE_SIZE)
-  const desktopTotalPages = Math.ceil(filtered.length / DESKTOP_PAGE_SIZE)
+  const mobileTotalPages = Math.max(1, Math.ceil(filtered.length / MOBILE_PAGE_SIZE))
+  const desktopTotalPages = Math.max(1, Math.ceil(filtered.length / DESKTOP_PAGE_SIZE))
   const desktopItems = filtered.slice(desktopPage * DESKTOP_PAGE_SIZE, (desktopPage + 1) * DESKTOP_PAGE_SIZE)
 
   const handleScroll = useCallback(() => {
@@ -265,7 +265,7 @@ export default function RealtimeProjectStatus() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 md:flex-none md:w-64">
+        <div className="relative flex-1 sm:flex-none sm:w-48 md:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
           <Input
             type="text"
@@ -287,7 +287,7 @@ export default function RealtimeProjectStatus() {
         {Array.from({ length: mobileTotalPages }).map((_, pageIdx) => {
           const pageItems = filtered.slice(pageIdx * MOBILE_PAGE_SIZE, (pageIdx + 1) * MOBILE_PAGE_SIZE)
           return (
-            <div key={pageIdx} className="grid grid-cols-2 gap-3 snap-start" style={{ minWidth: '100%', flexShrink: 0 }}>
+             <div key={pageIdx} className="grid grid-cols-2 gap-3 snap-start min-w-full shrink-0">
               {pageItems.map((project) => (
                 <ProjectCard key={project.id} project={project} onClick={() => setSelectedProject(project)} />
               ))}
@@ -319,7 +319,7 @@ export default function RealtimeProjectStatus() {
 
       {/* Desktop: paginated card grid */}
       <div className="hidden md:block">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {desktopItems.map((project) => (
             <ProjectCard key={project.id} project={project} onClick={() => setSelectedProject(project)} />
           ))}

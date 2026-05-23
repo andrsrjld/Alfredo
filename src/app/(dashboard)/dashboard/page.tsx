@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import RealtimeServerStatus from '@/components/realtime/RealtimeServerStatus'
 import RealtimeProjectStatus from '@/components/realtime/RealtimeProjectStatus'
 import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
-import { StatCards } from '@/components/dashboard/StatCards'
+import StatCards from '@/components/dashboard/StatCards'
 
 type Stats = {
   totalServers: number
@@ -44,7 +44,7 @@ export default function DashboardPage() {
   }, [])
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 lg:p-6 xl:p-8">
+    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
       <StatCards stats={stats} />
 
       <Card>

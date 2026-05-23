@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import {
   type ServerRecord,
   hasReportedMetrics,
@@ -15,7 +16,7 @@ import { Terminal, Trash2 } from 'lucide-react'
 
 type ServerCardProps = {
   server: ServerRecord
-  compact?: boolean
+  variant?: 'compact' | 'default'
   onClick?: () => void
   adminActions?: {
     onSetup?: () => void
@@ -24,23 +25,24 @@ type ServerCardProps = {
   }
 }
 
-export default function ServerCard({ server, compact, onClick, adminActions }: ServerCardProps) {
+export default function ServerCard({ server, variant = 'default', onClick, adminActions }: ServerCardProps) {
   const stale = isStale(server)
   const cfg = stale
     ? { variant: 'destructive' as const, label: 'Offline' }
     : (statusConfig[server.status] || { variant: 'secondary' as const, label: server.status })
   const hasMetrics = !stale && hasReportedMetrics(server)
   const showLastPing = stale && hasReportedMetrics(server)
+  const isCompact = variant === 'compact'
 
   return (
     <Card
       size="sm"
-      className={`h-full ${onClick ? 'cursor-pointer' : ''}`}
+      className={cn('h-full', onClick && 'cursor-pointer')}
       onClick={onClick}
     >
       <CardContent>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <span className={`truncate font-mono font-medium text-foreground ${compact ? 'text-xs' : 'text-sm'}`}>
+          <span className={cn('truncate font-mono font-medium text-foreground', isCompact ? 'text-xs' : 'text-sm')}>
             {server.server_name}
           </span>
           <div className="flex shrink-0 items-center gap-1">
@@ -72,7 +74,7 @@ export default function ServerCard({ server, compact, onClick, adminActions }: S
             )}
           </div>
         </div>
-        <div className={`flex flex-col gap-1 text-muted-foreground ${compact ? 'text-xs' : 'text-sm gap-1.5'}`}>
+        <div className={cn('flex flex-col text-muted-foreground', isCompact ? 'text-xs gap-1' : 'text-sm gap-1.5')}>
           <div className="flex items-center justify-between">
             <span>IP</span>
             <span className="ml-2 truncate font-mono">{server.ip_address || '\u2014'}</span>

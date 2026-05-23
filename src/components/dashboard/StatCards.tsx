@@ -16,7 +16,7 @@ interface StatCardsProps {
   }
 }
 
-export function StatCards({ stats }: StatCardsProps) {
+export default function StatCards({ stats }: StatCardsProps) {
   const serverData = [
     { value: stats.online, colorClass: 'text-emerald-400', label: 'Online' },
     { value: stats.offline, colorClass: 'text-red-400', label: 'Offline' },
@@ -30,15 +30,14 @@ export function StatCards({ stats }: StatCardsProps) {
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      {/* Servers */}
       <Card>
-        <CardContent className="p-3 md:p-6">
+        <CardContent className="p-3 md:p-5">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
-              <Server className="h-4 w-4 text-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">Servers</span>
+              <Server className="h-3.5 w-3.5 text-foreground md:h-4 md:w-4" />
+              <span className="text-[10px] font-medium text-muted-foreground md:text-xs">Servers</span>
             </div>
-            <span className="text-xs font-semibold text-foreground">{stats.totalServers}</span>
+            <span className="text-[10px] font-semibold text-foreground md:text-xs">{stats.totalServers}</span>
           </div>
           <DonutChart
             data={serverData}
@@ -50,15 +49,14 @@ export function StatCards({ stats }: StatCardsProps) {
         </CardContent>
       </Card>
 
-      {/* Pipelines */}
       <Card>
-        <CardContent className="p-3 md:p-6">
+        <CardContent className="p-3 md:p-5">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1.5">
-              <Monitor className="h-4 w-4 text-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">Pipelines</span>
+              <Monitor className="h-3.5 w-3.5 text-foreground md:h-4 md:w-4" />
+              <span className="text-[10px] font-medium text-muted-foreground md:text-xs">Pipelines</span>
             </div>
-            <span className="text-xs font-semibold text-foreground">{stats.totalProjects}</span>
+            <span className="text-[10px] font-semibold text-foreground md:text-xs">{stats.totalProjects}</span>
           </div>
           <DonutChart
             data={pipelineData}

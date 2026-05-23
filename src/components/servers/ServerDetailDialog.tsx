@@ -374,7 +374,7 @@ export default function ServerDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-y-auto max-h-[calc(100dvh-1rem)] sm:max-w-lg md:max-w-2xl">
+      <DialogContent className="overflow-y-auto max-h-[calc(100dvh-1rem)] max-w-[calc(100%-1rem)] sm:max-w-lg md:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex min-w-0 flex-wrap items-center gap-2 pr-8">
             <span className="min-w-0 break-words font-mono">{displayServer.server_name}</span>
@@ -475,13 +475,13 @@ export default function ServerDetailDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <DetailColumn label="Uptime" value={displayServer.uptime_hours !== null ? `${displayServer.uptime_hours.toFixed(1)}h` : null} mono />
             <DetailColumn label="Last Ping" value={formatWIB(displayServer.last_ping)} mono />
           </div>
 
           {displayServer.ping_secret && pingUrl && (
-            <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="space-y-1.5">
                 <span className="text-muted-foreground">Ping Secret</span>
                 <Button variant="outline" size="sm" className="h-7 w-full gap-1.5 text-xs" onClick={() => copyToClipboard(displayServer.ping_secret!, 'secret')}>
@@ -541,7 +541,7 @@ export default function ServerDetailDialog({
                   placeholder="Filter..."
                   value={containerSearch}
                   onChange={e => { setContainerSearch(e.target.value); setExpandedGroups(new Set()) }}
-                  className="h-7 w-28 px-2 text-xs"
+                  className="h-7 w-full sm:w-28 px-2 text-xs"
                 />
               )}
             </div>
@@ -550,7 +550,7 @@ export default function ServerDetailDialog({
               <p className="text-xs text-muted-foreground">No containers in database.</p>
             )}
             {containers.length > 0 && (
-              <div className="max-h-[50vh] overflow-y-auto pr-1 space-y-1">
+              <div className="max-h-[40vh] sm:max-h-[50vh] overflow-y-auto pr-1 space-y-1">
                 <div className="space-y-1">
                   {statusGroups.map(({ key, label, variant }) => {
                     const groupContainers = containersByStatus(key)

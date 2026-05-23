@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import ServerCard from '@/components/servers/ServerCard'
@@ -36,6 +36,7 @@ export default function RealtimeServerStatus() {
   const [mobilePage, setMobilePage] = useState(0)
   const [desktopPage, setDesktopPage] = useState(0)
   const [selectedServer, setSelectedServer] = useState<ServerRecord | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const supabase = createClient()
@@ -71,26 +72,22 @@ export default function RealtimeServerStatus() {
     setSelectedServer(updated)
   }
 
-  const mobileTotalPages = Math.ceil(servers.length / MOBILE_PAGE_SIZE)
-  const desktopTotalPages = Math.ceil(servers.length / DESKTOP_PAGE_SIZE)
+  const mobileTotalPages = Math.max(1, Math.ceil(servers.length / MOBILE_PAGE_SIZE))
+  const desktopTotalPages = Math.max(1, Math.ceil(servers.length / DESKTOP_PAGE_SIZE))
   const desktopItems = servers.slice(desktopPage * DESKTOP_PAGE_SIZE, (desktopPage + 1) * DESKTOP_PAGE_SIZE)
 
   return (
     <div className="space-y-3">
       <div
-        data-server-mobile
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth md:hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-        ref={(el) => {
-          if (!el) return
-          el.onscroll = () => setMobilePage(Math.round(el.scrollLeft / el.offsetWidth))
-        }}
+        ref={scrollRef}
       >
         {Array.from({ length: mobileTotalPages }).map((_, pageIdx) => {
           const pageItems = servers.slice(pageIdx * MOBILE_PAGE_SIZE, (pageIdx + 1) * MOBILE_PAGE_SIZE)
           return (
-            <div key={pageIdx} className="grid grid-cols-2 gap-3 snap-start" style={{ minWidth: '100%', flexShrink: 0 }}>
+            <div key={pageIdx} className="grid grid-cols-2 gap-3 snap-start min-w-full shrink-0">
               {pageItems.map(s => (
-                <ServerCard key={s.id} server={s} compact onClick={() => setSelectedServer(s)} />
+                <ServerCard key={s.id} server={s} variant="compact" onClick={() => setSelectedServer(s)} />
               ))}
             </div>
           )
@@ -107,14 +104,12 @@ export default function RealtimeServerStatus() {
             onPrev={() => {
               const p = Math.max(0, mobilePage - 1)
               setMobilePage(p)
-              const el = document.querySelector('[data-server-mobile]') as HTMLDivElement
-              el?.scrollTo({ left: p * el.offsetWidth, behavior: 'smooth' })
+              scrollRef.current?.scrollTo({ left: p * (scrollRef.current?.offsetWidth || 0), behavior: 'smooth' })
             }}
             onNext={() => {
               const p = Math.min(mobileTotalPages - 1, mobilePage + 1)
               setMobilePage(p)
-              const el = document.querySelector('[data-server-mobile]') as HTMLDivElement
-              el?.scrollTo({ left: p * el.offsetWidth, behavior: 'smooth' })
+              scrollRef.current?.scrollTo({ left: p * (scrollRef.current?.offsetWidth || 0), behavior: 'smooth' })
             }}
           />
         </div>
