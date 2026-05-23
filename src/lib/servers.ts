@@ -85,6 +85,41 @@ export function timeAgo(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+export function extractServiceName(containerName: string): string {
+  // Swarm format: service.slot.task.node → service
+  const parts = containerName.split('.')
+  if (parts.length >= 3) return parts.slice(0, parts.length - 2).join('.')
+  return containerName
+}
+
+export function isSwarmStyleName(name: string): boolean {
+  // Heuristic: swarm names have at least 3 dot-separated segments
+  const parts = name.split('.')
+  return parts.length >= 3 && /^\d+$/.test(parts[parts.length - 2])
+}
+
+export function groupContainersByService(
+  containers: ContainerRecord[]
+): { services: Record<string, ContainerRecord[]>; isSwarm: boolean } {
+  const swarmCount = containers.filter(c => isSwarmStyleName(c.container_name)).length
+  const isSwarm = swarmCount > containers.length * 0.5
+  if (!isSwarm) return { services: {}, isSwarm: false }
+
+  const services: Record<string, ContainerRecord[]> = {}
+  for (const c of containers) {
+    const svc = extractServiceName(c.container_name)
+    if (!services[svc]) services[svc] = []
+    services[svc].push(c)
+  }
+  return { services, isSwarm: true }
+}
+
+export function getServiceReplicaSummary(containers: ContainerRecord[]): string {
+  const running = containers.filter(c => c.status === 'running').length
+  const total = containers.length
+  return `${running}/${total} up`
+}
+
 export function generateSetupInstructions(server: Pick<ServerRecord, 'ping_secret'>, mode: 'daemon' | 'cron'): string {
   const secret = server.ping_secret
   if (!secret) return 'No ping secret available for this server.'

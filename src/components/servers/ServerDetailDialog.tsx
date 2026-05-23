@@ -26,12 +26,14 @@ import {
   metricsLookEmpty,
   statusConfig,
   timeAgo,
+  extractServiceName,
+  groupContainersByService,
+  getServiceReplicaSummary,
 } from '@/lib/servers'
-import { Copy, Check, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { Copy, Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 
 const DIALOG_METRICS_INTERVAL_MS = 5000
 const DIALOG_CONTAINERS_INTERVAL_MS = 60000
-const CONTAINER_PAGE_SIZE = 10
 
 function containersEqual(a: ContainerRecord[], b: ContainerRecord[]): boolean {
   if (a.length !== b.length) return false
@@ -160,8 +162,8 @@ export default function ServerDetailDialog({
   const [copied, setCopied] = useState<string | null>(null)
   const [containers, setContainers] = useState<ContainerRecord[]>([])
   const [containerSearch, setContainerSearch] = useState('')
-  const [showRunning, setShowRunning] = useState(false)
-  const [containerPage, setContainerPage] = useState(0)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set())
   const [expandedLog, setExpandedLog] = useState<Set<string>>(new Set())
   const [liveServer, setLiveServer] = useState<ServerRecord | null>(null)
   const [containersLoading, setContainersLoading] = useState(false)
@@ -177,6 +179,7 @@ export default function ServerDetailDialog({
   const [deleting, setDeleting] = useState(false)
   const [setupMode, setSetupMode] = useState<'daemon' | 'cron'>('daemon')
   const [showSetup, setShowSetup] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     if (!serverId || !open || !initialServer) return
@@ -189,6 +192,9 @@ export default function ServerDetailDialog({
     setEditNotes(initialServer.notes || '')
     setSaveError('')
     setSaveOk(false)
+    setIsEditing(false)
+    setExpandedGroups(new Set())
+    setExpandedServices(new Set())
     setShowSetup(initialShowSetup && showAdminTools)
 
     let active = true
@@ -236,6 +242,8 @@ export default function ServerDetailDialog({
       setLiveServer(null)
       setContainers([])
       setContainersLoading(false)
+      setExpandedGroups(new Set())
+      setExpandedServices(new Set())
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverId, open])
@@ -248,20 +256,56 @@ export default function ServerDetailDialog({
     : (statusConfig[displayServer.status] || { variant: 'secondary' as const, label: displayServer.status })
   const pingUrl = displayServer.ping_secret ? `${APP_URL}/api/server-ping?secret=${displayServer.ping_secret}` : null
 
-  const problemContainers = containers.filter(c => c.status !== 'running')
-  const runningContainers = containers.filter(c => c.status === 'running')
-  const filteredProblem = problemContainers.filter(c =>
+  const filteredContainers = containers.filter(c =>
     c.container_name.toLowerCase().includes(containerSearch.toLowerCase()) ||
     (c.image || '').toLowerCase().includes(containerSearch.toLowerCase())
   )
-  const filteredRunning = runningContainers.filter(c =>
-    c.container_name.toLowerCase().includes(containerSearch.toLowerCase()) ||
-    (c.image || '').toLowerCase().includes(containerSearch.toLowerCase())
-  )
-  const totalPages = Math.ceil((showRunning ? filteredRunning.length : 0) / CONTAINER_PAGE_SIZE)
-  const pagedRunning = showRunning
-    ? filteredRunning.slice(containerPage * CONTAINER_PAGE_SIZE, (containerPage + 1) * CONTAINER_PAGE_SIZE)
-    : []
+
+  const { isSwarm } = groupContainersByService(filteredContainers)
+
+  const statusGroups = [
+    { key: 'running', label: 'Running', variant: 'success' as const },
+    { key: 'exited', label: 'Exited', variant: 'destructive' as const },
+    { key: 'restarting', label: 'Restarting', variant: 'warning' as const },
+    { key: 'dead', label: 'Dead', variant: 'destructive' as const },
+    { key: 'others', label: 'Others', variant: 'secondary' as const },
+  ]
+
+  function containersByStatus(status: string) {
+    if (status === 'others') {
+      return filteredContainers.filter(c => !['running', 'exited', 'restarting', 'dead'].includes(c.status))
+    }
+    return filteredContainers.filter(c => c.status === status)
+  }
+
+  function servicesByStatus(status: string) {
+    const list = containersByStatus(status)
+    const svcMap: Record<string, ContainerRecord[]> = {}
+    for (const c of list) {
+      const svc = extractServiceName(c.container_name)
+      if (!svcMap[svc]) svcMap[svc] = []
+      svcMap[svc].push(c)
+    }
+    return svcMap
+  }
+
+  function toggleGroup(key: string) {
+    setExpandedGroups(prev => {
+      const n = new Set(prev)
+      if (n.has(key)) n.delete(key)
+      else n.add(key)
+      return n
+    })
+  }
+
+  function toggleService(svc: string) {
+    setExpandedServices(prev => {
+      const n = new Set(prev)
+      if (n.has(svc)) n.delete(svc)
+      else n.add(svc)
+      return n
+    })
+  }
 
   async function copyToClipboard(text: string, label: string) {
     await navigator.clipboard.writeText(text)
@@ -302,6 +346,7 @@ export default function ServerDetailDialog({
       setEditName(updated.server_name)
       setSaveOk(true)
       onServerUpdated?.(updated)
+      setIsEditing(false)
       setTimeout(() => setSaveOk(false), 2000)
     } catch {
       setSaveError('Network error')
@@ -329,7 +374,7 @@ export default function ServerDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="overflow-y-auto max-h-[calc(100dvh-1rem)] sm:max-w-lg md:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex min-w-0 flex-wrap items-center gap-2 pr-8">
             <span className="min-w-0 break-words font-mono">{displayServer.server_name}</span>
@@ -368,7 +413,7 @@ export default function ServerDetailDialog({
             )}
           </div>
 
-          {editable ? (
+          {isEditing ? (
             <div className="space-y-3 rounded-md border border-border p-3">
               <p className="text-xs font-medium text-foreground">Edit server</p>
               <div className="space-y-2">
@@ -404,20 +449,28 @@ export default function ServerDetailDialog({
                 <Button size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? 'Saving...' : 'Save changes'}
                 </Button>
+                <Button size="sm" variant="outline" onClick={() => setIsEditing(false)} disabled={saving}>
+                  Cancel
+                </Button>
                 {saveOk && <span className="text-xs text-muted-foreground">Saved</span>}
               </div>
             </div>
           ) : (
-            <div className="grid gap-1.5 text-xs">
-              <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3">
-                <span className="shrink-0 text-muted-foreground">IP Address</span>
-                <span className="min-w-0 break-words font-mono text-xs sm:text-right">{displayServer.ip_address || '\u2014'}</span>
-              </div>
-              {displayServer.notes && (
+            <div className="space-y-3">
+              <div className="grid gap-1.5 text-xs">
                 <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3">
-                  <span className="shrink-0 text-muted-foreground">Notes</span>
-                  <span className="min-w-0 break-words text-xs sm:text-right">{displayServer.notes}</span>
+                  <span className="shrink-0 text-muted-foreground">IP Address</span>
+                  <span className="min-w-0 break-words font-mono text-xs sm:text-right">{displayServer.ip_address || '\u2014'}</span>
                 </div>
+                {displayServer.notes && (
+                  <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+                    <span className="shrink-0 text-muted-foreground">Notes</span>
+                    <span className="min-w-0 break-words text-xs sm:text-right">{displayServer.notes}</span>
+                  </div>
+                )}
+              </div>
+              {editable && (
+                <Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>Edit server</Button>
               )}
             </div>
           )}
@@ -476,17 +529,18 @@ export default function ServerDetailDialog({
             </div>
           )}
 
-          <div className="border-t border-border pt-3 space-y-3">
+          <div className="border-t border-border pt-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-medium text-foreground">
                 Containers{containers.length > 0 ? ` (${containers.length})` : ''}
+                {isSwarm && <span className="ml-1.5 text-muted-foreground font-normal">(Swarm)</span>}
               </span>
               {containers.length > 0 && (
                 <Input
                   type="text"
                   placeholder="Filter..."
                   value={containerSearch}
-                  onChange={e => { setContainerSearch(e.target.value); setContainerPage(0) }}
+                  onChange={e => { setContainerSearch(e.target.value); setExpandedGroups(new Set()) }}
                   className="h-7 w-28 px-2 text-xs"
                 />
               )}
@@ -496,54 +550,98 @@ export default function ServerDetailDialog({
               <p className="text-xs text-muted-foreground">No containers in database.</p>
             )}
             {containers.length > 0 && (
-              <>
-                {filteredProblem.length > 0 && (
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium text-destructive">Problem ({filteredProblem.length})</span>
-                    {filteredProblem.map(c => (
-                      <ContainerItem key={c.id} container={c} expandedLog={expandedLog} onToggleLog={(name) => {
-                        setExpandedLog(prev => {
-                          const n = new Set(prev)
-                          if (n.has(name)) n.delete(name)
-                          else n.add(name)
-                          return n
-                        })
-                      }} />
-                    ))}
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-                    onClick={() => { setShowRunning(!showRunning); setContainerPage(0) }}
-                  >
-                    {showRunning ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                    Running ({filteredRunning.length})
-                  </button>
-                  {showRunning && pagedRunning.map(c => (
-                    <ContainerItem key={c.id} container={c} expandedLog={expandedLog} onToggleLog={(name) => {
-                      setExpandedLog(prev => {
-                        const n = new Set(prev)
-                        if (n.has(name)) n.delete(name)
-                        else n.add(name)
-                        return n
-                      })
-                    }} />
-                  ))}
-                  {showRunning && totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 pt-1">
-                      <Button variant="outline" size="icon-sm" disabled={containerPage === 0} onClick={() => setContainerPage(p => p - 1)}>
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                      </Button>
-                      <span className="text-xs text-muted-foreground">{containerPage + 1}/{totalPages}</span>
-                      <Button variant="outline" size="icon-sm" disabled={containerPage >= totalPages - 1} onClick={() => setContainerPage(p => p + 1)}>
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  )}
+              <div className="max-h-[50vh] overflow-y-auto pr-1 space-y-1">
+                <div className="space-y-1">
+                  {statusGroups.map(({ key, label, variant }) => {
+                    const groupContainers = containersByStatus(key)
+                    if (groupContainers.length === 0) return null
+                    const isOpen = expandedGroups.has(key)
+                    return (
+                      <div key={key} className="rounded-md border border-border">
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-xs font-medium hover:bg-muted/30"
+                          onClick={() => toggleGroup(key)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isOpen ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                            <Badge variant={variant} className="text-xs">{label}</Badge>
+                            <span className="text-muted-foreground">{groupContainers.length}</span>
+                          </div>
+                          {isSwarm && (
+                            <span className="text-xs text-muted-foreground">
+                              {Object.keys(servicesByStatus(key)).length} services
+                            </span>
+                          )}
+                        </button>
+                        {isOpen && (
+                          <div className="space-y-1 border-t border-border px-3 py-2">
+                            {isSwarm ? (
+                              Object.entries(servicesByStatus(key)).map(([svcName, svcContainers]) => {
+                                const svcOpen = expandedServices.has(svcName)
+                                const imageTag = svcContainers[0]?.image?.split('/').pop() || svcContainers[0]?.image || null
+                                return (
+                                  <div key={svcName} className="rounded-md border border-border/50">
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-xs hover:bg-muted/20"
+                                      onClick={() => toggleService(svcName)}
+                                    >
+                                      <div className="flex min-w-0 items-center gap-2">
+                                        {svcOpen ? <ChevronUp className="h-3 w-3 shrink-0 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                                        <span className="min-w-0 truncate font-mono font-medium">{svcName}</span>
+                                        {imageTag && <span className="hidden sm:inline text-muted-foreground truncate">{imageTag}</span>}
+                                      </div>
+                                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                                        {getServiceReplicaSummary(svcContainers)}
+                                      </span>
+                                    </button>
+                                    {svcOpen && (
+                                      <div className="space-y-1 border-t border-border/50 px-2.5 py-1.5">
+                                        {svcContainers.map(c => (
+                                          <ContainerItem
+                                            key={c.id}
+                                            container={c}
+                                            expandedLog={expandedLog}
+                                            onToggleLog={(name) => {
+                                              setExpandedLog(prev => {
+                                                const n = new Set(prev)
+                                                if (n.has(name)) n.delete(name)
+                                                else n.add(name)
+                                                return n
+                                              })
+                                            }}
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })
+                            ) : (
+                              groupContainers.map(c => (
+                                <ContainerItem
+                                  key={c.id}
+                                  container={c}
+                                  expandedLog={expandedLog}
+                                  onToggleLog={(name) => {
+                                    setExpandedLog(prev => {
+                                      const n = new Set(prev)
+                                      if (n.has(name)) n.delete(name)
+                                      else n.add(name)
+                                      return n
+                                    })
+                                  }}
+                                />
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>

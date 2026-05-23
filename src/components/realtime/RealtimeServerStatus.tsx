@@ -40,8 +40,17 @@ export default function RealtimeServerStatus() {
   useEffect(() => {
     const supabase = createClient()
     async function fetchServers() {
-      const { data } = await supabase.from('server_status').select('*').order('last_ping', { ascending: false })
-      if (data) setServers(data as ServerRecord[])
+      const { data } = await supabase.from('server_status').select('*').order('server_name', { ascending: true })
+      if (data) {
+        setServers(prev => {
+          const next = data as ServerRecord[]
+          const map = new Map(next.map(s => [s.id, s]))
+          const merged = prev.map(s => map.get(s.id) || s)
+          const existingIds = new Set(prev.map(s => s.id))
+          const added = next.filter(s => !existingIds.has(s.id))
+          return [...merged, ...added]
+        })
+      }
     }
     fetchServers()
     const interval = setInterval(fetchServers, 2000)
