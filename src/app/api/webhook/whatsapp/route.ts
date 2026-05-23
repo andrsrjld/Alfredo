@@ -4,6 +4,7 @@ import { askAlfredo } from '@/lib/llm'
 import { getMessagingProvider } from '@/lib/messaging'
 import { normalizePhone } from '@/lib/phone'
 import { shouldBotReply } from '@/lib/bot-mode'
+import { markdownToWhatsApp } from '@/lib/messaging/whatsapp-format'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     if (!shouldReply) {
       if (mode === 'human' && humanReply) {
         const messenger = getMessagingProvider()
-        await messenger.sendMessage(from, humanReply)
+        await messenger.sendMessage(from, markdownToWhatsApp(humanReply))
         await supabase.from('chat_logs').insert({ pm_number: from, pm_message: text, bot_reply: humanReply })
       }
       return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     const messenger = getMessagingProvider()
-    await messenger.sendMessage(from, reply)
+    await messenger.sendMessage(from, markdownToWhatsApp(reply))
 
     await supabase.from('chat_logs').insert({
       pm_number: from,

@@ -4,6 +4,7 @@ import { askAlfredo } from '@/lib/llm'
 import { getMessagingProvider } from '@/lib/messaging'
 import { normalizePhone } from '@/lib/phone'
 import { shouldBotReply } from '@/lib/bot-mode'
+import { markdownToWhatsApp } from '@/lib/messaging/whatsapp-format'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
     if (!shouldReply) {
       if (mode === 'human' && humanReply) {
         const messenger = getMessagingProvider()
-        await messenger.sendMessage(replyTarget, humanReply, { isGroup, mentions: isGroup && participant ? [`${participant}@s.whatsapp.net`] : undefined })
+        await messenger.sendMessage(replyTarget, markdownToWhatsApp(humanReply), { isGroup, mentions: isGroup && participant ? [`${participant}@s.whatsapp.net`] : undefined })
         await supabase.from('chat_logs').insert({ pm_number: from, pm_message: text, bot_reply: humanReply, is_group: isGroup, group_id: groupId || null })
       }
       return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
     const messenger = getMessagingProvider()
-    await messenger.sendMessage(replyTarget, reply, { isGroup, mentions: isGroup && participant ? [`${participant}@s.whatsapp.net`] : undefined })
+    await messenger.sendMessage(replyTarget, markdownToWhatsApp(reply), { isGroup, mentions: isGroup && participant ? [`${participant}@s.whatsapp.net`] : undefined })
 
     await supabase.from('chat_logs').insert({
       pm_number: from,

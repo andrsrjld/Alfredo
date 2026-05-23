@@ -57,6 +57,112 @@ sequenceDiagram
 - **Supabase**: PostgreSQL + Auth + Realtime — no self-hosted DB needed
 - **OpenAI-compatible LLM API**: DeepSeek (default), OpenAI, Gemini, Ollama Cloud — all use raw `fetch`
 
+## 💬 Usage Examples
+
+### Asking About Server Status
+
+```
+You: server produksi status apa?
+
+Alfredo: Halo! 🤖 Berikut status server produksi:
+
+🖥️ PROD-01 — Online ✅
+  CPU: 23.4% | Memory: 61.2% | Disk: 45%
+  Uptime: 14.5 jam
+
+🖥️ PROD-02 — Online ✅
+  CPU: 8.7% | Memory: 54.8% | Disk: 32%
+  Uptime: 7.2 jam
+
+Semua server produksi online dan dalam kondisi normal.
+```
+
+### Asking About Pipeline Failures
+
+```
+You: pipeline frontend-dashboard gagal, errornya apa?
+
+Alfredo: Halo! 🤖 Pipeline frontend-dashboard terakhir gagal:
+
+Pipeline: main (branch)
+Status: ❌ failed
+Error:
+  ERROR: npm run build failed
+  Module not found: Can't resolve '@/components/dashboard/Chart'
+  at ModuleResolver.resolve (node:internal/modules/cjs/loader:1084:19)
+
+Looks like ada import yang missing — file Chart.tsx belum ada atau udah di-move. Coba check import path-nya ya.
+```
+
+### Asking About Docker Containers
+
+```
+You: di server DEV-SCBD ada container yang mati?
+
+Alfredo: Halo! 🤖 Di server DEV-SCBD-HABITAT:
+
+🐳 Running (5):
+  - nginx-proxy (Up 3d 2h)
+  - api-gateway (Up 3d 2h)
+  - postgres-db (Up 3d 2h)
+  - redis-cache (Up 3d 2h)
+  - app-frontend (Up 14h)
+
+🐳 Exited (1):
+  - cron-scheduler (exit_code=137, OOM killed)
+    Last log: "JavaScript heap out of memory"
+
+Container cron-scheduler mati karena OOM. Mungkin perlu increase memory limit atau optimize script-nya.
+```
+
+### Ambiguity Detection
+
+```
+You: pipeline backend-api gimana?
+
+Alfredo: Halo! 🤖 Ada 2 project dengan nama backend-api:
+
+1. group-a/backend-api — Pipeline main: ✅ passed (2 jam lalu)
+2. group-b/backend-api — Pipeline main: ❌ failed (15 menit lalu)
+
+Maksudnya backend-api yang mana? Group A atau Group B?
+```
+
+### Short Greetings (No LLM Call)
+
+```
+You: pagi
+
+Alfredo: Selamat pagi! 🌅 Ada yang bisa saya bantu terkait server atau pipeline?
+```
+
+### Group Chat
+
+```
+(in WhatsApp group)
+Budi: @alfredo server dev status?
+
+Alfredo: Halo Budi! 🤖 Server DEV-01 online ✅, CPU 12%, Memory 48%
+```
+
+### Human Mode
+
+```
+You: halo
+
+Alfredo: Halo! 🤖 Christian Rizaldi sedang online sekarang. Silakan hubungi langsung ya — Alfredo standby.
+```
+
+### Dashboard Usage
+
+| Page | What You Do |
+|---|---|
+| `/dashboard` | View real-time server metrics + pipeline status at a glance |
+| `/dashboard/override` | Add/edit/remove servers, leave notes ("maintenance until 2 AM"), get daemon setup commands |
+| `/dashboard/logs` | Browse all WhatsApp conversations between PMs and Alfredo |
+| `/dashboard/settings` | Switch AI provider, enter API keys, set bot mode (Normal/Extended/Human), configure active hours, save GitLab PAT |
+| `/dashboard/whitelist` | Add/remove PM phone numbers that can chat with Alfredo |
+
 ## 🏗️ Architecture
 
 ```
