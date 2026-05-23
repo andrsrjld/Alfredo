@@ -92,7 +92,7 @@ function DetailColumn({ label, value, mono }: { label: string; value: string | n
   return (
     <div className="min-w-0 space-y-1">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <p className={`break-words text-xs leading-snug text-foreground ${mono ? 'font-mono' : ''}`}>{value || '\u2014'}</p>
+      <p className={`truncate text-xs leading-snug text-foreground ${mono ? 'font-mono' : ''}`} title={value || undefined}>{value || '\u2014'}</p>
     </div>
   )
 }
@@ -374,7 +374,8 @@ export default function ServerDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-y-auto max-h-[calc(100dvh-1rem)] max-w-[calc(100%-1rem)] sm:max-w-lg md:max-w-2xl">
+      <DialogContent className="overflow-hidden max-h-[calc(100dvh-1rem)] max-w-[calc(100%-1rem)] sm:max-w-lg md:max-w-2xl">
+        <div className="overflow-y-auto max-h-[calc(100dvh-2rem)]">
         <DialogHeader>
           <DialogTitle className="flex min-w-0 flex-wrap items-center gap-2 pr-8">
             <span className="min-w-0 break-words font-mono">{displayServer.server_name}</span>
@@ -460,12 +461,12 @@ export default function ServerDetailDialog({
               <div className="grid gap-1.5 text-xs">
                 <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3">
                   <span className="shrink-0 text-muted-foreground">IP Address</span>
-                  <span className="min-w-0 break-words font-mono text-xs sm:text-right">{displayServer.ip_address || '\u2014'}</span>
+                  <span className="min-w-0 truncate font-mono text-xs sm:text-right" title={displayServer.ip_address || undefined}>{displayServer.ip_address || '\u2014'}</span>
                 </div>
                 {displayServer.notes && (
                   <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3">
                     <span className="shrink-0 text-muted-foreground">Notes</span>
-                    <span className="min-w-0 break-words text-xs sm:text-right">{displayServer.notes}</span>
+                    <span className="min-w-0 truncate text-xs sm:text-right" title={displayServer.notes}>{displayServer.notes}</span>
                   </div>
                 )}
               </div>
@@ -515,7 +516,7 @@ export default function ServerDetailDialog({
                     <Button variant={setupMode === 'daemon' ? 'default' : 'outline'} size="xs" onClick={() => setSetupMode('daemon')}>Realtime</Button>
                     <Button variant={setupMode === 'cron' ? 'default' : 'outline'} size="xs" onClick={() => setSetupMode('cron')}>Cron</Button>
                   </div>
-                  <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs whitespace-pre-wrap break-all">{setupInstructions}</pre>
+                  <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs whitespace-pre-wrap break-all max-h-[40vh]">{setupInstructions}</pre>
                   <Button variant="outline" size="sm" className="gap-2" onClick={() => copyToClipboard(setupInstructions, 'setup')}>
                     {copied === 'setup' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                     Copy instructions
@@ -643,9 +644,10 @@ export default function ServerDetailDialog({
                 </div>
               </div>
             )}
-          </div>
+           </div>
+         </div>
         </div>
-      </DialogContent>
+       </DialogContent>
     </Dialog>
   )
 }
