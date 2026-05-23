@@ -112,7 +112,8 @@ PAYLOAD=$(jq -n \\
   }' 2>/dev/null)
 
 if [ -z "\${PAYLOAD:-}" ]; then
-  PAYLOAD='{"cpu":0,"memory":0,"disk":0,"uptime_hours":0,"containers":[]}'
+  PAYLOAD=$(printf '{"cpu":%s,"memory":%s,"disk":%s,"uptime_hours":%s,"containers":%s}' \\
+    "\${CPU:-0}" "\${MEM:-0}" "\${DISK:-0}" "\${UPTIME:-0}" "\${CONTAINERS:-[]}")
 fi
 
 # --- Send ---

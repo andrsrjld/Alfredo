@@ -2,41 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Copy, Check, Trash2, Terminal } from 'lucide-react'
+import { Plus, Copy, Check } from 'lucide-react'
 import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
+import ServerCard from '@/components/servers/ServerCard'
+import ServerDetailDialog from '@/components/servers/ServerDetailDialog'
+import type { ServerRecord } from '@/lib/servers'
+import { APP_URL } from '@/lib/servers'
 
-type Server = {
-  id: string
-  server_name: string
-  ip_address: string | null
-  status: string
-  notes: string | null
-  last_ping: string
-  ping_secret?: string | null
-}
-
-const statusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
-  online: { variant: 'success', label: 'Online' },
-  offline: { variant: 'destructive', label: 'Offline' },
-  high_load: { variant: 'warning', label: 'High load' },
-}
-
-export default function OverridePage() {
-  const [servers, setServers] = useState<Server[]>([])
-  const [editNote, setEditNote] = useState<Record<string, string>>({})
-  const [savingId, setSavingId] = useState<string | null>(null)
-  const [saved, setSaved] = useState<Set<string>>(new Set())
+export default function ServerPage() {
+  const [servers, setServers] = useState<ServerRecord[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const [addName, setAddName] = useState('')
   const [addIp, setAddIp] = useState('')
@@ -47,36 +23,20 @@ export default function OverridePage() {
   const [cronInstructions, setCronInstructions] = useState('')
   const [pingUrl, setPingUrl] = useState('')
   const [copied, setCopied] = useState<Set<string>>(new Set())
-  const [deleting, setDeleting] = useState<string | null>(null)
-  const [setupServer, setSetupServer] = useState<Server | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [selectedServer, setSelectedServer] = useState<ServerRecord | null>(null)
+  const [openSetupOnSelect, setOpenSetupOnSelect] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
     async function fetchServers() {
       const { data } = await supabase.from('server_status').select('*').order('last_ping', { ascending: false })
-      if (data) {
-        setServers(data)
-        const map: Record<string, string> = {}
-        for (const s of data) map[s.id] = s.notes || ''
-        setEditNote(map)
-      }
+      if (data) setServers(data as ServerRecord[])
     }
     fetchServers()
+    const interval = setInterval(fetchServers, 5000)
+    return () => clearInterval(interval)
   }, [])
-
-  async function handleUpdate(id: string) {
-    const supabase = createClient()
-    setSavingId(id)
-    setSaved(prev => { const n = new Set(prev); n.delete(id); return n })
-    const { error } = await supabase
-      .from('server_status')
-      .update({ notes: editNote[id] || null })
-      .eq('id', id)
-    if (!error) {
-      setSaved(prev => { const n = new Set(prev); n.add(id); return n })
-    }
-    setSavingId(null)
-  }
 
   async function handleAddServer(e: React.FormEvent) {
     e.preventDefault()
@@ -100,8 +60,7 @@ export default function OverridePage() {
       if (data.cron_instructions) setCronInstructions(data.cron_instructions)
       if (data.ping_url) setPingUrl(data.ping_url)
       if (data.server) {
-        setServers(prev => [data.server, ...prev])
-        setEditNote(prev => ({ ...prev, [data.server.id]: '' }))
+        setServers(prev => [data.server as ServerRecord, ...prev])
       }
       setAddName('')
       setAddIp('')
@@ -112,17 +71,17 @@ export default function OverridePage() {
     }
   }
 
-  async function handleDelete(serverName: string, id: string) {
-    setDeleting(id)
+  async function handleDelete(server: ServerRecord) {
+    if (!confirm(`Delete server "${server.server_name}"?`)) return
+    setDeletingId(server.id)
     try {
-      const res = await fetch(`/api/servers?server_name=${encodeURIComponent(serverName)}`, { method: 'DELETE' })
+      const res = await fetch(`/api/servers?server_name=${encodeURIComponent(server.server_name)}`, { method: 'DELETE' })
       if (res.ok) {
-        setServers(prev => prev.filter(s => s.id !== id))
-        setEditNote(prev => { const n = { ...prev }; delete n[id]; return n })
+        setServers(prev => prev.filter(s => s.id !== server.id))
+        if (selectedServer?.id === server.id) setSelectedServer(null)
       }
-    } catch {
     } finally {
-      setDeleting(null)
+      setDeletingId(null)
     }
   }
 
@@ -132,27 +91,9 @@ export default function OverridePage() {
     setTimeout(() => setCopied(prev => { const n = new Set(prev); n.delete(key); return n }), 2000)
   }
 
-  function generateSetupInstructions(server: Server, mode: 'daemon' | 'cron') {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app'
-    const secret = server.ping_secret
-    if (!secret) return 'No ping secret available for this server.'
-    if (mode === 'daemon') {
-      return [
-        `# 1. Download daemon script (secrets embedded, bash only):`,
-        `sudo curl -sL "${baseUrl}/api/daemon?secret=${secret}" -o /usr/local/bin/alfredo-daemon.sh && sudo chmod +x /usr/local/bin/alfredo-daemon.sh`,
-        `# 2. Download systemd service unit:`,
-        `sudo curl -sL "${baseUrl}/api/daemon?type=service&secret=${secret}" -o /etc/systemd/system/alfredo-daemon.service`,
-        `# 3. Enable and start:`,
-        `sudo systemctl daemon-reload && sudo systemctl enable --now alfredo-daemon`,
-      ].join('\n')
-    }
-    const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
-    return [
-      `# 1. Download ping script:`,
-      `sudo curl -sL "${baseUrl}/api/scripts/alfredo-ping.sh?secret=${secret}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
-      `# 2. Add to crontab:`,
-      `(crontab -l 2>/dev/null; echo "${crontab}") | crontab -`,
-    ].join('\n')
+  function handleServerUpdated(updated: ServerRecord) {
+    setServers(prev => prev.map(s => (s.id === updated.id ? updated : s)))
+    setSelectedServer(updated)
   }
 
   const activeInstructions = setupMode === 'daemon' ? daemonInstructions : cronInstructions
@@ -160,7 +101,7 @@ export default function OverridePage() {
   return (
     <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 lg:p-6 xl:p-8">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Manage servers and override notes.</p>
+        <p className="text-sm text-muted-foreground">Manage servers, notes, and agents.</p>
         <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowAdd(!showAdd)}>
           <Plus className="h-4 w-4" /> Add Server
         </Button>
@@ -199,12 +140,22 @@ export default function OverridePage() {
             {(daemonInstructions || cronInstructions) && (
               <div className="space-y-3 pt-2">
                 {pingUrl && (
-                  <div className="space-y-1.5">
-                    <p className="label-sm">Ping URL</p>
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-                      <code className="min-w-0 overflow-x-auto rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground">{pingUrl}</code>
-                      <Button variant="ghost" size="icon-xs" onClick={() => copyToClipboard(pingUrl, 'url')}>
-                        {copied.has('url') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <p className="label-sm">Ping Secret</p>
+                      <Button variant="outline" size="sm" className="h-7 w-full gap-1.5 text-xs" onClick={() => {
+                        const secret = new URL(pingUrl, APP_URL).searchParams.get('secret')
+                        if (secret) copyToClipboard(secret, 'secret')
+                      }}>
+                        {copied.has('secret') ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        Copy
+                      </Button>
+                    </div>
+                    <div className="space-y-1.5">
+                      <p className="label-sm">Ping URL</p>
+                      <Button variant="outline" size="sm" className="h-7 w-full gap-1.5 text-xs" onClick={() => copyToClipboard(pingUrl, 'url')}>
+                        {copied.has('url') ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        Copy
                       </Button>
                     </div>
                   </div>
@@ -212,36 +163,16 @@ export default function OverridePage() {
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <p className="label-sm">Setup Mode</p>
-                    <div className="flex gap-1">
-                      <Button
-                        variant={setupMode === 'daemon' ? 'default' : 'outline'}
-                        size="xs"
-                        onClick={() => setSetupMode('daemon')}
-                      >
-                        Realtime
-                      </Button>
-                      <Button
-                        variant={setupMode === 'cron' ? 'default' : 'outline'}
-                        size="xs"
-                        onClick={() => setSetupMode('cron')}
-                      >
-                        Cron
-                      </Button>
-                    </div>
+                    <Button variant={setupMode === 'daemon' ? 'default' : 'outline'} size="xs" onClick={() => setSetupMode('daemon')}>Realtime</Button>
+                    <Button variant={setupMode === 'cron' ? 'default' : 'outline'} size="xs" onClick={() => setSetupMode('cron')}>Cron</Button>
                   </div>
-                  {setupMode === 'daemon' && (
-                    <p className="text-xs text-muted-foreground">Bash systemd daemon — 3s interval, real-time metrics. No Node.js required.</p>
-                  )}
-                  {setupMode === 'cron' && (
-                    <p className="text-xs text-muted-foreground">Cron — 1-min interval, no streaming. Simple but slower.</p>
-                  )}
                 </div>
                 {activeInstructions && (
                   <div className="space-y-1.5">
                     <p className="label-sm">Setup Instructions</p>
-                    <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-all">{activeInstructions}</pre>
+                    <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs whitespace-pre-wrap break-all">{activeInstructions}</pre>
                     <Button variant="outline" size="sm" className="gap-2" onClick={() => copyToClipboard(activeInstructions, 'instructions')}>
-                      {copied.has('instructions') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied.has('instructions') ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                       Copy All
                     </Button>
                   </div>
@@ -252,102 +183,38 @@ export default function OverridePage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {servers.map((server) => {
-          const cfg = statusConfig[server.status] || { variant: 'secondary' as const, label: server.status }
-          const isSaved = saved.has(server.id)
-          const isDeleting = deleting === server.id
-          return (
-            <Card key={server.id} size="sm">
-              <CardContent>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="truncate font-mono text-sm font-medium text-foreground">{server.server_name}</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => setSetupServer(server)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <Terminal className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => handleDelete(server.server_name, server.id)}
-                      disabled={isDeleting}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <p className="mb-3 font-mono text-sm text-muted-foreground">IP: {server.ip_address || '\u2014'}</p>
-                <div className="space-y-2">
-                  <Textarea
-                    value={editNote[server.id] || ''}
-                    onChange={(e) => {
-                      setEditNote((prev) => ({ ...prev, [server.id]: e.target.value }))
-                      setSaved(prev => { const n = new Set(prev); n.delete(server.id); return n })
-                    }}
-                    placeholder="Add override note..."
-                    rows={2}
-                    className="font-mono"
-                  />
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleUpdate(server.id)}
-                      disabled={savingId === server.id}
-                    >
-                      {savingId === server.id ? 'Saving...' : 'Save'}
-                    </Button>
-                    {isSaved && <span className="text-sm text-muted-foreground">Saved</span>}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {servers.map(server => (
+          <ServerCard
+            key={server.id}
+            server={server}
+            onClick={() => { setOpenSetupOnSelect(false); setSelectedServer(server) }}
+            adminActions={{
+              onSetup: () => { setOpenSetupOnSelect(true); setSelectedServer(server) },
+              onDelete: () => handleDelete(server),
+              deleting: deletingId === server.id,
+            }}
+          />
+        ))}
         {servers.length === 0 && (
           <p className="col-span-full py-8 text-center text-sm text-muted-foreground">No servers found. Click &quot;Add Server&quot; to get started.</p>
         )}
       </div>
 
-      <Dialog open={!!setupServer} onOpenChange={(open) => { if (!open) setSetupServer(null) }}>
-        <DialogContent className="overflow-x-hidden">
-          <DialogHeader>
-            <DialogTitle className="font-mono">{setupServer?.server_name}</DialogTitle>
-            <DialogDescription>Setup instructions</DialogDescription>
-          </DialogHeader>
-          {setupServer && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">Mode:</span>
-                <Button variant={setupMode === 'daemon' ? 'default' : 'outline'} size="xs" onClick={() => setSetupMode('daemon')}>Realtime</Button>
-                <Button variant={setupMode === 'cron' ? 'default' : 'outline'} size="xs" onClick={() => setSetupMode('cron')}>Cron</Button>
-              </div>
-              {setupMode === 'daemon' && (
-                <p className="text-xs text-muted-foreground">systemd daemon — 2s streaming, real-time metrics. Requires Node.js 18+.</p>
-              )}
-              {setupMode === 'cron' && (
-                <p className="text-xs text-muted-foreground">Cron — 1-min interval, no streaming. Simple but slower.</p>
-              )}
-              <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-all">
-                {generateSetupInstructions(setupServer, setupMode)}
-              </pre>
-              <Button variant="outline" size="sm" className="gap-2" onClick={() => copyToClipboard(generateSetupInstructions(setupServer, setupMode), 'server-setup')}>
-                {copied.has('server-setup') ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
-                Copy All
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ServerDetailDialog
+        serverId={selectedServer?.id ?? null}
+        initialServer={selectedServer}
+        open={!!selectedServer}
+        onOpenChange={(open) => { if (!open) { setSelectedServer(null); setOpenSetupOnSelect(false) } }}
+        editable
+        showAdminTools
+        initialShowSetup={openSetupOnSelect}
+        onServerUpdated={handleServerUpdated}
+        onServerDeleted={() => {
+          if (selectedServer) setServers(prev => prev.filter(s => s.id !== selectedServer.id))
+          setSelectedServer(null)
+        }}
+      />
     </div>
   )
 }

@@ -70,24 +70,24 @@ INTERVAL=3
 CONTAINER_INTERVAL=60
 
 last_container=-999999
-cpu_prev_idle=""
-cpu_prev_total=""
+CPU_STATE_FILE="/tmp/alfredo-cpu-\${SECRET:0:8}.state"
 
 read_cpu() {
-  local line idle total dt di
+  local line idle total dt di prev_idle prev_total
   line=$(grep '^cpu ' /proc/stat 2>/dev/null) || { echo "0"; return; }
   idle=$(echo "$line" | awk '{print $5 + $6}')
   total=$(echo "$line" | awk '{s=0; for(i=2;i<=NF;i++) s+=$i; print s}')
-  if [ -z "$cpu_prev_total" ]; then
-    cpu_prev_idle=$idle
-    cpu_prev_total=$total
+  prev_idle=""; prev_total=""
+  if [ -f "$CPU_STATE_FILE" ]; then
+    read -r prev_idle prev_total < "$CPU_STATE_FILE" 2>/dev/null || true
+  fi
+  echo "$idle $total" > "$CPU_STATE_FILE"
+  if [ -z "$prev_total" ] || [ "$prev_total" = "" ]; then
     echo "0"
     return
   fi
-  dt=$((total - cpu_prev_total))
-  di=$((idle - cpu_prev_idle))
-  cpu_prev_idle=$idle
-  cpu_prev_total=$total
+  dt=$((total - prev_total))
+  di=$((idle - prev_idle))
   if [ "$dt" -le 0 ]; then
     echo "0"
     return
@@ -151,6 +151,41 @@ read_containers() {
   rm -f "$tmpfile"
 }
 
+build_payload() {
+  local cpu="$1" mem="$2" disk="$3" uptime="$4" containers_json="$5"
+  local out=""
+  if [ -n "$containers_json" ] && echo "$containers_json" | jq -e 'type == "array" and length > 0' >/dev/null 2>&1; then
+    out=$(jq -n \\
+      --arg cpu "$cpu" --arg mem "$mem" --arg disk "$disk" --arg uptime "$uptime" \\
+      --argjson containers "$containers_json" \\
+      '{
+        cpu: (try ($cpu | tonumber) catch 0),
+        memory: (try ($mem | tonumber) catch 0),
+        disk: (try ($disk | tonumber) catch 0),
+        uptime_hours: (try ($uptime | tonumber) catch 0),
+        containers: $containers
+      }' 2>/dev/null)
+  else
+    out=$(jq -n \\
+      --arg cpu "$cpu" --arg mem "$mem" --arg disk "$disk" --arg uptime "$uptime" \\
+      '{
+        cpu: (try ($cpu | tonumber) catch 0),
+        memory: (try ($mem | tonumber) catch 0),
+        disk: (try ($disk | tonumber) catch 0),
+        uptime_hours: (try ($uptime | tonumber) catch 0)
+      }' 2>/dev/null)
+  fi
+  if [ -n "$out" ]; then
+    echo "$out"
+    return
+  fi
+  if [ -n "$containers_json" ] && echo "$containers_json" | jq -e 'type == "array" and length > 0' >/dev/null 2>&1; then
+    printf '{"cpu":%s,"memory":%s,"disk":%s,"uptime_hours":%s,"containers":%s}' "$cpu" "$mem" "$disk" "$uptime" "$containers_json"
+  else
+    printf '{"cpu":%s,"memory":%s,"disk":%s,"uptime_hours":%s}' "$cpu" "$mem" "$disk" "$uptime"
+  fi
+}
+
 send_ping() {
   local cpu_mem_disk_uptime containers payload
   cpu_mem_disk_uptime="\$(read_cpu) \$(read_mem) \$(read_disk) \$(read_uptime)"
@@ -161,17 +196,8 @@ send_ping() {
     containers=$(read_containers)
     last_container=$now
   fi
-   read -r cpu_val mem_val disk_val uptime_val <<< "$cpu_mem_disk_uptime"
-   # Debug: log values before sending
-   echo "[debug] CPU=$cpu_val MEM=$mem_val DISK=$disk_val UPTIME=$uptime_val" >&2
-   echo "[debug] payload before jq: cpu=$cpu_val mem=$mem_val disk=$disk_val" >&2
-   if [ -n "$containers" ]; then
-    payload=$(jq -n --arg cpu "$cpu_val" --arg mem "$mem_val" --arg disk "$disk_val" --arg uptime "$uptime_val" --argjson containers "$containers" '{cpu:($cpu|tonumber?//0),memory:($mem|tonumber?//0),disk:($disk|tonumber?//0),uptime_hours:($uptime|tonumber?//0),containers:$containers}' 2>/dev/null)
-  else
-    payload=$(jq -n --arg cpu "$cpu_val" --arg mem "$mem_val" --arg disk "$disk_val" --arg uptime "$uptime_val" '{cpu:($cpu|tonumber?//0),memory:($mem|tonumber?//0),disk:($disk|tonumber?//0),uptime_hours:($uptime|tonumber?//0)}' 2>/dev/null)
-  fi
-  echo "[debug] payload: $payload" >&2
-  [ -z "$payload" ] && payload='{\"cpu\":0,\"memory\":0,\"disk\":0,\"uptime_hours\":0}'
+  read -r cpu_val mem_val disk_val uptime_val <<< "$cpu_mem_disk_uptime"
+  payload=$(build_payload "$cpu_val" "$mem_val" "$disk_val" "$uptime_val" "$containers")
   result=$(curl -s -w "\\n%{http_code}" -X POST "\${PING_URL}?secret=\${SECRET}" -H "Content-Type: application/json" -d "$payload" 2>/dev/null)
   http_code=$(echo "$result" | tail -1)
   if [ "$http_code" = "200" ]; then

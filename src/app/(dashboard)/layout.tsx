@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
-import { Menu, X, Monitor, FileText, Edit3, Users, Settings, LogOut, Zap } from 'lucide-react'
+import { Monitor, FileText, Server, Users, Settings, LogOut, Zap } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -11,7 +10,7 @@ import { cn } from '@/lib/utils'
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: Monitor },
   { href: '/dashboard/logs', label: 'Chat Logs', icon: FileText },
-  { href: '/dashboard/override', label: 'Override', icon: Edit3 },
+  { href: '/dashboard/override', label: 'Server', icon: Server },
   { href: '/dashboard/whitelist', label: 'Whitelist', icon: Users },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ]
@@ -19,7 +18,7 @@ const navItems = [
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Overview',
   '/dashboard/logs': 'Chat Logs',
-  '/dashboard/override': 'Override Notes',
+  '/dashboard/override': 'Server',
   '/dashboard/whitelist': 'Whitelist',
   '/dashboard/settings': 'Settings',
 }
@@ -29,26 +28,14 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const pageTitle = pageTitles[pathname] || 'Dashboard'
 
   return (
     <div className="flex min-h-screen bg-background">
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <aside
-        className={cn(
-          'fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 ease-in-out lg:static lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-sidebar-border px-4">
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+        <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary shadow-sm">
               <Zap className="h-4 w-4 text-primary-foreground" />
@@ -58,14 +45,6 @@ export default function DashboardLayout({
               <p className="text-xs text-muted-foreground">DevOps Companion</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
@@ -75,7 +54,6 @@ export default function DashboardLayout({
               <Link
                 key={href}
                 href={href}
-                onClick={() => setSidebarOpen(false)}
                 className={cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                   active
@@ -103,24 +81,46 @@ export default function DashboardLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/80 backdrop-blur-xl">
           <div className="flex h-14 items-center gap-3 px-4 lg:px-8">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2.5 lg:hidden">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
+                <Zap className="h-3.5 w-3.5 text-primary-foreground" />
+              </div>
+            </div>
             <span className="truncate text-sm font-semibold text-foreground">{pageTitle}</span>
             <div className="flex-1" />
             <ThemeToggle />
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto pb-16 lg:pb-0">
           {children}
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/95 backdrop-blur-xl lg:hidden"
+        aria-label="Main navigation"
+      >
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href
+          return (
+            <Link
+              key={href}
+              href={href}
+              title={label}
+              aria-label={label}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground'
+              )}
+            >
+              <Icon className={cn('h-5 w-5', active && 'stroke-[2.5]')} />
+            </Link>
+          )
+        })}
+      </nav>
     </div>
   )
 }

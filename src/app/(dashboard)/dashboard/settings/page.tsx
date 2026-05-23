@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -319,6 +319,13 @@ export default function SettingsPage() {
       <Button onClick={handleSave} disabled={saving}>
         {saving ? 'Saving...' : 'Save Settings'}
       </Button>
+
+      <form action="/api/auth/signout" method="post" className="lg:hidden">
+        <Button type="submit" variant="outline" className="w-full gap-2">
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </Button>
+      </form>
     </div>
   )
 }

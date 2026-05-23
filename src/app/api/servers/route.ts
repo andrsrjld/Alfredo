@@ -94,6 +94,56 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { id, server_name, ip_address, notes } = body as {
+      id?: string
+      server_name?: string
+      ip_address?: string | null
+      notes?: string | null
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'id required' }, { status: 400, ...noStore })
+    }
+
+    if (server_name !== undefined && !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(server_name)) {
+      return NextResponse.json({ error: 'Invalid server_name. Use alphanumeric, dots, hyphens, underscores.' }, { status: 400, ...noStore })
+    }
+
+    const supabase = createAdminClient()
+    const updates: Record<string, unknown> = {}
+    if (server_name !== undefined) updates.server_name = server_name
+    if (ip_address !== undefined) updates.ip_address = ip_address || null
+    if (notes !== undefined) updates.notes = notes || null
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400, ...noStore })
+    }
+
+    const { data, error } = await supabase
+      .from('server_status')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: 'Server name already exists.' }, { status: 409, ...noStore })
+      }
+      console.error('[Servers PATCH]', error)
+      return NextResponse.json({ error: error.message }, { status: 500, ...noStore })
+    }
+
+    return NextResponse.json({ server: data }, noStore)
+  } catch (err) {
+    console.error('[Servers PATCH]', err)
+    return NextResponse.json({ error: 'Failed to update server' }, { status: 500, ...noStore })
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
