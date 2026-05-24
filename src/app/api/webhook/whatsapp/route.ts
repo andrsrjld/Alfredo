@@ -62,15 +62,6 @@ export async function POST(request: NextRequest) {
     console.log('[WhatsApp] incoming - normalized:', from, 'text:', text)
 
     const supabase = createAdminClient()
-    const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
-    if (!shouldReply) {
-      if (mode === 'human' && humanReply) {
-        const messenger = getMessagingProvider()
-        await messenger.sendMessage(from, markdownToWhatsApp(humanReply))
-        await supabase.from('chat_logs').insert({ pm_number: from, pm_message: text, bot_reply: humanReply })
-      }
-      return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
-    }
 
     const { data: whitelist } = await supabase
       .from('whitelisted_pms')
@@ -80,6 +71,16 @@ export async function POST(request: NextRequest) {
 
     if (!whitelist) {
       return NextResponse.json({ ok: true, ignored: 'not_whitelisted' })
+    }
+
+    if (!whitelist.is_active) {
+      return NextResponse.json({ ok: true, ignored: 'contact_inactive' })
+    }
+
+    const { reply: shouldReply, mode } = await shouldBotReply()
+
+    if (!shouldReply) {
+      return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
     }
 
     const results = await smartSearch(text)

@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 type WhitelistEntry = {
   phone_number: string
   pm_name: string | null
+  is_active: boolean
 }
 
 const PAGE_SIZE = 20
@@ -148,6 +149,24 @@ export default function WhitelistPage() {
       setMessage({ type: 'err', text: 'Network error' })
     } finally {
       setDeleting(null)
+    }
+  }
+
+  async function handleToggle(phone_number: string, currentActive: boolean) {
+    const newActive = !currentActive
+    setEntries(prev => prev.map(e =>
+      e.phone_number === phone_number ? { ...e, is_active: newActive } : e
+    ))
+    try {
+      await fetch('/api/whitelist', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number, is_active: newActive }),
+      })
+    } catch {
+      setEntries(prev => prev.map(e =>
+        e.phone_number === phone_number ? { ...e, is_active: currentActive } : e
+      ))
     }
   }
 
@@ -283,7 +302,7 @@ export default function WhitelistPage() {
               {paged.map(entry => (
                 <div
                   key={entry.phone_number}
-                  className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50 group"
+                  className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50 group ${!entry.is_active ? 'opacity-50' : ''}`}
                 >
                   <div className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${getAvatarColor(entry.phone_number)}`}>
                     {getInitials(entry.pm_name)}
@@ -294,6 +313,15 @@ export default function WhitelistPage() {
                     )}
                     <p className="truncate font-mono text-[10px] text-muted-foreground">{formatPhoneDisplay(entry.phone_number)}</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(entry.phone_number, entry.is_active)}
+                    className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${entry.is_active ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                  >
+                    <span
+                      className={`inline-block h-3.5 w-3.5 rounded-full bg-background shadow-sm transition-transform ${entry.is_active ? 'translate-x-[1.15rem]' : 'translate-x-[0.15rem]'}`}
+                    />
+                  </button>
                   <Button
                     variant="ghost"
                     size="icon-xs"

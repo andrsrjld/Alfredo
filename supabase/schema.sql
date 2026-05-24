@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS chat_logs (
 -- 4. Table: whitelisted_pms
 CREATE TABLE IF NOT EXISTS whitelisted_pms (
     phone_number TEXT PRIMARY KEY,
-    pm_name TEXT
+    pm_name TEXT,
+    is_active BOOLEAN DEFAULT false
 );
 
 -- 5. Table: app_settings (for dashboard config)

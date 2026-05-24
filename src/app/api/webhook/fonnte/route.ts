@@ -72,24 +72,6 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createAdminClient()
-    const { reply: shouldReply, mode, humanReply } = await shouldBotReply()
-
-    const replyTarget = isGroup ? groupId! : from
-
-    if (!shouldReply) {
-      if (mode === 'human' && humanReply) {
-        const messenger = getMessagingProvider()
-        await messenger.sendMessage(replyTarget, markdownToWhatsApp(humanReply), { isGroup })
-        await supabase.from('chat_logs').insert({
-          pm_number: from,
-          pm_message: text,
-          bot_reply: humanReply,
-          is_group: isGroup,
-          group_id: groupId || null,
-        })
-      }
-      return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
-    }
 
     const { data: whitelist, error: whitelistError } = await supabase
       .from('whitelisted_pms')
@@ -104,6 +86,18 @@ export async function POST(request: NextRequest) {
 
     if (!whitelist) {
       return NextResponse.json({ ok: true, ignored: 'not_whitelisted' })
+    }
+
+    if (!whitelist.is_active) {
+      return NextResponse.json({ ok: true, ignored: 'contact_inactive' })
+    }
+
+    const { reply: shouldReply, mode } = await shouldBotReply()
+
+    const replyTarget = isGroup ? groupId! : from
+
+    if (!shouldReply) {
+      return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
     }
 
     const results = await smartSearch(text)
