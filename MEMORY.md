@@ -46,12 +46,25 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 - Active hours fallback: DB → `BOT_ACTIVE_START`/`BOT_ACTIVE_END` env → default `03:00`/`12:00`
 
 ### Message Handling Flow
-- Flow order in all webhooks: **whitelist → is_active → bot mode → LLM**
+- Flow order in all webhooks: **whitelist → is_active → bot mode → buffer → LLM**
 - Whitelist check runs first — blocks non-whitelisted regardless of bot mode
 - `is_active` check via explicit `=== false` — per-contact toggle, `undefined` treated as active
 - Human mode: silent return, no reply template sent
 - Outside hours (normal mode): silent return, no reply
 - `whitelisted_pms.is_active` Boolean with default `false`; existing contacts set `true` on migration
+
+### Message Buffer / Debounce (v1.1 — in progress)
+- Problem: rapid-fire messages (<1 menit) dibalas satu-satu → spam
+- Solution: debounce buffer — semua pesan dari sender yg sama dalam 15s silence window digabung jadi 1 reply
+- Tabel: `message_buffer` (pm_number, messages JSONB, first_message_at, last_message_at, is_group, group_id)
+- Flow: webhook → append buffer → return OK (no reply). pg_cron tiap 10s → flush buffers expired (15s silence) → consolidate messages → single LLM call → single reply
+- Delay: max ~25s (15s silence + 10s cron interval)
+- LLM context: seluruh messages digabung ("User mengirim beberapa pesan... Jawab seluruh pertanyaan dalam SATU balasan.")
+- Config: `MESSAGE_BUFFER_SILENCE_MS=15000`, `BUFFER_FLUSH_CRON_SECRET`, pg_cron via Supabase Migration
+
+### Chat Logs Censor
+- `src/lib/censor.ts`: `maskPhone()` — masks middle digits (6281••••6789), `redactContent()` — replaces API keys, JWT, passwords, private keys, Bearer tokens
+- Applied client-side di `/dashboard/logs` — display-level masking, search tetap uncensored
 
 ### AI / LLM
 - `AI_PROVIDER` env or dashboard settings selects LLM backend: `deepseek`, `openai`, `gemini`, `ollama`
@@ -158,6 +171,7 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 | `/api/webhook/evolution` | POST | Evolution API messages |
 | `/api/settings` | GET/PUT | AI config + GitLab PAT + bot_mode |
 | `/api/whitelist` | GET/POST/PUT/PATCH/DELETE | PM whitelist CRUD + bulk import + per-contact toggle |
+| `/api/cron/flush-buffers` | POST | Cron endpoint — flush expired message buffers |
 | `/api/auth/signout` | POST | Sign out action |
 
 ## Critical Config
@@ -202,11 +216,31 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 - [x] Server card stable sort order (server_name asc)
 - [x] Dialog truncation: long data trimmed with "..." no horizontal scroll
 - [x] Build passes clean, lint passes
+- [x] Chat logs censor: phone masking + content redaction (API keys, JWT, passwords)
+- [x] msg buffer/debounce planner — 15s silence window, pg_cron flush (not yet implemented)
 
 ## What's Not Done (Planned for v1.1)
-- [ ] pgvector embedding search (env vars exist, schema not)
+- [ ] Message debounce/flush buffer (in development branch)
+- [ ] pgvector embedding search (see ROADMAP.md)
+- [ ] Container control via WhatsApp (daemon-based, 7-layer security — see ROADMAP.md)
+- [ ] Interactive WhatsApp buttons (list picker, quick reply, CTA — see ROADMAP.md)
+- [ ] Proactive alerting (server down, pipeline fail, CPU >90%)
 - [ ] Tests (no test framework set up)
 - [ ] Meta WhatsApp group support (needs Group API setup)
+
+## Branch Strategy
+- `main` — production (Vercel: `alfredo-pi.vercel.app`)
+- `development` — staging (deploy preview ke Vercel)
+- Flow: feature → `development` → deploy preview → test → PR → `main` → deploy production
+
+## Roadmap
+- Full roadmap di `ROADMAP.md` — container control architecture, interactive buttons, pgvector semantic search, proactive alerting, bulk import, metrics history, 4-fase implementation plan
+
+## Changelog v1.1 (planned)
+- Message buffer/debounce: consolidate rapid-fire messages within 15s silence window
+- pg_cron flush every 10s via Supabase
+- Table: `message_buffer` with per-sender state
+- All 3 webhooks: buffer check before reply
 
 ## Changelog v1.0.1
 - Fixed: non-whitelisted numbers now always blocked regardless of bot mode (whitelist-first flow)

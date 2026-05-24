@@ -5,6 +5,7 @@ import { getMessagingProvider } from '@/lib/messaging'
 import { normalizePhone } from '@/lib/phone'
 import { shouldBotReply } from '@/lib/bot-mode'
 import { markdownToWhatsApp } from '@/lib/messaging/whatsapp-format'
+import { appendBuffer } from '@/lib/buffer'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -105,6 +106,18 @@ export async function POST(request: NextRequest) {
 
     if (!shouldReply) {
       return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
+    }
+
+    const { buffered } = await appendBuffer(
+      from,
+      { text, ts: new Date().toISOString() },
+      replyTarget,
+      isGroup,
+      groupId,
+      participant,
+    )
+    if (buffered) {
+      return NextResponse.json({ ok: true, buffered: true })
     }
 
     const results = await smartSearch(text)
