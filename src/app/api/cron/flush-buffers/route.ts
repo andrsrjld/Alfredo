@@ -9,8 +9,17 @@ import type { BufferEntry } from '@/lib/buffer'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  return handleFlush(request)
+}
+
+export async function GET(request: NextRequest) {
+  return handleFlush(request)
+}
+
+async function handleFlush(request: NextRequest) {
   try {
     const auth = request.headers.get('authorization') || ''
+    const querySecret = request.nextUrl.searchParams.get('secret') || ''
     const envSecret = process.env.BUFFER_FLUSH_CRON_SECRET
 
     let expectedSecret = envSecret
@@ -29,7 +38,10 @@ export async function POST(request: NextRequest) {
       } catch {}
     }
 
-    if (!expectedSecret || auth !== `Bearer ${expectedSecret}`) {
+    const isAuthed = (expectedSecret && auth === `Bearer ${expectedSecret}`) ||
+      (expectedSecret && querySecret === expectedSecret)
+
+    if (!expectedSecret || !isAuthed) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
