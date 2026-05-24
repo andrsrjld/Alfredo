@@ -11,8 +11,25 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const auth = request.headers.get('authorization') || ''
-    const secret = process.env.BUFFER_FLUSH_CRON_SECRET
-    if (!secret || auth !== `Bearer ${secret}`) {
+    const envSecret = process.env.BUFFER_FLUSH_CRON_SECRET
+
+    let expectedSecret = envSecret
+
+    if (!expectedSecret) {
+      try {
+        const supabaseInit = createAdminClient()
+        const { data } = await supabaseInit
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'system_config')
+          .single()
+        if (data) {
+          expectedSecret = (data.value as Record<string, string>).buffer_flush_cron_secret
+        }
+      } catch {}
+    }
+
+    if (!expectedSecret || auth !== `Bearer ${expectedSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

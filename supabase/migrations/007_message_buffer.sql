@@ -20,8 +20,9 @@ CREATE POLICY "Allow authenticated full access" ON message_buffer FOR ALL USING 
 CREATE INDEX IF NOT EXISTS idx_message_buffer_last_message ON message_buffer (last_message_at);
 
 -- pg_cron job: flush expired buffers every 10 seconds
--- Requires pg_cron extension enabled + pg_net extension for http_post
--- If pg_cron not available, use Vercel cron at /api/cron/flush-buffers instead
+-- Requires pg_cron + pg_net extensions enabled
+-- Secret stored in app_settings -> system_config -> buffer_flush_cron_secret
+-- Insert via Supabase SQL Editor: INSERT INTO app_settings (key, value) VALUES ('system_config', '{"buffer_flush_cron_secret": "YOUR_SECRET"}') ON CONFLICT (key) DO UPDATE SET value = app_settings.value || '{"buffer_flush_cron_secret": "YOUR_SECRET"}';
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
@@ -31,11 +32,11 @@ BEGIN
             $$
             SELECT
                 net.http_post(
-                    url := current_setting('app.buffer_flush_url', true),
+                    url := 'https://alfredo-pi.vercel.app/api/cron/flush-buffers',
                     body := '{}'::jsonb,
                     headers := jsonb_build_object(
                         'Content-Type', 'application/json',
-                        'Authorization', 'Bearer ' || current_setting('app.buffer_flush_secret', true)
+                        'Authorization', 'Bearer ' || (SELECT value->>'buffer_flush_cron_secret' FROM app_settings WHERE key = 'system_config')
                     )
                 )
             WHERE EXISTS (
