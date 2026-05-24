@@ -33,42 +33,48 @@ export async function appendBuffer(
   participant?: string,
 ): Promise<{ buffered: boolean; shouldFlush: boolean }> {
   const supabase = createAdminClient()
-  const existing = await getBuffer(pm_number)
 
-  if (!existing) {
-    await supabase.from('message_buffer').insert({
-      pm_number,
-      messages: JSON.stringify([message]),
-      reply_target,
-      first_message_at: new Date().toISOString(),
-      last_message_at: new Date().toISOString(),
-      is_group,
-      group_id: group_id || null,
-      participant: participant || null,
-    })
+  try {
+    const existing = await getBuffer(pm_number)
+
+    if (!existing) {
+      await supabase.from('message_buffer').insert({
+        pm_number,
+        messages: JSON.stringify([message]),
+        reply_target,
+        first_message_at: new Date().toISOString(),
+        last_message_at: new Date().toISOString(),
+        is_group,
+        group_id: group_id || null,
+        participant: participant || null,
+      })
+      return { buffered: true, shouldFlush: false }
+    }
+
+    const lastAt = new Date(existing.last_message_at).getTime()
+    const now = Date.now()
+    const expired = (now - lastAt) > SILENCE_MS
+
+    if (expired) {
+      return { buffered: false, shouldFlush: true }
+    }
+
+    const messages = existing.messages as Array<{ text: string; ts: string }>
+    messages.push(message)
+
+    await supabase
+      .from('message_buffer')
+      .update({
+        messages,
+        last_message_at: new Date().toISOString(),
+      })
+      .eq('pm_number', pm_number)
+
     return { buffered: true, shouldFlush: false }
+  } catch (err) {
+    console.error('[Buffer] append failed, falling through to direct reply:', String(err))
+    return { buffered: false, shouldFlush: false }
   }
-
-  const lastAt = new Date(existing.last_message_at).getTime()
-  const now = Date.now()
-  const expired = (now - lastAt) > SILENCE_MS
-
-  if (expired) {
-    return { buffered: false, shouldFlush: true }
-  }
-
-  const messages = existing.messages as Array<{ text: string; ts: string }>
-  messages.push(message)
-
-  await supabase
-    .from('message_buffer')
-    .update({
-      messages,
-      last_message_at: new Date().toISOString(),
-    })
-    .eq('pm_number', pm_number)
-
-  return { buffered: true, shouldFlush: false }
 }
 
 export async function deleteBuffer(pm_number: string): Promise<void> {
