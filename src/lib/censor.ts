@@ -11,7 +11,7 @@ export function maskPhone(phone: string): string {
   return start + '••••' + end
 }
 
-const REDACT_PATTERNS: Array<[RegExp, string]> = [
+const REDACT_PATTERNS: Array<[RegExp, string | ((m: string) => string)]> = [
   [/eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/g, '[JWT REDACTED]'],
   [/glpat-[a-zA-Z0-9_-]+/g, 'glpat-[REDACTED]'],
   [/sk-[a-zA-Z0-9]{4,}/g, (match: string) => match.slice(0, 6) + '••••••' + match.slice(-3)],
@@ -26,7 +26,7 @@ const REDACT_PATTERNS: Array<[RegExp, string]> = [
 export function redactContent(text: string): string {
   let result = text
   for (const [pattern, replacement] of REDACT_PATTERNS) {
-    result = result.replace(pattern, replacement)
+    result = result.replace(pattern, replacement as Parameters<typeof String.prototype.replace>[1])
   }
   return result
 }
