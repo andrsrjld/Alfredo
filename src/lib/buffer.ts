@@ -53,7 +53,7 @@ export async function appendBuffer(
     if (!existing) {
       await supabase.from('message_buffer').insert({
         pm_number,
-        messages: JSON.stringify([message]),
+        messages: JSON.stringify([]),
         reply_target,
         first_message_at: new Date().toISOString(),
         last_message_at: new Date().toISOString(),
@@ -61,7 +61,7 @@ export async function appendBuffer(
         group_id: group_id || null,
         participant: participant || null,
       })
-      return { action: 'buffered' }
+      return { action: 'direct' }
     }
 
     const lastAt = new Date(existing.last_message_at).getTime()
