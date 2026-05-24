@@ -84,19 +84,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })
     }
 
-    const { buffered } = await appendBuffer(
+    const bufferResult = await appendBuffer(
       from,
       { text, ts: new Date().toISOString() },
       from,
       false,
     )
-    if (buffered) {
+    if (bufferResult.action === 'buffered') {
       return NextResponse.json({ ok: true, buffered: true })
     }
 
-    const results = await smartSearch(text)
+    let queryText = text
+    let promptText = text
+
+    if (bufferResult.action === 'flush') {
+      const oldTexts = bufferResult.flushMessages.map(m => m.text)
+      const allTexts = [...oldTexts, text]
+      queryText = allTexts.join('\n')
+      promptText = `User mengirim beberapa pesan dalam waktu dekat:\n\n${allTexts.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n\nJawab seluruh pertanyaan dalam SATU balasan.`
+    }
+
+    const results = await smartSearch(queryText)
     const context = formatSearchContext(results)
-    const { reply, debug } = await askAlfredo(context, text)
+    const { reply, debug } = await askAlfredo(context, promptText)
 
     if (debug.error) {
       console.error(`[WhatsApp] LLM debug: provider=${debug.provider} hasContext=${debug.hasContext} ctxLen=${debug.contextLength} status=${debug.status} error=${debug.error}`)

@@ -13,6 +13,19 @@ export type BufferEntry = {
   participant: string | null
 }
 
+type BufferedResult = { action: 'buffered' }
+type DirectResult = { action: 'direct' }
+type FlushResult = {
+  action: 'flush'
+  flushMessages: Array<{ text: string; ts: string }>
+  flushTarget: string
+  flushIsGroup: boolean
+  flushGroupId: string | null
+  flushParticipant: string | null
+}
+
+export type AppendResult = BufferedResult | DirectResult | FlushResult
+
 export async function getBuffer(pm_number: string): Promise<BufferEntry | null> {
   const supabase = createAdminClient()
   const { data } = await supabase
@@ -31,7 +44,7 @@ export async function appendBuffer(
   is_group: boolean,
   group_id?: string,
   participant?: string,
-): Promise<{ buffered: boolean; shouldFlush: boolean }> {
+): Promise<AppendResult> {
   const supabase = createAdminClient()
 
   try {
@@ -48,7 +61,7 @@ export async function appendBuffer(
         group_id: group_id || null,
         participant: participant || null,
       })
-      return { buffered: true, shouldFlush: false }
+      return { action: 'buffered' }
     }
 
     const lastAt = new Date(existing.last_message_at).getTime()
@@ -56,7 +69,19 @@ export async function appendBuffer(
     const expired = (now - lastAt) > SILENCE_MS
 
     if (expired) {
-      return { buffered: false, shouldFlush: true }
+      const oldMessages = existing.messages as Array<{ text: string; ts: string }>
+      await supabase
+        .from('message_buffer')
+        .delete()
+        .eq('pm_number', pm_number)
+      return {
+        action: 'flush',
+        flushMessages: oldMessages,
+        flushTarget: existing.reply_target,
+        flushIsGroup: existing.is_group,
+        flushGroupId: existing.group_id,
+        flushParticipant: existing.participant,
+      }
     }
 
     const messages = existing.messages as Array<{ text: string; ts: string }>
@@ -70,10 +95,10 @@ export async function appendBuffer(
       })
       .eq('pm_number', pm_number)
 
-    return { buffered: true, shouldFlush: false }
+    return { action: 'buffered' }
   } catch (err) {
     console.error('[Buffer] append failed, falling through to direct reply:', String(err))
-    return { buffered: false, shouldFlush: false }
+    return { action: 'direct' }
   }
 }
 
