@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { maskPhone, redactContent } from '@/lib/censor'
 
 type ChatLog = {
   id: string
@@ -71,7 +72,9 @@ export default function LogsPage() {
   }
 
   function getDisplayName(phone: string): string {
-    return nameMap.get(phone) || phone
+    const name = nameMap.get(phone)
+    if (name) return name
+    return maskPhone(phone)
   }
 
   const filtered = logs.filter(l => {
@@ -124,6 +127,8 @@ export default function LogsPage() {
           const isOpen = expanded.has(log.id)
           const needsExpand = log.bot_reply.length > TRUNCATE_LEN || log.pm_message.length > TRUNCATE_LEN
           const displayName = getDisplayName(log.pm_number)
+          const censoredMsg = redactContent(log.pm_message)
+          const censoredReply = redactContent(log.bot_reply)
           return (
             <Card key={log.id} size="sm">
               <CardContent className="p-0">
@@ -137,9 +142,9 @@ export default function LogsPage() {
                       {log.is_group && <Badge variant="secondary" className="text-[10px] shrink-0">Group</Badge>}
                       <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground sm:text-xs">{formatWIBShort(log.created_at)}</span>
                     </div>
-                    <p className="truncate text-xs text-foreground sm:text-sm">{log.pm_message}</p>
+                    <p className="truncate text-xs text-foreground sm:text-sm">{censoredMsg}</p>
                     <p className="truncate text-xs text-muted-foreground sm:text-sm">
-                      🤖 {isOpen || !needsExpand ? log.bot_reply : `${log.bot_reply.slice(0, TRUNCATE_LEN)}…`}
+                      🤖 {isOpen || !needsExpand ? censoredReply : `${censoredReply.slice(0, TRUNCATE_LEN)}…`}
                     </p>
                   </div>
                   {needsExpand && (
@@ -153,11 +158,11 @@ export default function LogsPage() {
                 <div className="space-y-2 border-t border-border px-3 pb-3 pt-2">
                   <div>
                     <span className="text-[10px] font-medium text-muted-foreground">Message</span>
-                    <p className="whitespace-pre-wrap break-words text-xs text-foreground sm:text-sm">{log.pm_message}</p>
+                    <p className="whitespace-pre-wrap break-words text-xs text-foreground sm:text-sm">{censoredMsg}</p>
                   </div>
                   <div>
                     <span className="text-[10px] font-medium text-muted-foreground">Bot Reply</span>
-                    <p className="whitespace-pre-wrap break-words text-xs text-foreground sm:text-sm">{log.bot_reply}</p>
+                    <p className="whitespace-pre-wrap break-words text-xs text-foreground sm:text-sm">{censoredReply}</p>
                   </div>
                   <div className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground">
                     <span>{formatWIB(log.created_at)}</span>
