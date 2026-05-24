@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, ignored: 'not_whitelisted' })
     }
 
-    if (!whitelist.is_active) {
+    if (whitelist.is_active === false) {
       return NextResponse.json({ ok: true, ignored: 'contact_inactive' })
     }
 

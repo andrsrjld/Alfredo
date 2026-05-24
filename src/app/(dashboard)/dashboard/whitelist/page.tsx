@@ -302,7 +302,7 @@ export default function WhitelistPage() {
               {paged.map(entry => (
                 <div
                   key={entry.phone_number}
-                  className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50 group ${!entry.is_active ? 'opacity-50' : ''}`}
+                  className={`flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50 group ${entry.is_active === false ? 'opacity-50' : ''}`}
                 >
                   <div className={`shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${getAvatarColor(entry.phone_number)}`}>
                     {getInitials(entry.pm_name)}
@@ -315,11 +315,11 @@ export default function WhitelistPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleToggle(entry.phone_number, entry.is_active)}
-                    className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${entry.is_active ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                    onClick={() => handleToggle(entry.phone_number, entry.is_active !== false)}
+                    className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${entry.is_active !== false ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                   >
                     <span
-                      className={`inline-block h-3.5 w-3.5 rounded-full bg-background shadow-sm transition-transform ${entry.is_active ? 'translate-x-[1.15rem]' : 'translate-x-[0.15rem]'}`}
+                      className={`inline-block h-3.5 w-3.5 rounded-full bg-background shadow-sm transition-transform ${entry.is_active !== false ? 'translate-x-[1.15rem]' : 'translate-x-[0.15rem]'}`}
                     />
                   </button>
                   <Button
