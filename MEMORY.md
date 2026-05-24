@@ -1,4 +1,4 @@
-# MEMORY.md — Alfredo v1.0.0
+# MEMORY.md — Alfredo v1.0.1
 
 ## Project Overview
 Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps Engineer) managing 40+ servers and 600+ GitLab repos. Bot answers PM questions during 03:00–12:00 WIB using real-time DB data with zero-hallucination policy. Ambiguity detection asks for clarification when same repo name exists across different GitLab groups.
@@ -40,11 +40,18 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 
 ### Bot Mode System
 - `src/lib/bot-mode.ts`: `getBotMode()` reads `bot_mode` from `app_settings` (cached 5 min), `shouldBotReply()` returns `{ reply, mode, humanReply? }`
-- Three modes: `normal` (active hours, default 03:00–12:00 WIB), `extended` (24/7 AI), `human` (bot offline, sends human reply template)
-- Human mode reply: "Halo! 🤖 Ijal sedang online sekarang. Silakan hubungi langsung ya — Alfredo standby."
+- Three modes: `normal` (active hours, default 03:00–12:00 WIB), `extended` (24/7 AI), `human` (bot silent — zero reply to anyone)
 - `bot_mode` stored in `app_settings` JSON under `ai_config.bot_mode` key
 - Active hours (`active_start`, `active_end`) stored in `app_settings` JSON under `ai_config`
 - Active hours fallback: DB → `BOT_ACTIVE_START`/`BOT_ACTIVE_END` env → default `03:00`/`12:00`
+
+### Message Handling Flow
+- Flow order in all webhooks: **whitelist → is_active → bot mode → LLM**
+- Whitelist check runs first — blocks non-whitelisted regardless of bot mode
+- `is_active` check via explicit `=== false` — per-contact toggle, `undefined` treated as active
+- Human mode: silent return, no reply template sent
+- Outside hours (normal mode): silent return, no reply
+- `whitelisted_pms.is_active` Boolean with default `false`; existing contacts set `true` on migration
 
 ### AI / LLM
 - `AI_PROVIDER` env or dashboard settings selects LLM backend: `deepseek`, `openai`, `gemini`, `ollama`
@@ -129,7 +136,7 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 - `server_status` — Server metrics (UPSERT by `server_name`), columns: `ping_secret` (unique), `cpu_usage`, `memory_usage`, `disk_usage`, `uptime_hours`
 - `container_status` — Docker containers (UPSERT by `server_name,container_name`)
 - `chat_logs` — PM ↔ bot conversation log, columns: `is_group`, `group_id`
-- `whitelisted_pms` — Phone numbers allowed to chat
+- `whitelisted_pms` — Phone numbers allowed to chat, columns: `is_active` (per-contact toggle, default false)
 - `app_settings` — JSONB key-value for dashboard config (`ai_config`), RLS disabled
 
 ### RLS
@@ -150,7 +157,7 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 | `/api/webhook/whatsapp` | GET/POST | Meta webhook verify + messages |
 | `/api/webhook/evolution` | POST | Evolution API messages |
 | `/api/settings` | GET/PUT | AI config + GitLab PAT + bot_mode |
-| `/api/whitelist` | GET/POST/DELETE | PM whitelist CRUD |
+| `/api/whitelist` | GET/POST/PUT/PATCH/DELETE | PM whitelist CRUD + bulk import + per-contact toggle |
 | `/api/auth/signout` | POST | Sign out action |
 
 ## Critical Config
@@ -161,7 +168,7 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 
 ## What's Done
 - [x] Next.js 14 App Router + shadcn/ui + Tailwind v3 + dark mode + Outfit font
-- [x] Supabase schema + RLS + trigram indexes + migrations 001-004
+- [x] Supabase schema + RLS + trigram indexes + migrations 001-006
 - [x] Supabase clients (browser, server, admin/service-role)
 - [x] Auth middleware + login page
 - [x] Real-time dashboard (2s polling + Supabase Realtime)
@@ -179,6 +186,9 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 - [x] Bot mode system (Normal/Extended/Human)
 - [x] Encrypted API key storage (AES-256-GCM)
 - [x] Whitelist management dashboard
+- [x] Per-contact active/inactive toggle (is_active column + dashboard switch)
+- [x] Whitelist-first message flow (blocks non-whitelisted before bot mode check)
+- [x] Silent human mode (no auto-reply template)
 - [x] WIB timestamp conversion in LLM context
 - [x] Bot personality: Alfredo 🤖, santai profesional
 - [x] CLI script for bulk GitLab webhook creation
@@ -197,6 +207,15 @@ Alfredo is a WhatsApp-based DevOps AI Companion for Christian Rizaldi (DevOps En
 - [ ] pgvector embedding search (env vars exist, schema not)
 - [ ] Tests (no test framework set up)
 - [ ] Meta WhatsApp group support (needs Group API setup)
+
+## Changelog v1.0.1
+- Fixed: non-whitelisted numbers now always blocked regardless of bot mode (whitelist-first flow)
+- Fixed: human mode now completely silent — no auto-reply template sent to anyone
+- Feature: per-contact enable/disable toggle (`is_active` column on whitelisted_pms)
+- Feature: toggle switch in `/dashboard/whitelist` with optimistic UI
+- Feature: `PATCH /api/whitelist` endpoint for per-contact toggle
+- Feature: inactive contacts visually dimmed (opacity-50) in whitelist dashboard
+- Migration: `006_add_whitelist_active.sql` — adds `is_active` column, updates existing to true
 
 ## Changelog v1.0.0
 - Initial production release

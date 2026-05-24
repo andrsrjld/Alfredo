@@ -1,4 +1,4 @@
-# AGENTS.md — Alfredo v1.0.0
+# AGENTS.md — Alfredo v1.0.1
 
 ## Commands
 - Package manager: `npm` (`package-lock.json` is present)
@@ -13,6 +13,8 @@
   - `supabase/migrations/002_add_group_support.sql` — adds `is_group`, `group_id` to chat_logs
   - `supabase/migrations/003_add_bot_mode.sql` — adds bot_mode to app_settings
   - `supabase/migrations/004_add_metrics.sql` — adds `cpu_usage`, `memory_usage`, `disk_usage`, `uptime_hours` to server_status + creates container_status table
+  - `supabase/migrations/005_server_name_update_cascade.sql` — re-adds container_status FK with CASCADE
+  - `supabase/migrations/006_add_whitelist_active.sql` — adds `is_active` column to whitelisted_pms for per-contact toggle
 - Disable RLS on `app_settings`: `ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;`
 - `SUPABASE_SERVICE_ROLE_KEY` must be the actual service_role key (not anon key). Wrong key causes RLS violations on INSERT/UPDATE.
 - `ENCRYPTION_KEY` (32-byte hex) required for AI settings encryption. Generate with `openssl rand -hex 32`. **If regenerated**, all stored API keys must be re-saved from dashboard.
@@ -73,9 +75,18 @@
 - Three modes:
   - `normal`: active hours only (default 03:00–12:00 WIB)
   - `extended`: 24/7 AI
-  - `human`: bot offline, sends "Halo! 🤖 Ijal sedang online sekarang..." template
+  - `human`: bot completely silent — no reply to anyone
 - Active hours stored in `app_settings` JSON under `ai_config.active_start` / `ai_config.active_end`
 - Fallback: DB → `BOT_ACTIVE_START`/`BOT_ACTIVE_END` env → default `03:00`/`12:00`
+
+### Message Handling Flow (all webhooks)
+- Flow order: **whitelist → is_active → bot mode → LLM**
+- Whitelist check runs first — non-whitelisted numbers always ignored regardless of bot mode
+- `is_active` column on whitelisted_pms enables per-contact toggle (dashboard switch)
+- If `is_active === false`: contact skipped silently (no reply)
+- Human mode: silent ignore, no humanReply sent
+- Outside hours (normal mode): silent ignore
+- `is_active` checked via explicit `=== false` — handles `undefined` (column not yet migrated) as active
 
 ### Bot Personality
 - Alfredo 🤖, DevOps AI Companion milik Christian Rizaldi
@@ -118,20 +129,21 @@
 ## Deployment Checklist
 1. Set all env vars in Vercel (include `ENCRYPTION_KEY`)
 2. Run `supabase/schema.sql` in Supabase SQL Editor
-3. Run all migrations (001-004)
+3. Run all migrations (001-006)
 4. Disable RLS on `app_settings`
 5. Create admin user in Supabase Auth
 6. Set Supabase Auth Site URL to deployment URL
 7. Enable Realtime for `project_status` and `server_status` tables
 8. Configure Fonnte webhook URL to `/api/webhook/fonnte`
 9. Insert whitelisted PMs via dashboard `/dashboard/whitelist`
-10. Configure AI provider via dashboard `/dashboard/settings`
-11. Save GitLab PAT in Dashboard → Settings → GitLab Integration
-12. Run `node scripts/setup-gitlab-webhooks.mjs` or set up Group webhook
-13. Set up server daemon via Dashboard → Override → Add Server (daemon setup)
+10. Toggle `is_active` per contact via dashboard whitelist page
+11. Configure AI provider via dashboard `/dashboard/settings`
+12. Save GitLab PAT in Dashboard → Settings → GitLab Integration
+13. Run `node scripts/setup-gitlab-webhooks.mjs` or set up Group webhook
+14. Set up server daemon via Dashboard → Override → Add Server (daemon setup)
 
 ## Critical Context
-- Version: 1.0.0
+- Version: 1.0.1
 - Supabase: `https://hltaugtnqzqfhgcfvnet.supabase.co`
 - Vercel: `https://alfredo-pi.vercel.app`
 - Daemon endpoint: `/api/daemon?secret=<ping_secret>`

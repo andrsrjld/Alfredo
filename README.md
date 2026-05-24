@@ -2,7 +2,7 @@
 
 > 🤖 Your always-on DevOps buddy that answers server status questions so you can sleep.
 
-**v1.0.0** — Production-ready. Monitoring 40+ servers in real time via bash daemon.
+**v1.0.1** — Production-ready. Monitoring 40+ servers in real time via bash daemon.
 
 Alfredo is an AI-powered WhatsApp chatbot that monitors **40+ servers**, **600+ GitLab repos**, and responds to questions in Indonesian. No more 3 AM wake-up calls — Alfredo answers what failed, why it failed, and how long it's been down.
 
@@ -27,7 +27,7 @@ sequenceDiagram
 - **Multi-provider**: Fonnte (recommended for Indonesia), Meta WhatsApp Cloud API, or self-hosted Evolution API
 - **Group chat aware**: Only responds when mentioned
 - **Group chat support**: Fonnte + Evolution API groups
-- **Bot modes**: Normal hours (06:00–12:00 WIB), Extended AI (24/7), or Human Mode (pass to Christian Rizaldi)
+- **Bot modes**: Normal hours (06:00–12:00 WIB), Extended AI (24/7), or Human Mode (silent — answers nothing)
 
 ### 🖥️ Real-Time Server Monitoring
 - **Per-server daemon**: 3-second interval bash script, no Node.js dependency
@@ -54,7 +54,7 @@ sequenceDiagram
 - **Server management**: Add/edit/remove servers, copy-paste daemon setup commands
 - **Override notes**: Add human notes to servers (e.g., "maintenance until 2 AM")
 - **AI settings**: Switch between DeepSeek/OpenAI/Gemini/Ollama, configure active hours, manage bot mode
-- **Contact management**: Whitelist page with avatar cards, search, bulk import
+- **Contact management**: Whitelist page with avatar cards, search, bulk import, and per-contact active/inactive toggle
 - **Encrypted secrets**: API keys AES-256-GCM encrypted, masked on read
 
 ### 🌐 Cloud-Native Stack
@@ -155,7 +155,7 @@ Alfredo: Halo Budi! 🤖 Server DEV-01 online ✅, CPU 12%, Memory 48%
 ```
 You: halo
 
-Alfredo: Halo! 🤖 Christian Rizaldi sedang online sekarang. Silakan hubungi langsung ya — Alfredo standby.
+Alfredo: (no reply — bot is silent in Human Mode)
 ```
 
 ### Dashboard Usage
@@ -166,7 +166,7 @@ Alfredo: Halo! 🤖 Christian Rizaldi sedang online sekarang. Silakan hubungi la
 | `/dashboard/override` | Add/edit/remove servers, leave notes ("maintenance until 2 AM"), get daemon setup commands |
 | `/dashboard/logs` | Browse all WhatsApp conversations between PMs and Alfredo |
 | `/dashboard/settings` | Switch AI provider, enter API keys, set bot mode (Normal/Extended/Human), configure active hours, save GitLab PAT |
-| `/dashboard/whitelist` | Add/remove PM phone numbers that can chat with Alfredo |
+| `/dashboard/whitelist` | Add/remove PM phone numbers, toggle active/inactive per contact, bulk import |
 
 ## 🏗️ Architecture
 
@@ -246,6 +246,8 @@ Run in Supabase SQL Editor (`supabase.com → your project → SQL Editor`):
 \i supabase/migrations/002_add_group_support.sql
 \i supabase/migrations/003_add_bot_mode.sql
 \i supabase/migrations/004_add_metrics.sql
+\i supabase/migrations/005_server_name_update_cascade.sql
+\i supabase/migrations/006_add_whitelist_active.sql
 
 -- Disable RLS on app_settings (admin-only table)
 ALTER TABLE app_settings DISABLE ROW LEVEL SECURITY;
@@ -417,4 +419,4 @@ Private — all rights reserved. Contact Christian Rizaldi for access.
 
 ---
 
-**Built with ☕ by Christian Rizaldi** — Alfredo v1.0.0
+**Built with ☕ by Christian Rizaldi** — Alfredo v1.0.1
