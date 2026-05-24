@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/stale-check",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/flush-buffers?secret=$BUFFER_FLUSH_CRON_SECRET",
-      "schedule": "* * * * *"
     }
   ]
 }

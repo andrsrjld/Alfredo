@@ -1,9 +1,17 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { smartSearch, formatSearchContext } from '@/lib/search'
+import { askAlfredo } from '@/lib/llm'
+import { getMessagingProvider } from '@/lib/messaging'
+import { markdownToWhatsApp } from '@/lib/messaging/whatsapp-format'
+import type { BufferEntry } from '@/lib/buffer'
 import { NextRequest, NextResponse } from 'next/server'
 
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
 export const dynamic = 'force-dynamic'
+
+const SILENCE_MS = parseInt(process.env.MESSAGE_BUFFER_SILENCE_MS || '15000', 10)
+let lastFlushTime = 0
 
 interface ContainerPayload {
   name: string
@@ -131,6 +139,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const now = Date.now()
+    if (now - lastFlushTime > 10000) {
+      lastFlushTime = now
+      flushExpiredBuffers().catch(err => console.error('[Server ping] background flush error:', err))
+    }
+
     return NextResponse.json({ ok: true, server: serverName, stored: { cpu, memory, disk, uptime_hours } }, noStore)
   } catch (err) {
     console.error('[Server ping] POST error:', err)
@@ -148,4 +162,58 @@ function normalizeContainerStatus(status: string): string {
   if (s.includes('pause')) return 'paused'
   if (s.includes('creat')) return 'created'
   return s
+}
+
+async function flushExpiredBuffers() {
+  try {
+    const supabase = createAdminClient()
+    const cutoff = new Date(Date.now() - SILENCE_MS).toISOString()
+
+    const { data: buffers } = await supabase
+      .from('message_buffer')
+      .select('*')
+      .lt('last_message_at', cutoff)
+
+    if (!buffers || buffers.length === 0) return
+
+    const messenger = getMessagingProvider()
+
+    for (const buf of buffers) {
+      const entry = buf as BufferEntry
+      const texts = (entry.messages as Array<{ text: string }>).map(m => m.text).filter(Boolean)
+
+      try {
+        if (texts.length > 0) {
+          const query = texts.join('\n')
+          const numbered = texts.map((t, i) => `${i + 1}. ${t}`).join('\n')
+          const results = await smartSearch(query)
+          const context = formatSearchContext(results)
+          const { reply } = await askAlfredo(context, `User mengirim beberapa pesan dalam waktu dekat:\n\n${numbered}\n\nJawab seluruh pertanyaan dalam SATU balasan.`)
+
+          await messenger.sendMessage(
+            entry.reply_target,
+            markdownToWhatsApp(reply),
+            {
+              isGroup: entry.is_group ? true : undefined,
+              mentions: entry.is_group && entry.participant ? [`${entry.participant}@s.whatsapp.net`] : undefined,
+            },
+          )
+
+          await supabase.from('chat_logs').insert({
+            pm_number: entry.pm_number,
+            pm_message: texts.join('\n'),
+            bot_reply: reply,
+            is_group: entry.is_group,
+            group_id: entry.group_id || null,
+          })
+        }
+
+        await supabase.from('message_buffer').delete().eq('pm_number', entry.pm_number)
+      } catch (flushErr) {
+        console.error(`[Server ping] flush failed for ${entry.pm_number}:`, flushErr)
+      }
+    }
+  } catch (err) {
+    console.error('[Server ping] flushExpiredBuffers error:', err)
+  }
 }
