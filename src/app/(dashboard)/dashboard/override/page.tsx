@@ -18,6 +18,17 @@ import ServerDetailDialog from '@/components/servers/ServerDetailDialog'
 import type { ServerRecord } from '@/lib/servers'
 import { APP_URL } from '@/lib/servers'
 
+function mergeServersInPlace(prev: ServerRecord[], next: ServerRecord[]): ServerRecord[] {
+  if (prev.length === 0) return next
+  const nextById = new Map(next.map(server => [server.id, server]))
+  const existingIds = new Set(prev.map(server => server.id))
+  const updatedExisting = prev
+    .map(server => nextById.get(server.id) || server)
+    .filter(server => nextById.has(server.id))
+  const added = next.filter(server => !existingIds.has(server.id))
+  return [...updatedExisting, ...added]
+}
+
 export default function ServerPage() {
   const [servers, setServers] = useState<ServerRecord[]>([])
   const [showAdd, setShowAdd] = useState(false)
@@ -36,11 +47,13 @@ export default function ServerPage() {
   const [openSetupOnSelect, setOpenSetupOnSelect] = useState(false)
 
   useEffect(() => {
-    const supabase = createClient()
-    async function fetchServers() {
-      const { data } = await supabase.from('server_status').select('*').order('last_ping', { ascending: false })
-      if (data) setServers(data as ServerRecord[])
-    }
+	    const supabase = createClient()
+	    async function fetchServers() {
+	      const { data } = await supabase.from('server_status').select('*').order('server_name', { ascending: true })
+	      if (data) {
+	        setServers(prev => mergeServersInPlace(prev, data as ServerRecord[]))
+	      }
+	    }
     fetchServers()
     const interval = setInterval(fetchServers, 5000)
     return () => clearInterval(interval)
