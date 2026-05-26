@@ -7,6 +7,8 @@ interface DonutChartProps {
   size?: number
   strokeWidth?: number
   className?: string
+  chartClassName?: string
+  legendClassName?: string
   centerLabel?: string
   centerSubLabel?: string
 }
@@ -16,6 +18,8 @@ export function DonutChart({
   size = 120,
   strokeWidth = 14,
   className,
+  chartClassName,
+  legendClassName,
   centerLabel,
   centerSubLabel,
 }: DonutChartProps) {
@@ -32,13 +36,15 @@ export function DonutChart({
   let offset = 0
 
   return (
-    <div className={cn('flex items-center gap-3', className)}>
+    <div className={cn('flex items-center gap-4', className)}>
       <div className={cn(
-        'relative shrink-0 w-20 h-20 md:w-[120px] md:h-[120px]',
+        'relative size-20 shrink-0 md:size-[120px]',
+        chartClassName
       )}>
         <svg
           viewBox={`0 0 ${size} ${size}`}
           className="w-full h-full -rotate-90"
+          aria-hidden="true"
         >
           <circle
             cx={size / 2}
@@ -72,16 +78,16 @@ export function DonutChart({
         </svg>
         {(centerLabel || centerSubLabel) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-foreground pointer-events-none">
-            {centerLabel && <span className="text-lg font-bold tracking-tight leading-none md:text-xl">{centerLabel}</span>}
+            {centerLabel && <span className="text-lg font-bold leading-none md:text-2xl">{centerLabel}</span>}
             {centerSubLabel && <span className="text-[10px] text-muted-foreground mt-0.5 md:text-xs">{centerSubLabel}</span>}
           </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-1 md:gap-1.5 min-w-0">
+      <div className={cn('flex min-w-0 flex-col gap-1.5 md:gap-2', legendClassName)}>
         {data.map((d, i) => (
           <div key={i} className="flex items-center gap-1.5 md:gap-2">
-            <span className={cn('shrink-0 inline-block h-2 w-2 rounded-full md:h-2.5 md:w-2.5', d.colorClass)} />
+            <span className={cn('inline-block h-2 w-2 shrink-0 rounded-full bg-current md:h-2.5 md:w-2.5', d.colorClass)} />
             <span className="text-xs text-muted-foreground md:text-sm truncate">{d.label || 'Item'}</span>
             <span className="ml-auto font-semibold tabular-nums text-foreground text-xs md:text-sm">{d.value}</span>
           </div>
