@@ -61,6 +61,24 @@ function formatWIBShort(iso: string): string {
   })
 }
 
+function buildPipelineUrl(project: Project): string | null {
+  if (!project.pipeline_id) return null
+
+  const repoPath = project.project_group
+    ? `${project.project_group}/${project.repo_name}`
+    : project.repo_name
+  const fallback = `https://gitlab.com/${repoPath}/-/pipelines/${project.pipeline_id}`
+
+  if (!project.gitlab_project_id) return fallback
+
+  const params = new URLSearchParams({
+    project_id: project.gitlab_project_id,
+    pipeline_id: project.pipeline_id,
+    fallback,
+  })
+  return `/api/gitlab/pipeline?${params.toString()}`
+}
+
 function DetailRow({ label, value, mono }: { label: string; value: string | null; mono?: boolean }) {
   return (
     <div className="grid gap-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3">
@@ -81,12 +99,7 @@ function ProjectDetailDialog({ project, open, onOpenChange }: {
   if (!project) return null
   const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: capitalizeWords(project.status) }
 
-  const repoPath = project.project_group
-    ? `${project.project_group}/${project.repo_name}`
-    : project.repo_name
-  const pipelineUrl = project.pipeline_id
-    ? `https://gitlab.com/${repoPath}/-/pipelines/${project.pipeline_id}`
-    : null
+  const pipelineUrl = buildPipelineUrl(project)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -107,13 +120,13 @@ function ProjectDetailDialog({ project, open, onOpenChange }: {
           <DetailRow label="Event Time" value={project.gitlab_event_time ? formatWIB(project.gitlab_event_time) : null} mono />
           <DetailRow label="Last Updated" value={formatWIB(project.last_updated)} mono />
 
-          {project.pipeline_id && (
+          {pipelineUrl && (
             <div className="flex gap-2 pt-1">
               <Button
                 variant="outline"
                 size="sm"
                 className="flex-1 gap-2"
-                onClick={() => window.open(pipelineUrl!, '_blank', 'noopener')}
+                onClick={() => window.open(pipelineUrl, '_blank', 'noopener')}
               >
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                 View in GitLab
