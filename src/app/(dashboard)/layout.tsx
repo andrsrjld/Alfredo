@@ -33,6 +33,7 @@ export default function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-background">
+      <a href="#dashboard-main" className="skip-link">Skip to main content</a>
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
         <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4">
@@ -61,7 +62,7 @@ export default function DashboardLayout({
                     : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {label}
               </Link>
             )
@@ -71,7 +72,7 @@ export default function DashboardLayout({
         <div className="shrink-0 border-t border-sidebar-border p-3">
           <form action="/api/auth/signout" method="post" className="block">
             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground">
-              <LogOut className="h-4 w-4 shrink-0" />
+              <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
               Sign out
             </Button>
           </form>
@@ -92,14 +93,14 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto pb-16 lg:pb-0">
+            <main id="dashboard-main" className="flex-1 overflow-auto pb-16 lg:pb-0" tabIndex={-1}>
           {children}
         </main>
       </div>
 
       {/* Mobile bottom navigation */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/95 backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
         aria-label="Main navigation"
       >
         {navItems.map(({ href, label, icon: Icon }) => {
@@ -116,7 +117,7 @@ export default function DashboardLayout({
                 active ? 'text-primary' : 'text-muted-foreground'
               )}
             >
-              <Icon className={cn('h-5 w-5', active && 'stroke-[2.5]')} />
+              <Icon className={cn('h-5 w-5', active && 'stroke-[2.5]')} aria-hidden="true" />
             </Link>
           )
         })}

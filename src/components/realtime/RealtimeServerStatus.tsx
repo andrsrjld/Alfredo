@@ -20,12 +20,12 @@ function ArrowPagination({ page, total, onPrev, onNext }: {
   if (total <= 1) return null
   return (
     <div className="flex items-center justify-center gap-3 pt-1">
-      <Button variant="outline" size="icon-sm" disabled={page === 0} onClick={onPrev}>
-        <ChevronLeft className="h-4 w-4" />
+      <Button variant="outline" size="icon-sm" aria-label="Previous server page" disabled={page === 0} onClick={onPrev}>
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
       </Button>
       <span className="min-w-[3rem] text-center text-xs text-muted-foreground">{page + 1} / {total}</span>
-      <Button variant="outline" size="icon-sm" disabled={page >= total - 1} onClick={onNext}>
-        <ChevronRight className="h-4 w-4" />
+      <Button variant="outline" size="icon-sm" aria-label="Next server page" disabled={page >= total - 1} onClick={onNext}>
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </Button>
     </div>
   )

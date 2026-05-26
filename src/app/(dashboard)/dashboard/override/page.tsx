@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Copy, Check } from 'lucide-react'
 import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import ServerCard from '@/components/servers/ServerCard'
@@ -24,6 +31,7 @@ export default function ServerPage() {
   const [pingUrl, setPingUrl] = useState('')
   const [copied, setCopied] = useState<Set<string>>(new Set())
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ServerRecord | null>(null)
   const [selectedServer, setSelectedServer] = useState<ServerRecord | null>(null)
   const [openSetupOnSelect, setOpenSetupOnSelect] = useState(false)
 
@@ -72,12 +80,12 @@ export default function ServerPage() {
   }
 
   async function handleDelete(server: ServerRecord) {
-    if (!confirm(`Delete server "${server.server_name}"?`)) return
     setDeletingId(server.id)
     try {
       const res = await fetch(`/api/servers?server_name=${encodeURIComponent(server.server_name)}`, { method: 'DELETE' })
       if (res.ok) {
         setServers(prev => prev.filter(s => s.id !== server.id))
+        setDeleteTarget(null)
         if (selectedServer?.id === server.id) setSelectedServer(null)
       }
     } finally {
@@ -103,7 +111,7 @@ export default function ServerPage() {
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">Manage servers, notes, and agents.</p>
         <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowAdd(!showAdd)}>
-          <Plus className="h-4 w-4" /> Add Server
+          <Plus className="h-4 w-4" aria-hidden="true" /> Add Server
         </Button>
       </div>
 
@@ -113,9 +121,11 @@ export default function ServerPage() {
           <CardContent className="space-y-3">
             <form onSubmit={handleAddServer} className="grid grid-cols-1 items-end gap-4 md:grid-cols-[1fr_1fr_auto]">
               <div>
-                <label className="label-sm mb-2 block">Server Name</label>
-                <Input
-                  value={addName}
+	                <label htmlFor="server-name" className="label-sm mb-2 block">Server Name</label>
+	                <Input
+	                  id="server-name"
+	                  name="server_name"
+	                  value={addName}
                   onChange={e => setAddName(e.target.value)}
                   placeholder="app-prod-01"
                   required
@@ -124,16 +134,20 @@ export default function ServerPage() {
                 />
               </div>
               <div>
-                <label className="label-sm mb-2 block">IP Address (optional)</label>
-                <Input
-                  value={addIp}
+	                <label htmlFor="server-ip" className="label-sm mb-2 block">IP Address (optional)</label>
+	                <Input
+	                  id="server-ip"
+	                  name="ip_address"
+	                  inputMode="decimal"
+	                  autoComplete="off"
+	                  value={addIp}
                   onChange={e => setAddIp(e.target.value)}
                   placeholder="10.0.1.5"
                   className="font-mono"
                 />
               </div>
               <Button type="submit" disabled={adding || !addName.trim()}>
-                {adding ? 'Adding...' : 'Add'}
+	                {adding ? 'Adding…' : 'Add'}
               </Button>
             </form>
             {addError && <p className="text-sm text-destructive">{addError}</p>}
@@ -147,14 +161,14 @@ export default function ServerPage() {
                         const secret = new URL(pingUrl, APP_URL).searchParams.get('secret')
                         if (secret) copyToClipboard(secret, 'secret')
                       }}>
-                        {copied.has('secret') ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+	                        {copied.has('secret') ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
                         Copy
                       </Button>
                     </div>
                     <div className="space-y-1.5">
                       <p className="label-sm">Ping URL</p>
                       <Button variant="outline" size="sm" className="h-7 w-full gap-1.5 text-xs" onClick={() => copyToClipboard(pingUrl, 'url')}>
-                        {copied.has('url') ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+	                        {copied.has('url') ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
                         Copy
                       </Button>
                     </div>
@@ -172,7 +186,7 @@ export default function ServerPage() {
                     <p className="label-sm">Setup Instructions</p>
                     <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 font-mono text-xs whitespace-pre-wrap break-all">{activeInstructions}</pre>
                     <Button variant="outline" size="sm" className="gap-2" onClick={() => copyToClipboard(activeInstructions, 'instructions')}>
-                      {copied.has('instructions') ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+	                      {copied.has('instructions') ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
                       Copy All
                     </Button>
                   </div>
@@ -191,7 +205,7 @@ export default function ServerPage() {
             onClick={() => { setOpenSetupOnSelect(false); setSelectedServer(server) }}
             adminActions={{
               onSetup: () => { setOpenSetupOnSelect(true); setSelectedServer(server) },
-              onDelete: () => handleDelete(server),
+              onDelete: () => setDeleteTarget(server),
               deleting: deletingId === server.id,
             }}
           />
@@ -215,6 +229,26 @@ export default function ServerPage() {
           setSelectedServer(null)
         }}
       />
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Server</DialogTitle>
+            <DialogDescription>
+              Delete {deleteTarget?.server_name}. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={!!deletingId}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTarget && handleDelete(deleteTarget)}
+              disabled={!deleteTarget || deletingId === deleteTarget.id}
+            >
+              {deletingId ? 'Deleting…' : 'Delete Server'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

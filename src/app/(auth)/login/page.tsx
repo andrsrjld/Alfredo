@@ -38,7 +38,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="space-y-4 text-center">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-md bg-primary shadow-sm">
-            <Zap className="h-5 w-5 text-primary-foreground" />
+            <Zap className="h-5 w-5 text-primary-foreground" aria-hidden="true" />
           </div>
           <div className="space-y-1">
             <CardTitle>Alfredo</CardTitle>
@@ -48,25 +48,32 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="label-sm mb-2 block">Email</label>
+            <label htmlFor="email" className="label-sm mb-2 block">Email</label>
             <Input
+              id="email"
+              name="email"
               type="email"
+              autoComplete="email"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="label-sm mb-2 block">Password</label>
+            <label htmlFor="password" className="label-sm mb-2 block">Password</label>
             <Input
+              id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
           </div>
           {error && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert" aria-live="polite">
               {error}
             </div>
           )}
@@ -75,7 +82,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? 'Signing in…' : 'Sign In'}
           </Button>
         </form>
         </CardContent>

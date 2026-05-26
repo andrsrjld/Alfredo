@@ -12,7 +12,7 @@ import {
   timeAgo,
   formatWIB,
 } from '@/lib/servers'
-import { Terminal, Trash2 } from 'lucide-react'
+import { Info, Terminal, Trash2 } from 'lucide-react'
 
 type ServerCardProps = {
   server: ServerRecord
@@ -33,12 +33,25 @@ export default function ServerCard({ server, variant = 'default', onClick, admin
   const hasMetrics = !stale && hasReportedMetrics(server)
   const showLastPing = stale && hasReportedMetrics(server)
   const isCompact = variant === 'compact'
+  const interactiveProps = onClick && !adminActions
+    ? {
+        role: 'button',
+        tabIndex: 0,
+        onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onClick()
+          }
+        },
+      }
+    : {}
 
   return (
     <Card
       size="sm"
-      className={cn('h-full', onClick && 'cursor-pointer')}
+      className={cn('h-full', onClick && 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background')}
       onClick={onClick}
+      {...interactiveProps}
     >
       <CardContent>
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -49,25 +62,38 @@ export default function ServerCard({ server, variant = 'default', onClick, admin
             <Badge variant={cfg.variant}>{cfg.label}</Badge>
             {adminActions && (
               <>
+                {onClick && (
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`View details for ${server.server_name}`}
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); onClick() }}
+                  >
+                    <Info className="h-3 w-3" aria-hidden="true" />
+                  </Button>
+                )}
                 {adminActions.onSetup && (
                   <Button
                     variant="ghost"
                     size="icon-xs"
+                    aria-label={`Open setup for ${server.server_name}`}
                     className="text-muted-foreground hover:text-foreground"
                     onClick={(e) => { e.stopPropagation(); adminActions.onSetup?.() }}
                   >
-                    <Terminal className="h-3 w-3" />
+                    <Terminal className="h-3 w-3" aria-hidden="true" />
                   </Button>
                 )}
                 {adminActions.onDelete && (
                   <Button
                     variant="ghost"
                     size="icon-xs"
+                    aria-label={`Delete ${server.server_name}`}
                     className="text-muted-foreground hover:text-destructive"
                     disabled={adminActions.deleting}
                     onClick={(e) => { e.stopPropagation(); adminActions.onDelete?.() }}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-3 w-3" aria-hidden="true" />
                   </Button>
                 )}
               </>

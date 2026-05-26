@@ -177,6 +177,7 @@ export default function ServerDetailDialog({
   const [saveError, setSaveError] = useState('')
   const [saveOk, setSaveOk] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
   const [setupMode, setSetupMode] = useState<'daemon' | 'cron'>('daemon')
   const [showSetup, setShowSetup] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -357,11 +358,11 @@ export default function ServerDetailDialog({
 
   async function handleDelete() {
     if (!showAdminTools || !displayServer) return
-    if (!confirm(`Delete server "${displayServer.server_name}"? This cannot be undone.`)) return
     setDeleting(true)
     try {
       const res = await fetch(`/api/servers?server_name=${encodeURIComponent(displayServer.server_name)}`, { method: 'DELETE' })
       if (res.ok) {
+        setConfirmDeleteOpen(false)
         onOpenChange(false)
         onServerDeleted?.()
       }
@@ -418,8 +419,10 @@ export default function ServerDetailDialog({
             <div className="space-y-3 rounded-md border border-border p-3">
               <p className="text-xs font-medium text-foreground">Edit server</p>
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">Server name</label>
+                <label htmlFor="edit-server-name" className="text-xs text-muted-foreground">Server name</label>
                 <Input
+                  id="edit-server-name"
+                  name="edit_server_name"
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   className="h-8 font-mono text-xs"
@@ -427,8 +430,12 @@ export default function ServerDetailDialog({
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">IP address</label>
+                <label htmlFor="edit-server-ip" className="text-xs text-muted-foreground">IP address</label>
                 <Input
+                  id="edit-server-ip"
+                  name="edit_server_ip"
+                  inputMode="decimal"
+                  autoComplete="off"
                   value={editIp}
                   onChange={e => setEditIp(e.target.value)}
                   placeholder="10.0.1.5"
@@ -436,11 +443,13 @@ export default function ServerDetailDialog({
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs text-muted-foreground">Notes</label>
+                <label htmlFor="edit-server-notes" className="text-xs text-muted-foreground">Notes</label>
                 <Textarea
+                  id="edit-server-notes"
+                  name="edit_server_notes"
                   value={editNotes}
                   onChange={e => setEditNotes(e.target.value)}
-                  placeholder="Production app server, contact @ijal..."
+                  placeholder="Production app server, contact @ijal…"
                   rows={3}
                   className="font-mono text-xs"
                 />
@@ -448,7 +457,7 @@ export default function ServerDetailDialog({
               {saveError && <p className="text-xs text-destructive">{saveError}</p>}
               <div className="flex flex-wrap items-center gap-2">
                 <Button size="sm" onClick={handleSave} disabled={saving}>
-                  {saving ? 'Saving...' : 'Save changes'}
+                  {saving ? 'Saving…' : 'Save changes'}
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setIsEditing(false)} disabled={saving}>
                   Cancel
@@ -523,9 +532,9 @@ export default function ServerDetailDialog({
                   </Button>
                 </div>
               )}
-              <Button variant="destructive" size="sm" className="gap-2" onClick={handleDelete} disabled={deleting}>
-                <Trash2 className="h-3.5 w-3.5" />
-                {deleting ? 'Deleting...' : 'Delete server'}
+              <Button variant="destructive" size="sm" className="gap-2" onClick={() => setConfirmDeleteOpen(true)} disabled={deleting}>
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                {deleting ? 'Deleting…' : 'Delete server'}
               </Button>
             </div>
           )}
@@ -538,15 +547,19 @@ export default function ServerDetailDialog({
               </span>
               {containers.length > 0 && (
                 <Input
+                  id="container-search"
+                  name="container_search"
                   type="text"
-                  placeholder="Filter..."
+                  aria-label="Filter containers"
+                  autoComplete="off"
+                  placeholder="Filter…"
                   value={containerSearch}
                   onChange={e => { setContainerSearch(e.target.value); setExpandedGroups(new Set()) }}
                   className="h-7 w-full sm:w-28 px-2 text-xs"
                 />
               )}
             </div>
-            {containersLoading && <p className="text-xs text-muted-foreground">Loading containers...</p>}
+            {containersLoading && <p className="text-xs text-muted-foreground">Loading containers…</p>}
             {!containersLoading && containers.length === 0 && (
               <p className="text-xs text-muted-foreground">No containers in database.</p>
             )}
@@ -647,6 +660,22 @@ export default function ServerDetailDialog({
            </div>
          </div>
         </div>
+        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Server</DialogTitle>
+              <DialogDescription>
+                Delete {displayServer.server_name}. This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)} disabled={deleting}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete Server'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
        </DialogContent>
     </Dialog>
   )

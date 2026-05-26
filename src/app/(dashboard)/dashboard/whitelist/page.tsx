@@ -76,6 +76,7 @@ export default function WhitelistPage() {
   const [importing, setImporting] = useState(false)
   const [search, setSearch] = useState('')
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<WhitelistEntry | null>(null)
 
   useEffect(() => { fetchWhitelist() }, [])
 
@@ -139,6 +140,7 @@ export default function WhitelistPage() {
       const res = await fetch(`/api/whitelist?phone_number=${encodeURIComponent(phone_number)}`, { method: 'DELETE' })
       if (res.ok) {
         setEntries(prev => prev.filter(e => e.phone_number !== phone_number))
+        setDeleteTarget(null)
         setMessage({ type: 'ok', text: `Removed` })
         setTimeout(() => setMessage(null), 3000)
       } else {
@@ -202,13 +204,13 @@ export default function WhitelistPage() {
   }
 
   if (loading) {
-    return <div className="p-4 md:p-6"><p className="text-xs text-muted-foreground">Loading...</p></div>
+    return <div className="p-4 md:p-6"><p className="text-xs text-muted-foreground">Loading…</p></div>
   }
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-4 p-4 md:p-6">
       {message && (
-        <div className={`rounded-md border px-3 py-1.5 text-xs ${message.type === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}>
+        <div className={`rounded-md border px-3 py-1.5 text-xs ${message.type === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-destructive/30 bg-destructive/5 text-destructive'}`} role={message.type === 'err' ? 'alert' : 'status'} aria-live="polite">
           {message.text}
         </div>
       )}
@@ -219,7 +221,7 @@ export default function WhitelistPage() {
             <CardDescription>Add Contact</CardDescription>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
               <DialogTrigger render={<Button variant="outline" size="xs" className="gap-1.5" />}>
-                <Upload className="h-3 w-3" /> Import
+	                    <Upload className="h-3 w-3" aria-hidden="true" /> Import
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -227,8 +229,10 @@ export default function WhitelistPage() {
                   <DialogDescription>One entry per line: phone, name or just phone</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3">
-                  <Textarea
-                    value={importText}
+	                  <Textarea
+	                    id="contact-import"
+	                    name="contact_import"
+	                    value={importText}
                     onChange={e => setImportText(e.target.value)}
                     placeholder={`628123456789, WIT Fahmi\n6282240274833, WIT Ganjar\n6285794005069`}
                     rows={6}
@@ -236,7 +240,7 @@ export default function WhitelistPage() {
                   />
                   <div className="flex items-center gap-2">
                     <Button size="sm" onClick={handleImport} disabled={importing || !importText.trim()}>
-                      {importing ? 'Importing...' : 'Import'}
+	                      {importing ? 'Importing…' : 'Import'}
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => { setImportOpen(false); setImportText('') }}>Cancel</Button>
                   </div>
@@ -248,11 +252,16 @@ export default function WhitelistPage() {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-[10px] font-medium text-muted-foreground mb-1 block">Phone Number</label>
-              <div className="relative">
-                <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                <Input
-                  placeholder="081234567890"
+	              <label htmlFor="new-phone" className="text-[10px] font-medium text-muted-foreground mb-1 block">Phone Number</label>
+	              <div className="relative">
+	                <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" aria-hidden="true" />
+	                <Input
+	                  id="new-phone"
+	                  name="phone_number"
+	                  type="tel"
+	                  inputMode="tel"
+	                  autoComplete="tel"
+	                  placeholder="081234567890…"
                   value={newPhone}
                   onChange={e => setNewPhone(e.target.value)}
                   className="pl-7 h-8 font-mono text-xs"
@@ -261,11 +270,14 @@ export default function WhitelistPage() {
               {preview && <p className="mt-1 font-mono text-[10px] text-muted-foreground">→ {preview}</p>}
             </div>
             <div>
-              <label className="text-[10px] font-medium text-muted-foreground mb-1 block">Name</label>
-              <div className="relative">
-                <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                <Input
-                  placeholder="Budi Santoso"
+	              <label htmlFor="new-name" className="text-[10px] font-medium text-muted-foreground mb-1 block">Name</label>
+	              <div className="relative">
+	                <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" aria-hidden="true" />
+	                <Input
+	                  id="new-name"
+	                  name="pm_name"
+	                  autoComplete="off"
+	                  placeholder="Budi Santoso…"
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
                   className="pl-7 h-8 text-xs"
@@ -282,9 +294,13 @@ export default function WhitelistPage() {
           <div className="flex items-center justify-between gap-2">
             <CardDescription>Contacts ({filtered.length})</CardDescription>
             <div className="relative w-full max-w-[10rem] sm:max-w-xs">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-              <Input
-                placeholder="Filter..."
+	              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" aria-hidden="true" />
+	              <label htmlFor="contact-search" className="sr-only">Filter contacts</label>
+	              <Input
+	                id="contact-search"
+	                name="contact_search"
+	                autoComplete="off"
+	                placeholder="Filter…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-6 h-7 text-xs"
@@ -313,23 +329,27 @@ export default function WhitelistPage() {
                     )}
                     <p className="truncate font-mono text-[10px] text-muted-foreground">{formatPhoneDisplay(entry.phone_number)}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggle(entry.phone_number, entry.is_active !== false)}
-                    className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${entry.is_active !== false ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+	                  <button
+	                    type="button"
+	                    role="switch"
+	                    aria-checked={entry.is_active !== false}
+	                    aria-label={`${entry.is_active !== false ? 'Disable' : 'Enable'} ${entry.pm_name || entry.phone_number}`}
+	                    onClick={() => handleToggle(entry.phone_number, entry.is_active !== false)}
+	                    className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${entry.is_active !== false ? 'bg-primary' : 'bg-muted-foreground/30'}`}
                   >
                     <span
                       className={`inline-block h-3.5 w-3.5 rounded-full bg-background shadow-sm transition-transform ${entry.is_active !== false ? 'translate-x-[1.15rem]' : 'translate-x-[0.15rem]'}`}
                     />
                   </button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    onClick={() => handleDelete(entry.phone_number)}
-                    disabled={deleting === entry.phone_number}
-                    className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity"
+	                  <Button
+	                    variant="ghost"
+	                    size="icon-xs"
+	                    aria-label={`Delete ${entry.pm_name || entry.phone_number}`}
+	                    onClick={() => setDeleteTarget(entry)}
+	                    disabled={deleting === entry.phone_number}
+	                    className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus:opacity-100 group-hover:opacity-100"
                   >
-                    <X className="h-3 w-3" />
+	                    <X className="h-3 w-3" aria-hidden="true" />
                   </Button>
                 </div>
               ))}
@@ -342,8 +362,29 @@ export default function WhitelistPage() {
               <Button variant="outline" size="xs" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</Button>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+	        </CardContent>
+	      </Card>
+
+	      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+	        <DialogContent>
+	          <DialogHeader>
+	            <DialogTitle>Delete Contact</DialogTitle>
+	            <DialogDescription>
+	              Remove {deleteTarget?.pm_name || deleteTarget?.phone_number} from the whitelist.
+	            </DialogDescription>
+	          </DialogHeader>
+	          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+	            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={!!deleting}>Cancel</Button>
+	            <Button
+	              variant="destructive"
+	              onClick={() => deleteTarget && handleDelete(deleteTarget.phone_number)}
+	              disabled={!deleteTarget || deleting === deleteTarget.phone_number}
+	            >
+	              {deleting ? 'Deleting…' : 'Delete Contact'}
+	            </Button>
+	          </div>
+	        </DialogContent>
+	      </Dialog>
+	    </div>
+	  )
+	}

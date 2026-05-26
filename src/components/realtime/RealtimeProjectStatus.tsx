@@ -115,7 +115,7 @@ function ProjectDetailDialog({ project, open, onOpenChange }: {
                 className="flex-1 gap-2"
                 onClick={() => window.open(pipelineUrl!, '_blank', 'noopener')}
               >
-                <ExternalLink className="h-3.5 w-3.5" />
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                 View in GitLab
               </Button>
             </div>
@@ -159,7 +159,19 @@ function ProjectCard({ project, onClick }: {
 }) {
   const cfg = statusConfig[project.status] || { variant: 'secondary' as const, label: capitalizeWords(project.status) }
   return (
-    <Card size="sm" className="h-full cursor-pointer" onClick={onClick}>
+    <Card
+      size="sm"
+      className="h-full cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+    >
       <CardContent>
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="truncate font-mono text-xs font-medium text-foreground sm:text-sm">{capitalizeWords(project.repo_name)}</span>
@@ -196,19 +208,21 @@ function ArrowPagination({ page, total, onPrev, onNext }: {
       <Button
         variant="outline"
         size="icon-sm"
+        aria-label="Previous project page"
         disabled={page === 0}
         onClick={onPrev}
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
       </Button>
       <span className="min-w-[3rem] text-center text-xs text-muted-foreground">{page + 1} / {total}</span>
       <Button
         variant="outline"
         size="icon-sm"
+        aria-label="Next project page"
         disabled={page >= total - 1}
         onClick={onNext}
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4" aria-hidden="true" />
       </Button>
     </div>
   )
@@ -266,10 +280,14 @@ export default function RealtimeProjectStatus() {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <div className="relative flex-1 sm:flex-none sm:w-48 md:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" aria-hidden="true" />
+          <label htmlFor="project-search" className="sr-only">Search projects</label>
           <Input
+            id="project-search"
+            name="project-search"
             type="text"
-            placeholder="Search project or group..."
+            placeholder="Search project or group…"
+            autoComplete="off"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setDesktopPage(0) }}
             className="pl-8"

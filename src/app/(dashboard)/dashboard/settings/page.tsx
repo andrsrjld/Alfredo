@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, LogOut } from 'lucide-react'
+import { Bot, ChevronDown, ChevronRight, Clock, LogOut, UserRound } from 'lucide-react'
 import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -121,7 +121,7 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="p-4 lg:p-6 xl:p-8"><p className="text-sm text-muted-foreground">Loading...</p></div>
+    return <div className="p-4 lg:p-6 xl:p-8"><p className="text-sm text-muted-foreground">Loading…</p></div>
   }
 
   return (
@@ -131,7 +131,7 @@ export default function SettingsPage() {
       </div>
 
       {message && (
-        <div className={`rounded-md border px-3 py-2 text-sm ${message.type === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-destructive/30 bg-destructive/5 text-destructive'}`}>
+        <div className={`rounded-md border px-3 py-2 text-sm ${message.type === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-destructive/30 bg-destructive/5 text-destructive'}`} role={message.type === 'err' ? 'alert' : 'status'} aria-live="polite">
           {message.text}
         </div>
       )}
@@ -141,9 +141,9 @@ export default function SettingsPage() {
         <CardContent>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {([
-              { id: 'normal', icon: '🤖', label: 'Normal AI', desc: `${settings.active_start}–${settings.active_end} WIB` },
-              { id: 'extended', icon: '🤖', label: 'Extended AI', desc: '24/7 active' },
-              { id: 'human', icon: '👤', label: 'Human Mode', desc: 'Bot offline' },
+              { id: 'normal', icon: Clock, label: 'Normal AI', desc: `${settings.active_start}–${settings.active_end} WIB` },
+              { id: 'extended', icon: Bot, label: 'Extended AI', desc: '24/7 active' },
+              { id: 'human', icon: UserRound, label: 'Human Mode', desc: 'Bot offline' },
             ] as const).map(mode => (
               <Button
                 key={mode.id}
@@ -152,7 +152,7 @@ export default function SettingsPage() {
                 className="h-auto flex-col items-center gap-1 py-4"
                 onClick={() => setSettings(s => ({ ...s, bot_mode: mode.id }))}
               >
-                <span className="text-lg">{mode.icon}</span>
+                <mode.icon className="h-5 w-5" aria-hidden="true" />
                 <span className="text-sm font-medium">{mode.label}</span>
                 <span className="text-xs font-normal opacity-70">{mode.desc}</span>
               </Button>
@@ -161,14 +161,17 @@ export default function SettingsPage() {
           {settings.bot_mode === 'normal' && (
             <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <label className="label-sm">Active hours</label>
+	                <span className="label-sm">Active hours</span>
                 <span className="text-xs text-muted-foreground">WIB</span>
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
                 <div className="min-w-0 space-y-1">
                   <span className="block text-xs text-muted-foreground">Start</span>
-                  <Input
-                    type="time"
+	                  <Input
+	                    id="active-start"
+	                    name="active_start"
+	                    type="time"
+	                    aria-label="Active start time"
                     value={settings.active_start}
                     onChange={e => setSettings(s => ({ ...s, active_start: e.target.value }))}
                     className="w-full font-mono"
@@ -177,8 +180,11 @@ export default function SettingsPage() {
                 <span className="pb-2 text-sm text-muted-foreground">to</span>
                 <div className="min-w-0 space-y-1">
                   <span className="block text-xs text-muted-foreground">End</span>
-                  <Input
-                    type="time"
+	                  <Input
+	                    id="active-end"
+	                    name="active_end"
+	                    type="time"
+	                    aria-label="Active end time"
                     value={settings.active_end}
                     onChange={e => setSettings(s => ({ ...s, active_end: e.target.value }))}
                     className="w-full font-mono"
@@ -199,6 +205,9 @@ export default function SettingsPage() {
         <CardHeader><CardDescription>Active Provider</CardDescription></CardHeader>
         <CardContent>
           <select
+            id="active-provider"
+            name="provider"
+            aria-label="Active provider"
             value={settings.provider}
             onChange={e => setSettings(s => ({ ...s, provider: e.target.value }))}
             className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:w-72"
@@ -215,7 +224,10 @@ export default function SettingsPage() {
         <CardContent>
           <div className="flex items-center gap-4">
             <input
+              id="temperature"
+              name="temperature"
               type="range"
+              aria-label="Temperature"
               min={0}
               max={1}
               step={0.1}
@@ -251,10 +263,14 @@ export default function SettingsPage() {
                 {isExpanded && (
                   <div className="space-y-4 bg-muted/30 px-5 pb-5 pt-1">
                     <div>
-                      <label className="label-sm mb-2 block">API Key</label>
-                      <Input
-                        type="password"
-                        placeholder={modelCfg.apiKey ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'Enter API key'}
+	                      <label htmlFor={`${p.id}-api-key`} className="label-sm mb-2 block">API Key</label>
+	                      <Input
+	                        id={`${p.id}-api-key`}
+	                        name={`${p.id}_api_key`}
+	                        type="password"
+	                        autoComplete="off"
+	                        spellCheck={false}
+	                        placeholder={modelCfg.apiKey ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'Enter API key…'}
                         value={modelCfg.apiKey.includes('\u2022') ? modelCfg.apiKey : ''}
                         onChange={e => {
                           const val = e.target.value
@@ -268,8 +284,12 @@ export default function SettingsPage() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className="label-sm mb-2 block">Model</label>
-                        <Input
+	                        <label htmlFor={`${p.id}-model`} className="label-sm mb-2 block">Model</label>
+	                        <Input
+	                          id={`${p.id}-model`}
+	                          name={`${p.id}_model`}
+	                          autoComplete="off"
+	                          spellCheck={false}
                           value={modelCfg.model}
                           onChange={e => setSettings(s => ({
                             ...s,
@@ -280,8 +300,13 @@ export default function SettingsPage() {
                         <p className="mt-1.5 text-xs text-muted-foreground">Available: {p.models}</p>
                       </div>
                       <div>
-                        <label className="label-sm mb-2 block">Base URL</label>
-                        <Input
+	                        <label htmlFor={`${p.id}-base-url`} className="label-sm mb-2 block">Base URL</label>
+	                        <Input
+	                          id={`${p.id}-base-url`}
+	                          name={`${p.id}_base_url`}
+	                          type="url"
+	                          autoComplete="off"
+	                          spellCheck={false}
                           value={modelCfg.baseUrl}
                           onChange={e => setSettings(s => ({
                             ...s,
@@ -304,10 +329,14 @@ export default function SettingsPage() {
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">Used to fetch pipeline error logs for AI analysis. Scope required: <span className="font-mono text-foreground">api</span></p>
           <div>
-            <label className="label-sm mb-2 block">Personal Access Token</label>
-            <Input
-              type="password"
-              placeholder={settings.gitlab_pat ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'glpat-xxxxxxxxxxxx'}
+	            <label htmlFor="gitlab-pat" className="label-sm mb-2 block">Personal Access Token</label>
+	            <Input
+	              id="gitlab-pat"
+	              name="gitlab_pat"
+	              type="password"
+	              autoComplete="off"
+	              spellCheck={false}
+	              placeholder={settings.gitlab_pat ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' : 'glpat-xxxxxxxxxxxx…'}
               value={settings.gitlab_pat.includes('\u2022') ? settings.gitlab_pat : ''}
               onChange={e => setSettings(s => ({ ...s, gitlab_pat: e.target.value }))}
               className="font-mono"
@@ -317,7 +346,7 @@ export default function SettingsPage() {
       </Card>
 
       <Button onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Settings'}
+        {saving ? 'Saving…' : 'Save Settings'}
       </Button>
 
       <form action="/api/auth/signout" method="post" className="lg:hidden">

@@ -110,10 +110,14 @@ export default function LogsPage() {
 
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="relative flex-1 sm:max-w-xs md:max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" aria-hidden="true" />
+          <label htmlFor="logs-search" className="sr-only">Search chat logs</label>
           <Input
+            id="logs-search"
+            name="logs_search"
             type="text"
-            placeholder="Search..."
+            placeholder="Search…"
+            autoComplete="off"
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(0) }}
             className="pl-7 h-8 text-xs"
@@ -149,7 +153,7 @@ export default function LogsPage() {
                   </div>
                   {needsExpand && (
                     <span className="shrink-0 mt-0.5">
-                      {isOpen ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                      {isOpen ? <ChevronUp className="h-3 w-3 text-muted-foreground" aria-hidden="true" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" aria-hidden="true" />}
                     </span>
                   )}
                 </button>

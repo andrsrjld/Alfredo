@@ -12,16 +12,17 @@ export function ThemeToggle() {
   useEffect(() => setMounted(true), [])
 
   if (!mounted) {
-    return <Button variant="ghost" size="icon-sm"><Sun className="h-4 w-4" /></Button>
+    return <Button variant="ghost" size="icon-sm" aria-label="Toggle theme"><Sun className="h-4 w-4" aria-hidden="true" /></Button>
   }
 
   return (
     <Button
       variant="ghost"
       size="icon-sm"
+      aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
     >
-      {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {theme === 'dark' ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
     </Button>
   )
 }
