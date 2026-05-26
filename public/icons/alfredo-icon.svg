@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Alfredo">
+  <rect width="512" height="512" rx="112" fill="#09090b"/>
+  <rect x="24" y="24" width="464" height="464" rx="96" fill="#18181b" stroke="#27272a" stroke-width="12"/>
+  <circle cx="256" cy="256" r="154" fill="none" stroke="#34d399" stroke-width="28"/>
+  <circle cx="256" cy="256" r="118" fill="#09090b"/>
+  <path
+    d="M273 96 154 267c-10 14 0 33 17 33h74l-18 116c-3 20 23 30 36 14l120-170c10-14 0-34-17-34h-75l18-116c3-20-23-30-36-14Z"
+    fill="#fafafa"
+  />
+  <circle cx="346" cy="136" r="23" fill="#fb7185"/>
+</svg>

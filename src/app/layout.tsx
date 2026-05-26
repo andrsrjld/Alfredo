@@ -23,6 +23,22 @@ const jetBrainsMono = localFont({
 export const metadata: Metadata = {
   title: "Alfredo - DevOps AI Companion",
   description: "Enterprise serverless DevOps companion dashboard",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/alfredo-icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Alfredo",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default function RootLayout({
