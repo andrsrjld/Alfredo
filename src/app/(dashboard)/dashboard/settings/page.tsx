@@ -125,8 +125,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 p-4 lg:p-6 xl:p-8">
-      <div className="mb-2">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 lg:p-6 xl:p-8">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold leading-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">Configure AI provider, bot mode, API keys, and GitLab integration.</p>
       </div>
 

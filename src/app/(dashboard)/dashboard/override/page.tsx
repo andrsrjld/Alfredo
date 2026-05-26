@@ -120,9 +120,12 @@ export default function ServerPage() {
   const activeInstructions = setupMode === 'daemon' ? daemonInstructions : cronInstructions
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] space-y-6 p-4 lg:p-6 xl:p-8">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Manage servers, notes, and agents.</p>
+    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 p-4 lg:p-6 xl:p-8">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold leading-tight">Server</h1>
+          <p className="text-sm text-muted-foreground">Manage servers, notes, and agents.</p>
+        </div>
         <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowAdd(!showAdd)}>
           <Plus className="h-4 w-4" aria-hidden="true" /> Add Server
         </Button>
@@ -210,7 +213,7 @@ export default function ServerPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {servers.map(server => (
           <ServerCard
             key={server.id}

@@ -49,12 +49,12 @@ export default function ServerCard({ server, variant = 'default', onClick, admin
   return (
     <Card
       size="sm"
-      className={cn('h-full', onClick && 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background')}
+      className={cn('h-full bg-background/60 transition-colors hover:bg-background', onClick && 'cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background')}
       onClick={onClick}
       {...interactiveProps}
     >
       <CardContent>
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <span className={cn('truncate font-mono font-medium text-foreground', isCompact ? 'text-xs' : 'text-sm')}>
             {server.server_name}
           </span>
@@ -100,15 +100,15 @@ export default function ServerCard({ server, variant = 'default', onClick, admin
             )}
           </div>
         </div>
-        <div className={cn('flex flex-col text-muted-foreground', isCompact ? 'text-xs gap-1' : 'text-sm gap-1.5')}>
-          <div className="flex items-center justify-between">
+        <div className={cn('flex flex-col text-muted-foreground', isCompact ? 'gap-1 text-xs' : 'gap-2 text-sm')}>
+          <div className="flex items-center justify-between gap-3">
             <span>IP</span>
-            <span className="ml-2 truncate font-mono">{server.ip_address || '\u2014'}</span>
+            <span className="truncate font-mono text-foreground/80">{server.ip_address || '\u2014'}</span>
           </div>
           {hasMetrics && (
-            <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center justify-between gap-3">
               <span>Load</span>
-              <div className="flex items-center gap-1 font-mono text-xs">
+              <div className="flex items-center gap-1.5 font-mono text-xs">
                 {server.cpu_usage !== null && (
                   <span className={server.cpu_usage >= 80 ? 'text-amber-500' : 'text-emerald-500'}>
                     C:{server.cpu_usage.toFixed(1)}%
@@ -128,15 +128,15 @@ export default function ServerCard({ server, variant = 'default', onClick, admin
             </div>
           )}
           {showLastPing && (
-            <div className="flex items-center justify-between gap-1">
+            <div className="flex items-center justify-between gap-3">
               <span>Last seen</span>
-              <span className="font-mono text-xs" title={formatWIB(server.last_ping)}>{timeAgo(server.last_ping)}</span>
+              <span className="font-mono text-xs text-foreground/80" title={formatWIB(server.last_ping)}>{timeAgo(server.last_ping)}</span>
             </div>
           )}
           {!stale && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <span>Ping</span>
-              <span className="font-mono" title={formatWIB(server.last_ping)}>{timeAgo(server.last_ping)}</span>
+              <span className="font-mono text-foreground/80" title={formatWIB(server.last_ping)}>{timeAgo(server.last_ping)}</span>
             </div>
           )}
         </div>

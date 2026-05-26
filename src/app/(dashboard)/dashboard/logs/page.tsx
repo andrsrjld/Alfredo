@@ -99,9 +99,12 @@ export default function LogsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4 p-4 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs sm:text-sm text-muted-foreground">WhatsApp conversation history</p>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4 md:p-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-semibold leading-tight">Chat Logs</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">WhatsApp conversation history</p>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="xs" onClick={() => setExpanded(new Set(paged.map(l => l.id)))}>Expand All</Button>
           <Button variant="ghost" size="xs" onClick={() => setExpanded(new Set())} className="text-muted-foreground">Collapse All</Button>
@@ -134,7 +137,7 @@ export default function LogsPage() {
           const censoredMsg = redactContent(log.pm_message)
           const censoredReply = redactContent(log.bot_reply)
           return (
-            <Card key={log.id} size="sm">
+            <Card key={log.id} size="sm" className="bg-background/60">
               <CardContent className="p-0">
                 <button
                   className="flex w-full items-start gap-2 p-3 text-left transition-colors hover:bg-muted/50"

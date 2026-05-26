@@ -208,7 +208,12 @@ export default function WhitelistPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-4 p-4 md:p-6">
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-4 md:p-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold leading-tight">Whitelist</h1>
+        <p className="text-sm text-muted-foreground">Manage contacts allowed to interact with Alfredo.</p>
+      </div>
+
       {message && (
         <div className={`rounded-md border px-3 py-1.5 text-xs ${message.type === 'ok' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-destructive/30 bg-destructive/5 text-destructive'}`} role={message.type === 'err' ? 'alert' : 'status'} aria-live="polite">
           {message.text}

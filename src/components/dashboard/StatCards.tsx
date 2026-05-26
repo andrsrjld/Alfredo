@@ -1,6 +1,6 @@
 'use client'
 
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Server, Monitor } from 'lucide-react'
 import { DonutChart } from './DonutChart'
 
@@ -29,16 +29,20 @@ export default function StatCards({ stats }: StatCardsProps) {
   ]
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <Card>
-        <CardContent className="p-4 md:p-6">
-          <div className="mb-5 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Server className="h-3.5 w-3.5 text-foreground md:h-4 md:w-4" aria-hidden="true" />
-              <span className="text-[10px] font-medium text-muted-foreground md:text-xs">Servers</span>
+        <CardHeader className="pb-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <CardDescription>Servers</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">{stats.totalServers}</CardTitle>
             </div>
-            <span className="text-[10px] font-semibold text-foreground md:text-xs">{stats.totalServers}</span>
+            <div className="flex size-9 items-center justify-center rounded-md border bg-background">
+              <Server className="size-4 text-muted-foreground" aria-hidden="true" />
+            </div>
           </div>
+        </CardHeader>
+        <CardContent className="pt-4">
           <DonutChart
             data={serverData}
             size={144}
@@ -53,14 +57,18 @@ export default function StatCards({ stats }: StatCardsProps) {
       </Card>
 
       <Card>
-        <CardContent className="p-4 md:p-6">
-          <div className="mb-5 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Monitor className="h-3.5 w-3.5 text-foreground md:h-4 md:w-4" aria-hidden="true" />
-              <span className="text-[10px] font-medium text-muted-foreground md:text-xs">Pipelines</span>
+        <CardHeader className="pb-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <CardDescription>Pipelines</CardDescription>
+              <CardTitle className="text-2xl tabular-nums">{stats.totalProjects}</CardTitle>
             </div>
-            <span className="text-[10px] font-semibold text-foreground md:text-xs">{stats.totalProjects}</span>
+            <div className="flex size-9 items-center justify-center rounded-md border bg-background">
+              <Monitor className="size-4 text-muted-foreground" aria-hidden="true" />
+            </div>
           </div>
+        </CardHeader>
+        <CardContent className="pt-4">
           <DonutChart
             data={pipelineData}
             size={144}

@@ -174,7 +174,7 @@ function ProjectCard({ project, onClick }: {
   return (
     <Card
       size="sm"
-      className="h-full cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="h-full cursor-pointer bg-background/60 transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       onClick={onClick}
       role="button"
       tabIndex={0}
@@ -186,22 +186,22 @@ function ProjectCard({ project, onClick }: {
       }}
     >
       <CardContent>
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-3 flex items-center justify-between gap-2">
           <span className="truncate font-mono text-xs font-medium text-foreground sm:text-sm">{capitalizeWords(project.repo_name)}</span>
           <Badge variant={cfg.variant} className="shrink-0">{cfg.label}</Badge>
         </div>
-        <div className="flex flex-col gap-1 text-xs text-muted-foreground sm:gap-1.5 sm:text-sm">
-          <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1.5 text-xs text-muted-foreground sm:gap-2 sm:text-sm">
+          <div className="flex items-center justify-between gap-3">
             <span>Group</span>
-            <span className="ml-1 truncate max-w-[5rem] sm:max-w-none">{project.project_group || '\u2014'}</span>
+            <span className="max-w-[5rem] truncate text-foreground/80 sm:max-w-none">{project.project_group || '\u2014'}</span>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <span>Branch</span>
-            <span className="ml-1 truncate">{project.branch || '\u2014'}</span>
+            <span className="truncate text-foreground/80">{project.branch || '\u2014'}</span>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <span>Updated</span>
-            <span className="font-mono">{formatWIBShort(project.last_updated)}</span>
+            <span className="font-mono text-foreground/80">{formatWIBShort(project.last_updated)}</span>
           </div>
         </div>
       </CardContent>

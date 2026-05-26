@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import RealtimeServerStatus from '@/components/realtime/RealtimeServerStatus'
 import RealtimeProjectStatus from '@/components/realtime/RealtimeProjectStatus'
-import { Card, CardHeader, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import StatCards from '@/components/dashboard/StatCards'
 
 type Stats = {
@@ -44,12 +44,18 @@ export default function DashboardPage() {
   }, [])
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 md:p-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold leading-tight">Overview</h1>
+        <p className="text-sm text-muted-foreground">Live server health and GitLab pipeline status.</p>
+      </div>
+
       <StatCards stats={stats} />
 
       <Card>
         <CardHeader>
-          <CardDescription>Servers</CardDescription>
+          <CardTitle>Servers</CardTitle>
+          <CardDescription>Realtime daemon reports from registered infrastructure.</CardDescription>
         </CardHeader>
         <CardContent>
           <RealtimeServerStatus />
@@ -58,7 +64,8 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardDescription>Pipelines</CardDescription>
+          <CardTitle>Pipelines</CardTitle>
+          <CardDescription>Latest GitLab pipeline events and failure details.</CardDescription>
         </CardHeader>
         <CardContent>
           <RealtimeProjectStatus />

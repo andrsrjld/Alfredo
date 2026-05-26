@@ -32,13 +32,13 @@ export default function DashboardLayout({
   const pageTitle = pageTitles[pathname] || 'Dashboard'
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-muted/40">
       <a href="#dashboard-main" className="skip-link">Skip to main content</a>
       {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-background lg:flex">
         <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary shadow-sm">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-primary shadow-sm">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
             <div>
@@ -58,8 +58,8 @@ export default function DashboardLayout({
                 className={cn(
                   'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                   active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                    ? 'bg-accent text-accent-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -83,7 +83,7 @@ export default function DashboardLayout({
         <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/80 backdrop-blur-xl">
           <div className="flex h-14 items-center gap-3 px-4 lg:px-8">
             <div className="flex items-center gap-2.5 lg:hidden">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary">
+              <div className="flex size-7 items-center justify-center rounded-md bg-primary">
                 <Zap className="h-3.5 w-3.5 text-primary-foreground" />
               </div>
             </div>
