@@ -1,11 +1,12 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getGitLabPAT, fetchFailedJobLog } from '@/lib/gitlab'
-import { requireSharedWebhookSecret } from '@/lib/api-guards'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
 const TERMINAL_STATES = ['success', 'failed', 'canceled']
+const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
 function extractGitLabTimestamp(payload: Record<string, unknown>, status: string): string | null {
   const attrs = payload.object_attributes as Record<string, unknown> | undefined
@@ -23,17 +24,55 @@ function extractGitLabTimestamp(payload: Record<string, unknown>, status: string
   return null
 }
 
+function safeEqual(a: string, b: string): boolean {
+  const left = Buffer.from(a)
+  const right = Buffer.from(b)
+  return left.length === right.length && crypto.timingSafeEqual(left, right)
+}
+
+function verifyGitLabSignature(request: NextRequest, rawBody: string): boolean {
+  const signingToken = process.env.GITLAB_WEBHOOK_SIGNING_TOKEN
+  if (!signingToken) return false
+
+  const id = request.headers.get('webhook-id')
+  const timestamp = request.headers.get('webhook-timestamp')
+  const signatureHeader = request.headers.get('webhook-signature')
+  if (!id || !timestamp || !signatureHeader) return false
+
+  const signedPayload = `${id}.${timestamp}.${rawBody}`
+  const expected = crypto
+    .createHmac('sha256', signingToken)
+    .update(signedPayload, 'utf8')
+    .digest('base64')
+
+  return signatureHeader
+    .split(/\s+/)
+    .some(signature => signature.startsWith('v1,') && safeEqual(signature.slice(3), expected))
+}
+
+function verifyGitLabWebhook(request: NextRequest, rawBody: string): NextResponse | null {
+  const secretToken = process.env.GITLAB_WEBHOOK_SECRET
+  const providedToken = request.headers.get('x-gitlab-token')
+
+  if (secretToken && providedToken && safeEqual(providedToken, secretToken)) {
+    return null
+  }
+
+  if (verifyGitLabSignature(request, rawBody)) {
+    return null
+  }
+
+  console.warn('[GitLab webhook] Unauthorized request: missing or invalid GitLab token/signature')
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401, ...noStore })
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const unauthorized = requireSharedWebhookSecret(request, 'GitLab webhook')
+    const rawBody = await request.text()
+    const unauthorized = verifyGitLabWebhook(request, rawBody)
     if (unauthorized) return unauthorized
 
-    const token = request.headers.get('x-gitlab-token')
-    if (token !== process.env.GITLAB_WEBHOOK_SECRET) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = await request.json()
+    const payload = JSON.parse(rawBody)
 
     if (payload.object_kind !== 'pipeline') {
       return NextResponse.json({ ok: true, ignored: true })
