@@ -1,25 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
+import { STALE_THRESHOLD_MS } from '@/lib/servers'
 
 export const dynamic = 'force-dynamic'
-
-function getStaleThresholdMs(): number {
-  const msRaw = process.env.STALE_THRESHOLD_MS
-  if (msRaw) {
-    const ms = Number(msRaw)
-    if (Number.isFinite(ms) && ms > 0) return ms
-  }
-
-  const secRaw = process.env.STALE_THRESHOLD_SECONDS
-  if (secRaw) {
-    const sec = Number(secRaw)
-    if (Number.isFinite(sec) && sec > 0) return sec * 1000
-  }
-
-  // Default assumes pings happen at least once per minute (cron fallback),
-  // so use a forgiving window to avoid false "offline" markings.
-  return 2 * 60_000
-}
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('Authorization')
@@ -41,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = createAdminClient()
-    const staleSince = new Date(Date.now() - getStaleThresholdMs()).toISOString()
+    const staleSince = new Date(Date.now() - STALE_THRESHOLD_MS).toISOString()
 
     const { data, error } = await supabase
       .from('server_status')
