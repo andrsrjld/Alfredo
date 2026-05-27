@@ -71,7 +71,7 @@ export default function DashboardLayout({
 
         <div className="shrink-0 border-t border-sidebar-border p-3">
           <form action="/api/auth/signout" method="post" className="block">
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground">
+            <Button type="submit" variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground">
               <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
               Sign out
             </Button>

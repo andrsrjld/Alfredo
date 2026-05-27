@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import StatCards from '@/components/dashboard/StatCards'
-import { isStale, timeAgo, type ServerRecord } from '@/lib/servers'
+import { statusConfig, timeAgo, type ServerRecord } from '@/lib/servers'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,10 +42,7 @@ function formatWIBShort(iso: string): string {
 }
 
 function publicServerStatus(server: PublicServer) {
-  if (isStale(server as ServerRecord)) return { variant: 'destructive' as const, label: 'Offline' }
-  if (server.status === 'online') return { variant: 'success' as const, label: 'Online' }
-  if (server.status === 'high_load') return { variant: 'warning' as const, label: 'High load' }
-  return { variant: 'secondary' as const, label: server.status || 'Unknown' }
+  return statusConfig[server.status] || { variant: 'secondary' as const, label: server.status || 'Unknown' }
 }
 
 async function getOverviewData() {
@@ -70,8 +67,8 @@ async function getOverviewData() {
     projects: visibleProjects,
     stats: {
       totalServers: serverData.length,
-      online: serverData.filter(server => !isStale(server as ServerRecord) && server.status === 'online').length,
-      offline: serverData.filter(server => isStale(server as ServerRecord) || server.status === 'offline').length,
+      online: serverData.filter(server => server.status === 'online').length,
+      offline: serverData.filter(server => server.status === 'offline').length,
       totalProjects: projectData.length,
       success: projectData.filter(project => project.status === 'success').length,
       failed: projectData.filter(project => project.status === 'failed').length,
