@@ -132,7 +132,7 @@ export default function PublicOverview({ initialData }: { initialData: PublicOve
 
     async function refreshOverview() {
       try {
-        const res = await fetch('/api/public/overview', { cache: 'no-store' })
+        const res = await fetch(`/api/public/overview?ts=${Date.now()}`, { cache: 'no-store' })
         if (!res.ok) return
         const next = await res.json() as PublicOverviewData
         if (alive) setOverview(next)
@@ -141,6 +141,7 @@ export default function PublicOverview({ initialData }: { initialData: PublicOve
       }
     }
 
+    refreshOverview()
     const interval = setInterval(refreshOverview, 2000)
     return () => {
       alive = false
