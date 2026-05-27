@@ -37,7 +37,9 @@ function getStaleThresholdMs(): number {
     if (Number.isFinite(sec) && sec > 0) return sec * 1000
   }
 
-  return 2 * 60_000
+  // Production data currently arrives much less frequently than once per minute,
+  // so keep the default forgiving unless an explicit threshold is configured.
+  return 20 * 60_000
 }
 
 export const STALE_THRESHOLD_MS = getStaleThresholdMs()
