@@ -6,6 +6,7 @@ import { normalizePhone } from '@/lib/phone'
 import { shouldBotReply } from '@/lib/bot-mode'
 import { markdownToWhatsApp } from '@/lib/messaging/whatsapp-format'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSharedWebhookSecret } from '@/lib/api-guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,6 +71,9 @@ function extractEvolutionMessage(body: Record<string, unknown>): {
 
 export async function POST(request: NextRequest) {
   try {
+    const unauthorized = requireSharedWebhookSecret(request, 'Evolution webhook')
+    if (unauthorized) return unauthorized
+
     const body = await request.json()
     const msg = extractEvolutionMessage(body)
 

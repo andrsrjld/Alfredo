@@ -6,6 +6,7 @@ import { normalizePhone } from '@/lib/phone'
 import { shouldBotReply } from '@/lib/bot-mode'
 import { markdownToWhatsApp } from '@/lib/messaging/whatsapp-format'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireMetaSignatureOrSecret, requireSharedWebhookSecret } from '@/lib/api-guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,17 +36,24 @@ export async function POST(request: NextRequest) {
     let text = ''
 
     if (provider === 'fonnte') {
+      const unauthorized = requireSharedWebhookSecret(request, 'WhatsApp webhook (fonnte)')
+      if (unauthorized) return unauthorized
       const formData = await request.formData()
       from = (formData.get('number') as string) || ''
       text = (formData.get('message') as string) || ''
     } else if (provider === 'evolution') {
+      const unauthorized = requireSharedWebhookSecret(request, 'WhatsApp webhook (evolution)')
+      if (unauthorized) return unauthorized
       const body = await request.json()
       const data = body?.data || body
       const msgData = data?.msg || data?.message || data
       from = msgData?.from || msgData?.remoteJid?.split('@')[0] || ''
       text = msgData?.text || msgData?.body?.conversation || msgData?.conversation || ''
     } else {
-      const body = await request.json()
+      const raw = await request.text()
+      const unauthorized = await requireMetaSignatureOrSecret(request, raw, 'WhatsApp webhook (meta)')
+      if (unauthorized) return unauthorized
+      const body = raw ? JSON.parse(raw) : {}
       const parsed = extractMetaMessage(body)
       if (!parsed) {
         return NextResponse.json({ ok: true })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { randomBytes } from 'crypto'
+import { requireDashboardUser } from '@/lib/api-guards'
 
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
@@ -8,6 +9,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    const auth = await requireDashboardUser('Servers GET')
+    if (!auth.ok) return auth.response
+
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('server_status')
@@ -26,6 +30,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireDashboardUser('Servers POST')
+    if (!auth.ok) return auth.response
+
     const body = await request.json()
     const { server_name, ip_address } = body as { server_name: string; ip_address?: string }
 
@@ -96,6 +103,9 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const auth = await requireDashboardUser('Servers PATCH')
+    if (!auth.ok) return auth.response
+
     const body = await request.json()
     const { id, server_name, ip_address, notes } = body as {
       id?: string
@@ -146,6 +156,9 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireDashboardUser('Servers DELETE')
+    if (!auth.ok) return auth.response
+
     const { searchParams } = new URL(request.url)
     const server_name = searchParams.get('server_name')
 

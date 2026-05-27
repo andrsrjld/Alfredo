@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getGitLabPAT, fetchFailedJobLog } from '@/lib/gitlab'
+import { requireSharedWebhookSecret } from '@/lib/api-guards'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,9 @@ function extractGitLabTimestamp(payload: Record<string, unknown>, status: string
 
 export async function POST(request: NextRequest) {
   try {
+    const unauthorized = requireSharedWebhookSecret(request, 'GitLab webhook')
+    if (unauthorized) return unauthorized
+
     const token = request.headers.get('x-gitlab-token')
     if (token !== process.env.GITLAB_WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
