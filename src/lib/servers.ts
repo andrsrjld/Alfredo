@@ -24,8 +24,24 @@ export type ContainerRecord = {
   last_updated: string
 }
 
-export const STALE_THRESHOLD_MS = 10_000
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app'
+function getStaleThresholdMs(): number {
+  const msRaw = process.env.STALE_THRESHOLD_MS
+  if (msRaw) {
+    const ms = Number(msRaw)
+    if (Number.isFinite(ms) && ms > 0) return ms
+  }
+
+  const secRaw = process.env.STALE_THRESHOLD_SECONDS
+  if (secRaw) {
+    const sec = Number(secRaw)
+    if (Number.isFinite(sec) && sec > 0) return sec * 1000
+  }
+
+  return 2 * 60_000
+}
+
+export const STALE_THRESHOLD_MS = getStaleThresholdMs()
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 export const SERVER_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/
 
