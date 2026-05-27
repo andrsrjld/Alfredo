@@ -14,20 +14,22 @@ interface StatCardsProps {
     failed: number
     running: number
   }
+  pipelineFilter?: string | null
+  onPipelineFilterChange?: (filter: string | null) => void
 }
 
-export default function StatCards({ stats }: StatCardsProps) {
+export default function StatCards({ stats, pipelineFilter, onPipelineFilterChange }: StatCardsProps) {
   const otherPipelines = Math.max(0, stats.totalProjects - stats.success - stats.failed - stats.running)
   const serverData = [
-    { value: stats.online, colorClass: 'text-emerald-400', label: 'Online' },
-    { value: stats.offline, colorClass: 'text-red-400', label: 'Offline' },
+    { value: stats.online, colorClass: 'text-emerald-400', label: 'Online', key: 'online' },
+    { value: stats.offline, colorClass: 'text-red-400', label: 'Offline', key: 'offline' },
   ]
 
   const pipelineData = [
-    { value: stats.success, colorClass: 'text-emerald-400', label: 'Success' },
-    { value: stats.failed, colorClass: 'text-red-400', label: 'Failed' },
-    { value: stats.running, colorClass: 'text-amber-400', label: 'Running' },
-    { value: otherPipelines, colorClass: 'text-muted-foreground', label: 'Other' },
+    { value: stats.success, colorClass: 'text-emerald-400', label: 'Success', key: 'success' },
+    { value: stats.failed, colorClass: 'text-red-400', label: 'Failed', key: 'failed' },
+    { value: stats.running, colorClass: 'text-amber-400', label: 'Running', key: 'running' },
+    { value: otherPipelines, colorClass: 'text-muted-foreground', label: 'Other', key: 'other' },
   ]
 
   return (
@@ -72,6 +74,8 @@ export default function StatCards({ stats }: StatCardsProps) {
             className="mx-auto w-full"
             centerLabel={String(stats.success)}
             centerSubLabel="successful pipelines"
+            activeKey={pipelineFilter}
+            onSelect={onPipelineFilterChange}
           />
         </CardContent>
       </Card>

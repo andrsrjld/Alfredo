@@ -18,6 +18,7 @@ type Stats = {
 }
 
 export default function DashboardPage() {
+  const [pipelineFilter, setPipelineFilter] = useState<string | null>(null)
   const [stats, setStats] = useState<Stats>({
     totalServers: 0, online: 0, offline: 0,
     totalProjects: 0, success: 0, failed: 0, running: 0,
@@ -68,7 +69,11 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground">Live server health and GitLab pipeline status.</p>
       </div>
 
-      <StatCards stats={stats} />
+      <StatCards
+        stats={stats}
+        pipelineFilter={pipelineFilter}
+        onPipelineFilterChange={setPipelineFilter}
+      />
 
       <Card>
         <CardHeader>
@@ -86,7 +91,7 @@ export default function DashboardPage() {
           <CardDescription>Latest GitLab pipeline events and failure details.</CardDescription>
         </CardHeader>
         <CardContent>
-          <RealtimeProjectStatus />
+          <RealtimeProjectStatus statusFilter={pipelineFilter} />
         </CardContent>
       </Card>
     </div>

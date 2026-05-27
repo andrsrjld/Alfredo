@@ -3,11 +3,13 @@
 import { cn } from '@/lib/utils'
 
 interface DonutChartProps {
-  data: { value: number; colorClass: string; label?: string }[]
+  data: { value: number; colorClass: string; label?: string; key?: string }[]
   className?: string
   legendClassName?: string
   centerLabel?: string
   centerSubLabel?: string
+  activeKey?: string | null
+  onSelect?: (key: string | null) => void
 }
 
 export function DonutChart({
@@ -16,6 +18,8 @@ export function DonutChart({
   legendClassName,
   centerLabel,
   centerSubLabel,
+  activeKey,
+  onSelect,
 }: DonutChartProps) {
   const total = data.reduce((s, d) => s + d.value, 0)
   const percent = total > 0 && centerLabel ? Math.round((Number(centerLabel) / total) * 100) : 0
@@ -47,8 +51,10 @@ export function DonutChart({
       <div className={cn('grid gap-2 sm:grid-cols-2 lg:grid-cols-4', legendClassName)}>
         {data.map((d, i) => {
           const itemPercent = total > 0 ? Math.round((d.value / total) * 100) : 0
-          return (
-            <div key={i} className="rounded-md border bg-background/60 px-3 py-2">
+          const selected = !!d.key && activeKey === d.key
+          const interactive = !!d.key && !!onSelect
+          const content = (
+            <>
               <div className="mb-1 flex items-center justify-between gap-2">
                 <span className="truncate text-xs text-muted-foreground">{d.label || 'Item'}</span>
                 <span className={cn('h-2 w-6 shrink-0 rounded-sm bg-current', d.colorClass)} />
@@ -57,6 +63,29 @@ export function DonutChart({
                 <span className="font-mono text-lg font-semibold leading-none tabular-nums">{d.value}</span>
                 <span className="font-mono text-xs text-muted-foreground tabular-nums">{itemPercent}%</span>
               </div>
+            </>
+          )
+
+          if (interactive) {
+            return (
+              <button
+                key={i}
+                type="button"
+                aria-pressed={selected}
+                className={cn(
+                  'rounded-md border bg-background/60 px-3 py-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+                  selected && 'border-primary bg-accent'
+                )}
+                onClick={() => onSelect(selected ? null : d.key!)}
+              >
+                {content}
+              </button>
+            )
+          }
+
+          return (
+            <div key={i} className="rounded-md border bg-background/60 px-3 py-2">
+              {content}
             </div>
           )
         })}

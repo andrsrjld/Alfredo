@@ -30,7 +30,8 @@ type Project = {
 }
 
 const MOBILE_PAGE_SIZE = 4
-const DESKTOP_PAGE_SIZE = 9
+const DESKTOP_PAGE_SIZE = 10
+const PRIMARY_PIPELINE_STATUSES = ['success', 'failed', 'running']
 
 function capitalizeWords(s: string): string {
   return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
@@ -241,7 +242,7 @@ function ArrowPagination({ page, total, onPrev, onNext }: {
   )
 }
 
-export default function RealtimeProjectStatus() {
+export default function RealtimeProjectStatus({ statusFilter }: { statusFilter?: string | null }) {
   const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
@@ -272,10 +273,23 @@ export default function RealtimeProjectStatus() {
     }
   }, [])
 
+  useEffect(() => {
+    setMobilePage(0)
+    setDesktopPage(0)
+    scrollRef.current?.scrollTo({ left: 0, behavior: 'smooth' })
+  }, [statusFilter])
+
   const filtered = projects.filter(
-    (p) =>
-      p.repo_name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.project_group || '').toLowerCase().includes(search.toLowerCase())
+    (p) => {
+      const matchesSearch =
+        p.repo_name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.project_group || '').toLowerCase().includes(search.toLowerCase())
+
+      if (!matchesSearch) return false
+      if (!statusFilter) return true
+      if (statusFilter === 'other') return !PRIMARY_PIPELINE_STATUSES.includes(p.status)
+      return p.status === statusFilter
+    }
   )
 
   const mobileTotalPages = Math.max(1, Math.ceil(filtered.length / MOBILE_PAGE_SIZE))
@@ -306,7 +320,9 @@ export default function RealtimeProjectStatus() {
             className="pl-8"
           />
         </div>
-        <span className="text-sm text-muted-foreground">{filtered.length} projects</span>
+        <span className="text-sm text-muted-foreground">
+          {filtered.length} projects{statusFilter ? ` (${statusFilter})` : ''}
+        </span>
       </div>
 
       {/* Mobile: horizontal slider */}
