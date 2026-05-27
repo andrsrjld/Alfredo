@@ -64,17 +64,20 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existing) {
-      if (TERMINAL_STATES.includes(existing.status) && !TERMINAL_STATES.includes(status)) {
-        console.log(`[GitLab webhook] Skipping ${status} for ${repoName}: existing ${existing.status} is terminal`)
-        return NextResponse.json({ ok: true, ignored: 'terminal_state_unchanged' })
-      }
-
       if (eventTime && existing.gitlab_event_time) {
         const incomingTime = new Date(eventTime).getTime()
         const existingTime = new Date(existing.gitlab_event_time).getTime()
         if (incomingTime < existingTime) {
           console.log(`[GitLab webhook] Stale event for ${repoName}: incoming=${eventTime} < existing=${existing.gitlab_event_time}, skipping`)
           return NextResponse.json({ ok: true, ignored: 'stale_event' })
+        }
+      }
+
+      if (TERMINAL_STATES.includes(existing.status) && !TERMINAL_STATES.includes(status)) {
+        const samePipeline = pipelineId && existing.pipeline_id === pipelineId
+        if (samePipeline) {
+          console.log(`[GitLab webhook] Skipping ${status} for ${repoName}: pipeline ${pipelineId} is already ${existing.status}`)
+          return NextResponse.json({ ok: true, ignored: 'terminal_state_unchanged' })
         }
       }
     }
