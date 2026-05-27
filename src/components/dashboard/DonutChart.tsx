@@ -4,10 +4,7 @@ import { cn } from '@/lib/utils'
 
 interface DonutChartProps {
   data: { value: number; colorClass: string; label?: string }[]
-  size?: number
-  strokeWidth?: number
   className?: string
-  chartClassName?: string
   legendClassName?: string
   centerLabel?: string
   centerSubLabel?: string
@@ -15,90 +12,54 @@ interface DonutChartProps {
 
 export function DonutChart({
   data,
-  size = 120,
-  strokeWidth = 14,
   className,
-  chartClassName,
   legendClassName,
   centerLabel,
   centerSubLabel,
 }: DonutChartProps) {
   const total = data.reduce((s, d) => s + d.value, 0)
-  const radius = (size - strokeWidth) / 2
-  const circumference = 2 * Math.PI * radius
-
-  const segments = data.map((d, i) => {
-    if (total === 0) return null
-    const segment = (d.value / total) * circumference
-    return { ...d, segment, index: i }
-  }).filter(Boolean)
-
-  let offset = 0
+  const percent = total > 0 && centerLabel ? Math.round((Number(centerLabel) / total) * 100) : 0
 
   return (
-    <div className={cn('flex items-center gap-4', className)}>
-      <div className={cn(
-        'relative size-20 shrink-0 md:size-[120px]',
-        chartClassName
-      )}>
-        <svg
-          viewBox={`0 0 ${size} ${size}`}
-          className="w-full h-full -rotate-90"
-          aria-hidden="true"
-        >
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            className="text-muted/20"
-            strokeWidth={strokeWidth}
-          />
-          {segments.map((seg) => {
-            const dashArray = `${seg!.segment} ${circumference - seg!.segment}`
-            const el = (
-              <circle
-                key={seg!.index}
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                stroke="currentColor"
-                className={seg!.colorClass}
-                strokeWidth={strokeWidth}
-                strokeDasharray={dashArray}
-                strokeDashoffset={-offset}
-                strokeLinecap="round"
-              />
-            )
-            offset += seg!.segment
-            return el
-          })}
-        </svg>
-        {(centerLabel || centerSubLabel) && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-foreground pointer-events-none">
-            {centerLabel && <span className="text-lg font-bold leading-none md:text-2xl">{centerLabel}</span>}
-            {centerSubLabel && <span className="text-[10px] text-muted-foreground mt-0.5 md:text-xs">{centerSubLabel}</span>}
-          </div>
-        )}
+    <div className={cn('flex w-full flex-col gap-4', className)}>
+      <div className="grid grid-cols-[auto_1fr] items-end gap-4">
+        <div>
+          {centerLabel && <div className="text-3xl font-semibold leading-none tabular-nums">{centerLabel}</div>}
+          {centerSubLabel && <div className="mt-1 text-xs text-muted-foreground">{centerSubLabel}</div>}
+        </div>
+        <div className="text-right">
+          <div className="text-sm font-medium tabular-nums">{percent}%</div>
+          <div className="text-xs text-muted-foreground">healthy ratio</div>
+        </div>
       </div>
 
-      <div className={cn('flex min-w-0 flex-col gap-1.5 md:gap-2', legendClassName)}>
+      <div className="flex h-3 w-full overflow-hidden rounded-sm bg-muted">
         {data.map((d, i) => (
-          <div key={i} className="flex items-center gap-1.5 md:gap-2">
-            <span className={cn('inline-block h-2 w-2 shrink-0 rounded-full bg-current md:h-2.5 md:w-2.5', d.colorClass)} />
-            <span className="text-xs text-muted-foreground md:text-sm truncate">{d.label || 'Item'}</span>
-            <span className="ml-auto font-semibold tabular-nums text-foreground text-xs md:text-sm">{d.value}</span>
-          </div>
+          <span
+            key={i}
+            className={cn('h-full bg-current', d.colorClass)}
+            style={{ width: total > 0 ? `${(d.value / total) * 100}%` : `${100 / Math.max(data.length, 1)}%` }}
+            aria-hidden="true"
+          />
         ))}
-        {total > 0 && (
-          <div className="mt-0.5 border-t border-border pt-0.5 md:mt-1 md:pt-1 flex items-center gap-1.5 md:gap-2 text-xs text-muted-foreground">
-            <span className="shrink-0 inline-block h-2 w-2 rounded-full bg-muted md:h-2.5 md:w-2.5" />
-            <span>Total</span>
-            <span className="ml-auto font-semibold tabular-nums text-foreground">{total}</span>
-          </div>
-        )}
+      </div>
+
+      <div className={cn('grid gap-2 sm:grid-cols-2 lg:grid-cols-4', legendClassName)}>
+        {data.map((d, i) => {
+          const itemPercent = total > 0 ? Math.round((d.value / total) * 100) : 0
+          return (
+            <div key={i} className="rounded-md border bg-background/60 px-3 py-2">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="truncate text-xs text-muted-foreground">{d.label || 'Item'}</span>
+                <span className={cn('h-2 w-6 shrink-0 rounded-sm bg-current', d.colorClass)} />
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-lg font-semibold leading-none tabular-nums">{d.value}</span>
+                <span className="font-mono text-xs text-muted-foreground tabular-nums">{itemPercent}%</span>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

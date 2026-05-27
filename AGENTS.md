@@ -149,3 +149,5 @@
 - Daemon endpoint: `/api/daemon?secret=<ping_secret>`
 - Service endpoint: `/api/daemon?type=service&secret=<ping_secret>`
 - Re-download daemon script after any daemon-related code changes
+
+@RTK.md

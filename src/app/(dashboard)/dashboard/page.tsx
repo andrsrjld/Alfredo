@@ -41,6 +41,24 @@ export default function DashboardPage() {
       })
     }
     load()
+    const interval = setInterval(load, 2000)
+    const serverChannel = supabase
+      .channel('dashboard_stats_server_status')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'server_status' }, () => {
+        load()
+      })
+      .subscribe()
+    const projectChannel = supabase
+      .channel('dashboard_stats_project_status')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_status' }, () => {
+        load()
+      })
+      .subscribe()
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(serverChannel)
+      supabase.removeChannel(projectChannel)
+    }
   }, [])
 
   return (

@@ -17,6 +17,7 @@ interface StatCardsProps {
 }
 
 export default function StatCards({ stats }: StatCardsProps) {
+  const otherPipelines = Math.max(0, stats.totalProjects - stats.success - stats.failed - stats.running)
   const serverData = [
     { value: stats.online, colorClass: 'text-emerald-400', label: 'Online' },
     { value: stats.offline, colorClass: 'text-red-400', label: 'Offline' },
@@ -26,6 +27,7 @@ export default function StatCards({ stats }: StatCardsProps) {
     { value: stats.success, colorClass: 'text-emerald-400', label: 'Success' },
     { value: stats.failed, colorClass: 'text-red-400', label: 'Failed' },
     { value: stats.running, colorClass: 'text-amber-400', label: 'Running' },
+    { value: otherPipelines, colorClass: 'text-muted-foreground', label: 'Other' },
   ]
 
   return (
@@ -45,13 +47,9 @@ export default function StatCards({ stats }: StatCardsProps) {
         <CardContent className="pt-4">
           <DonutChart
             data={serverData}
-            size={144}
-            strokeWidth={16}
-            className="mx-auto w-full max-w-[360px] justify-center gap-7 lg:max-w-[420px] lg:gap-9"
-            chartClassName="size-28 md:size-32 lg:size-36"
-            legendClassName="w-32 md:w-40"
+            className="mx-auto w-full"
             centerLabel={String(stats.online)}
-            centerSubLabel={stats.totalServers > 0 ? `${Math.round((stats.online / stats.totalServers) * 100)}%` : '0%'}
+            centerSubLabel="online servers"
           />
         </CardContent>
       </Card>
@@ -71,13 +69,9 @@ export default function StatCards({ stats }: StatCardsProps) {
         <CardContent className="pt-4">
           <DonutChart
             data={pipelineData}
-            size={144}
-            strokeWidth={16}
-            className="mx-auto w-full max-w-[360px] justify-center gap-7 lg:max-w-[420px] lg:gap-9"
-            chartClassName="size-28 md:size-32 lg:size-36"
-            legendClassName="w-32 md:w-40"
+            className="mx-auto w-full"
             centerLabel={String(stats.success)}
-            centerSubLabel={stats.totalProjects > 0 ? `${Math.round((stats.success / stats.totalProjects) * 100)}%` : '0%'}
+            centerSubLabel="successful pipelines"
           />
         </CardContent>
       </Card>

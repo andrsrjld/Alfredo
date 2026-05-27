@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import StatCards from '@/components/dashboard/StatCards'
-import { statusConfig, timeAgo } from '@/lib/servers'
+import ServerCard from '@/components/servers/ServerCard'
+import type { ServerRecord } from '@/lib/servers'
 import type { PublicOverviewData, PublicProject, PublicServer } from '@/lib/public-overview'
 
 const projectStatusConfig: Record<string, { variant: 'default' | 'destructive' | 'secondary' | 'success' | 'warning'; label: string }> = {
@@ -28,8 +29,12 @@ function formatWIBShort(iso: string): string {
   })
 }
 
-function publicServerStatus(server: PublicServer) {
-  return statusConfig[server.status] || { variant: 'secondary' as const, label: server.status || 'Unknown' }
+function toPublicServerCardRecord(server: PublicServer): ServerRecord {
+  return {
+    ...server,
+    notes: null,
+    ping_secret: null,
+  }
 }
 
 function ServerGrid({ servers }: { servers: PublicServer[] }) {
@@ -41,35 +46,9 @@ function ServerGrid({ servers }: { servers: PublicServer[] }) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {servers.map(server => {
-            const cfg = publicServerStatus(server)
-            return (
-              <Card key={server.id} size="sm" className="bg-background/60">
-                <CardContent>
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="truncate font-mono text-sm font-medium">{server.server_name}</span>
-                    <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                  </div>
-                  <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                    <div className="flex items-center justify-between gap-3">
-                      <span>IP</span>
-                      <span className="truncate font-mono text-foreground/80">{server.ip_address || '-'}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span>Load</span>
-                      <span className="truncate font-mono text-xs text-foreground/80">
-                        C:{server.cpu_usage?.toFixed(1) ?? '-'}% M:{server.memory_usage?.toFixed(1) ?? '-'}% D:{server.disk_usage?.toFixed(1) ?? '-'}%
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <span>Ping</span>
-                      <span className="font-mono text-foreground/80">{timeAgo(server.last_ping)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+          {servers.map(server => (
+            <ServerCard key={server.id} server={toPublicServerCardRecord(server)} />
+          ))}
           {servers.length === 0 && (
             <p className="col-span-full py-8 text-center text-sm text-muted-foreground">No servers reporting.</p>
           )}

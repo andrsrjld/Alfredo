@@ -12,7 +12,7 @@ export type PublicProject = {
 
 export type PublicServer = Pick<
   ServerRecord,
-  'id' | 'server_name' | 'ip_address' | 'status' | 'cpu_usage' | 'memory_usage' | 'disk_usage' | 'last_ping'
+  'id' | 'server_name' | 'ip_address' | 'status' | 'cpu_usage' | 'memory_usage' | 'disk_usage' | 'uptime_hours' | 'last_ping'
 >
 
 export type PublicOverviewData = {
@@ -34,7 +34,7 @@ export async function getPublicOverviewData(): Promise<PublicOverviewData> {
   const [servers, projects] = await Promise.all([
     supabase
       .from('server_status')
-      .select('id, server_name, ip_address, status, cpu_usage, memory_usage, disk_usage, last_ping')
+      .select('id, server_name, ip_address, status, cpu_usage, memory_usage, disk_usage, uptime_hours, last_ping')
       .order('server_name', { ascending: true }),
     supabase
       .from('project_status')
