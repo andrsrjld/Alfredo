@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encrypt, maskKey } from '@/lib/encryption'
 import { invalidateConfigCache } from '@/lib/llm'
+import { requireDashboardUser } from '@/lib/api-guards'
 
 const SUPPORTED_PROVIDERS = ['deepseek', 'openai', 'gemini', 'ollama']
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
@@ -11,6 +12,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    const auth = await requireDashboardUser('Settings GET')
+    if (!auth.ok) return auth.response
+
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('app_settings')
@@ -50,6 +54,9 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireDashboardUser('Settings PUT')
+    if (!auth.ok) return auth.response
+
     const body = await request.json()
     const { provider, temperature, models, gitlab_pat, bot_mode, active_start, active_end } = body as {
       provider: string

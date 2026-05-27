@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizePhone } from '@/lib/phone'
+import { requireDashboardUser } from '@/lib/api-guards'
 
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
@@ -8,6 +9,9 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
+    const auth = await requireDashboardUser('Whitelist GET')
+    if (!auth.ok) return auth.response
+
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('whitelisted_pms')
@@ -26,6 +30,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireDashboardUser('Whitelist POST')
+    if (!auth.ok) return auth.response
+
     const body = await request.json()
     const { phone_number, pm_name, is_active } = body as { phone_number: string; pm_name?: string; is_active?: boolean }
 
@@ -52,6 +59,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireDashboardUser('Whitelist PUT')
+    if (!auth.ok) return auth.response
+
     const body = await request.json()
     const { entries } = body as { entries: Array<{ phone: string; name?: string; active?: boolean }> }
 
@@ -105,6 +115,9 @@ export async function PUT(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const auth = await requireDashboardUser('Whitelist PATCH')
+    if (!auth.ok) return auth.response
+
     const body = await request.json()
     const { phone_number, is_active } = body as { phone_number: string; is_active: boolean }
 
@@ -132,6 +145,9 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const auth = await requireDashboardUser('Whitelist DELETE')
+    if (!auth.ok) return auth.response
+
     const { searchParams } = new URL(request.url)
     const phone_number = searchParams.get('phone_number')
 
