@@ -19,6 +19,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: andrsrjld/alfredo
   NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app' }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
