@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app'
   const pingUrl = `${baseUrl}/api/server-ping`
   const serverName = server.server_name
+  const interval = Math.max(10, Number(process.env.SERVER_PING_INTERVAL_SECONDS || 60))
+  const containerInterval = Math.max(interval, Number(process.env.CONTAINER_PING_INTERVAL_SECONDS || 300))
 
   if (type === 'service') {
     const unit = `[Unit]
@@ -60,14 +62,14 @@ WantedBy=multi-user.target
 
   const script = `#!/bin/bash
 # Alfredo Daemon - ${serverName}
-# Realtime metrics broadcaster (3s interval)
+# Metrics broadcaster (${interval}s interval)
 # Secret and URL pre-filled
 # Install: see setup instructions in dashboard
 
 PING_URL="${pingUrl}"
 SECRET="${secret}"
-INTERVAL=3
-CONTAINER_INTERVAL=60
+INTERVAL=${interval}
+CONTAINER_INTERVAL=${containerInterval}
 
 last_container=-999999
 CPU_STATE_FILE="/tmp/alfredo-cpu-\${SECRET:0:8}.state"

@@ -377,6 +377,17 @@ npm run lint       # ESLint
 npm run start      # Serve production build
 ```
 
+### Docker deploy
+
+Alfredo can run outside Vercel as a Dockerized Next.js app:
+
+```bash
+cp docker.env.example .env
+docker compose up -d --build
+```
+
+See `docs/docker-deploy.md` for reverse proxy, Supabase, webhook, and daemon migration notes.
+
 **Key dev notes:**
 - All API routes have `export const dynamic = 'force-dynamic'` — required for Vercel
 - All API routes set `Cache-Control: no-store` — prevents edge caching
