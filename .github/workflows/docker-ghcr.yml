@@ -52,6 +52,15 @@ jobs:
             type=ref,event=tag
             type=sha,prefix=sha-
 
+      - name: Validate build-time public env
+        shell: bash
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$NEXT_PUBLIC_SUPABASE_URL" || { echo "Missing NEXT_PUBLIC_SUPABASE_URL repository secret"; exit 1; }
+          test -n "$NEXT_PUBLIC_SUPABASE_ANON_KEY" || { echo "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY repository secret"; exit 1; }
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
