@@ -380,11 +380,15 @@ npm run start      # Serve production build
 
 ### Docker deploy
 
-Alfredo can run outside Vercel as a Dockerized Next.js app:
+Alfredo can run outside Vercel from the GHCR image. On the server, keep the real `.env` beside `docker-compose.prod.yml` and never commit it:
 
 ```bash
+mkdir -p /opt/alfredo
+cd /opt/alfredo
 cp docker.env.example .env
-docker compose up -d --build
+nano .env
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 See `docs/docker-deploy.md` for reverse proxy, Supabase, webhook, and daemon migration notes.

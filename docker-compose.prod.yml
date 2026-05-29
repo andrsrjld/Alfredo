@@ -3,7 +3,8 @@ services:
     image: ${ALFREDO_IMAGE:-ghcr.io/andrsrjld/alfredo:latest}
     restart: unless-stopped
     env_file:
-      - .env
+      # Keep this file on the server beside docker-compose.prod.yml.
+      - ${ALFREDO_ENV_FILE:-.env}
     environment:
       NODE_ENV: production
       PORT: 3000

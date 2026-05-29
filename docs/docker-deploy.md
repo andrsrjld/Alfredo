@@ -17,9 +17,21 @@ Keep these rules:
 - Keep the same `ENCRYPTION_KEY` from production. If it changes, re-save encrypted API keys in Dashboard Settings.
 - Update Supabase Auth Site URL and Redirect URLs to the Docker domain.
 
-## First Deploy
+## First Deploy With GHCR Image
 
-1. Copy files to the server.
+1. Create a deploy folder on the server and copy only the compose file plus the env template:
+
+```bash
+mkdir -p /opt/alfredo
+cd /opt/alfredo
+```
+
+Copy these repository files into that folder:
+
+- `docker-compose.prod.yml`
+- `docker.env.example`
+
+The real `.env` file is created directly on the server beside `docker-compose.prod.yml`. Do not commit or upload the filled `.env` back to git.
 
 2. Create the env file:
 
@@ -39,13 +51,7 @@ Set at least:
 - provider keys such as `FONNTE_API_KEY`
 - webhook secrets such as `WA_WEBHOOK_SECRET` and `GITLAB_WEBHOOK_SECRET`
 
-3. Build and run locally from source:
-
-```bash
-docker compose up -d --build
-```
-
-Or run the prebuilt GHCR image:
+3. Pull and run the prebuilt GHCR image:
 
 ```bash
 docker compose -f docker-compose.prod.yml pull
@@ -93,19 +99,22 @@ sudo systemctl restart alfredo-daemon
 
 ## Operations
 
+For GHCR image deployments:
+
+```bash
+cd /opt/alfredo
+docker compose -f docker-compose.prod.yml logs -f alfredo
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+For local source builds only:
+
 ```bash
 docker compose logs -f alfredo
 docker compose restart alfredo
 docker compose pull
 docker compose up -d --build
-```
-
-For GHCR image deployments:
-
-```bash
-docker compose -f docker-compose.prod.yml logs -f alfredo
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
 ```
 
 ## GitHub Container Registry
