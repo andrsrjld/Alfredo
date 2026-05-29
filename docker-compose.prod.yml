@@ -1,0 +1,12 @@
+services:
+  alfredo:
+    image: ${ALFREDO_IMAGE:-ghcr.io/andrsrjld/alfredo:latest}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${ALFREDO_PORT:-3000}:3000"

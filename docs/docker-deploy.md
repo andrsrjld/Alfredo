@@ -39,10 +39,17 @@ Set at least:
 - provider keys such as `FONNTE_API_KEY`
 - webhook secrets such as `WA_WEBHOOK_SECRET` and `GITLAB_WEBHOOK_SECRET`
 
-3. Build and run:
+3. Build and run locally from source:
 
 ```bash
 docker compose up -d --build
+```
+
+Or run the prebuilt GHCR image:
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 4. Put a reverse proxy in front of port `3000`.
@@ -91,4 +98,37 @@ docker compose logs -f alfredo
 docker compose restart alfredo
 docker compose pull
 docker compose up -d --build
+```
+
+For GHCR image deployments:
+
+```bash
+docker compose -f docker-compose.prod.yml logs -f alfredo
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+## GitHub Container Registry
+
+The GitHub Actions workflow builds and publishes:
+
+```text
+ghcr.io/andrsrjld/alfredo:latest
+ghcr.io/andrsrjld/alfredo:sha-<commit>
+ghcr.io/andrsrjld/alfredo:<tag>
+```
+
+Configure these GitHub repository secrets before relying on the pipeline:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Optional GitHub repository variable:
+
+- `NEXT_PUBLIC_APP_URL` defaults to `https://alfredo-pi.vercel.app` when unset. Change it to the Docker domain before production cutover.
+
+If the package is private, log in on the server before pulling:
+
+```bash
+echo "$GHCR_PAT" | docker login ghcr.io -u andrsrjld --password-stdin
 ```
