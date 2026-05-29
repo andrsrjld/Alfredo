@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ping_secret = randomBytes(24).toString('hex')
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://alfredo-pi.vercel.app'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
     const supabase = createAdminClient()
     const { data, error } = await supabase

@@ -278,6 +278,7 @@ Login at `/login`, then go to `/dashboard`.
 GITLAB_PAT=glpat-xxxx \
 GITLAB_WEBHOOK_SECRET=your-secret \
 GITLAB_GROUP_ID=12345 \
+WEBHOOK_URL_BASE=https://your-domain.com \
 node scripts/setup-gitlab-webhooks.mjs
 ```
 

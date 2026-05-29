@@ -144,8 +144,8 @@
 
 ## Critical Context
 - Version: 1.0.1
-- Supabase: `https://hltaugtnqzqfhgcfvnet.supabase.co`
-- Vercel: `https://alfredo-pi.vercel.app`
+- Supabase: set via `NEXT_PUBLIC_SUPABASE_URL`
+- Deployment URL: set via `NEXT_PUBLIC_APP_URL`
 - Daemon endpoint: `/api/daemon?secret=<ping_secret>`
 - Service endpoint: `/api/daemon?type=service&secret=<ping_secret>`
 - Re-download daemon script after any daemon-related code changes

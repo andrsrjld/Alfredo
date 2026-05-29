@@ -19,6 +19,20 @@
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.crt
+*.csr
+id_rsa*
+id_ed25519*
+service-account*.json
+*-service-account.json
+credentials*.json
+secrets*.json
+MEMORY.md
+.codex/
 
 # debug
 npm-debug.log*
@@ -30,9 +44,11 @@ yarn-error.log*
 
 # vercel
 .vercel
+.envrc
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 .env*
+!.env.example
 tsconfig.tsbuildinfo

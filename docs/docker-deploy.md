@@ -125,7 +125,7 @@ Configure these GitHub repository secrets before relying on the pipeline:
 
 Optional GitHub repository variable:
 
-- `NEXT_PUBLIC_APP_URL` defaults to `https://alfredo-pi.vercel.app` when unset. Change it to the Docker domain before production cutover.
+- `NEXT_PUBLIC_APP_URL` should be set to the Docker domain before production cutover.
 
 If the package is private, log in on the server before pulling:
 

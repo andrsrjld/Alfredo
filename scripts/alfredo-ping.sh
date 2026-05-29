@@ -5,7 +5,7 @@
 #
 # Dependencies: curl, docker, jq
 
-PING_URL="https://alfredo-pi.vercel.app/api/server-ping"
+PING_URL="https://your-domain/api/server-ping"
 SECRET="<YOUR_SERVER_PING_SECRET>"
 
 # --- System Metrics ---

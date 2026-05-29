@@ -2,7 +2,7 @@ param(
   [string]$GitLabApi = $(if ($env:GITLAB_API) { $env:GITLAB_API } else { "https://gitlab.com/api/v4" }),
   [string]$GitLabPat = $env:GITLAB_PAT,
   [string]$GroupId = $env:GITLAB_GROUP_ID,
-  [string]$WebhookUrl = $(if ($env:WEBHOOK_URL) { $env:WEBHOOK_URL } else { "https://alfredo-pi.vercel.app/api/webhook/gitlab" }),
+  [string]$WebhookUrl = $env:WEBHOOK_URL,
   [string]$Trigger = $(if ($env:TRIGGER) { $env:TRIGGER } else { "pipeline_events" })
 )
 
@@ -10,6 +10,7 @@ $ErrorActionPreference = "Stop"
 
 if (-not $GitLabPat) { throw "Set GITLAB_PAT with api scope." }
 if (-not $GroupId) { throw "Set GITLAB_GROUP_ID." }
+if (-not $WebhookUrl) { throw "Set WEBHOOK_URL, for example https://your-domain/api/webhook/gitlab." }
 
 $headers = @{ "PRIVATE-TOKEN" = $GitLabPat }
 $tested = 0

@@ -4,7 +4,7 @@ set -euo pipefail
 GITLAB_API="${GITLAB_API:-https://gitlab.com/api/v4}"
 GITLAB_PAT="${GITLAB_PAT:?Set GITLAB_PAT with api scope}"
 GITLAB_GROUP_ID="${GITLAB_GROUP_ID:?Set GITLAB_GROUP_ID}"
-WEBHOOK_URL="${WEBHOOK_URL:-https://alfredo-pi.vercel.app/api/webhook/gitlab}"
+WEBHOOK_URL="${WEBHOOK_URL:?Set WEBHOOK_URL, for example https://your-domain/api/webhook/gitlab}"
 TRIGGER="${TRIGGER:-pipeline_events}"
 
 page=1

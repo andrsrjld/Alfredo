@@ -4,14 +4,13 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 
 const GITLAB_API = 'https://gitlab.com/api/v4'
-const WEBHOOK_URL_BASE = process.env.WEBHOOK_URL_BASE || 'https://alfredo-pi.vercel.app'
+const WEBHOOK_URL_BASE = process.env.WEBHOOK_URL_BASE
 const WEBHOOK_SECRET = process.env.GITLAB_WEBHOOK_SECRET
 const GITLAB_PAT = process.env.GITLAB_PAT
 const GROUP_ID = process.env.GITLAB_GROUP_ID
 
-if (!GITLAB_PAT || !WEBHOOK_SECRET || !GROUP_ID) {
-  console.error('Missing env vars. Set: GITLAB_PAT, GITLAB_WEBHOOK_SECRET, GITLAB_GROUP_ID')
-  console.error('Optional: WEBHOOK_URL_BASE (default: https://alfredo-pi.vercel.app)')
+if (!GITLAB_PAT || !WEBHOOK_SECRET || !GROUP_ID || !WEBHOOK_URL_BASE) {
+  console.error('Missing env vars. Set: GITLAB_PAT, GITLAB_WEBHOOK_SECRET, GITLAB_GROUP_ID, WEBHOOK_URL_BASE')
   process.exit(1)
 }
 
