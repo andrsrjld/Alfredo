@@ -391,6 +391,8 @@ docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
 
+Use plain `KEY=value` lines in the server `.env`; do not wrap values in quotes for Docker `env_file`.
+
 See `docs/docker-deploy.md` for reverse proxy, Supabase, webhook, and daemon migration notes.
 
 **Key dev notes:**

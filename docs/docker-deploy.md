@@ -40,6 +40,8 @@ cp docker.env.example .env
 nano .env
 ```
 
+Use plain `KEY=value` lines without wrapping values in quotes. Docker Compose passes quote characters through to the container when using `env_file`.
+
 Set at least:
 
 - `NEXT_PUBLIC_APP_URL=https://your-domain`
