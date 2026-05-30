@@ -43,7 +43,10 @@ function getStaleThresholdMs(): number {
 }
 
 export const STALE_THRESHOLD_MS = getStaleThresholdMs()
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+export const APP_URL =
+  typeof window !== 'undefined'
+    ? window.location.origin
+    : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 export const SERVER_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/
 
@@ -144,9 +147,9 @@ export function generateSetupInstructions(server: Pick<ServerRecord, 'ping_secre
   if (mode === 'daemon') {
     return [
       `# 1. Download daemon script (secrets embedded, bash only):`,
-      `sudo curl -sL "${APP_URL}/api/daemon?secret=${secret}" -o /usr/local/bin/alfredo-daemon.sh && sudo chmod +x /usr/local/bin/alfredo-daemon.sh`,
+      `sudo curl -fsSL "${APP_URL}/api/daemon?secret=${secret}" -o /usr/local/bin/alfredo-daemon.sh && sudo chmod +x /usr/local/bin/alfredo-daemon.sh`,
       `# 2. Download systemd service unit:`,
-      `sudo curl -sL "${APP_URL}/api/daemon?type=service&secret=${secret}" -o /etc/systemd/system/alfredo-daemon.service`,
+      `tmp=$(mktemp) && curl -fsSL "${APP_URL}/api/daemon?secret=${secret}&type=service" -o "$tmp" && sudo install -m 0644 "$tmp" /etc/systemd/system/alfredo-daemon.service && rm -f "$tmp"`,
       `# 3. Enable and start:`,
       `sudo systemctl daemon-reload && sudo systemctl enable --now alfredo-daemon`,
     ].join('\n')
@@ -154,7 +157,7 @@ export function generateSetupInstructions(server: Pick<ServerRecord, 'ping_secre
   const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
   return [
     `# 1. Download ping script:`,
-    `sudo curl -sL "${APP_URL}/api/scripts/alfredo-ping.sh?secret=${secret}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
+    `sudo curl -fsSL "${APP_URL}/api/scripts/alfredo-ping.sh?secret=${secret}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
     `# 2. Add to crontab:`,
     `(crontab -l 2>/dev/null; echo "${crontab}") | crontab -`,
   ].join('\n')

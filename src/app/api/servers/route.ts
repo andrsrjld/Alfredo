@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const ping_secret = randomBytes(24).toString('hex')
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const baseUrl = new URL(request.url).origin
 
     const supabase = createAdminClient()
     const { data, error } = await supabase
@@ -64,16 +64,16 @@ export async function POST(request: NextRequest) {
 
     const webhookUrl = `${baseUrl}/api/server-ping?secret=${ping_secret}`
     const daemonScriptUrl = `${baseUrl}/api/daemon?secret=${ping_secret}`
-    const daemonServiceUrl = `${baseUrl}/api/daemon?type=service&secret=${ping_secret}`
+    const daemonServiceUrl = `${baseUrl}/api/daemon?secret=${ping_secret}&type=service`
     const pingScriptUrl = `${baseUrl}/api/scripts/alfredo-ping.sh?secret=${ping_secret}`
     const crontab = `* * * * * /usr/local/bin/alfredo-ping.sh >> /var/log/alfredo-ping.log 2>&1`
 
     const daemonInstructions = [
       `# ── Realtime Daemon (recommended) ──`,
       `# 1. Download daemon script (secrets embedded, bash only):`,
-      `sudo curl -sL "${daemonScriptUrl}" -o /usr/local/bin/alfredo-daemon.sh && sudo chmod +x /usr/local/bin/alfredo-daemon.sh`,
+      `sudo curl -fsSL "${daemonScriptUrl}" -o /usr/local/bin/alfredo-daemon.sh && sudo chmod +x /usr/local/bin/alfredo-daemon.sh`,
       `# 2. Download systemd service unit:`,
-      `sudo curl -sL "${daemonServiceUrl}" -o /etc/systemd/system/alfredo-daemon.service`,
+      `tmp=$(mktemp) && curl -fsSL "${daemonServiceUrl}" -o "$tmp" && sudo install -m 0644 "$tmp" /etc/systemd/system/alfredo-daemon.service && rm -f "$tmp"`,
       `# 3. Enable and start:`,
       `sudo systemctl daemon-reload && sudo systemctl enable --now alfredo-daemon`,
     ].join('\n')
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const cronInstructions = [
       `# ── Cron Fallback (1-min interval, no streaming) ──`,
       `# 1. Download ping script:`,
-      `sudo curl -sL "${pingScriptUrl}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
+      `sudo curl -fsSL "${pingScriptUrl}" -o /usr/local/bin/alfredo-ping.sh && sudo chmod +x /usr/local/bin/alfredo-ping.sh`,
       `# 2. Add to crontab:`,
       `(crontab -l 2>/dev/null; echo "${crontab}") | crontab -`,
     ].join('\n')
