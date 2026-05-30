@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Monitor, FileText, Server, Users, Settings, LogOut, Zap } from 'lucide-react'
+import { Monitor, FileText, Server, Users, Settings, Zap } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -34,8 +34,8 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen bg-muted/40">
       <a href="#dashboard-main" className="skip-link">Skip to main content</a>
-      {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-background lg:flex">
+      {/* Desktop/tablet menu intentionally hidden; mobile uses bottom navigation. */}
+      <aside className="hidden">
         <div className="flex h-14 shrink-0 items-center border-b border-sidebar-border px-4">
           <div className="flex items-center gap-2.5">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary shadow-sm">
@@ -72,7 +72,6 @@ export default function DashboardLayout({
         <div className="shrink-0 border-t border-sidebar-border p-3">
           <form action="/api/auth/signout" method="post" className="block">
             <Button type="submit" variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground">
-              <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
               Sign out
             </Button>
           </form>
@@ -81,8 +80,8 @@ export default function DashboardLayout({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 shrink-0 border-b border-border bg-background/80 backdrop-blur-xl">
-          <div className="flex h-14 items-center gap-3 px-4 lg:px-8">
-            <div className="flex items-center gap-2.5 lg:hidden">
+          <div className="flex h-14 items-center gap-3 px-4 md:px-8">
+            <div className="flex items-center gap-2.5">
               <div className="flex size-7 items-center justify-center rounded-md bg-primary">
                 <Zap className="h-3.5 w-3.5 text-primary-foreground" />
               </div>
@@ -93,14 +92,14 @@ export default function DashboardLayout({
           </div>
         </header>
 
-            <main id="dashboard-main" className="flex-1 overflow-auto pb-16 lg:pb-0" tabIndex={-1}>
+        <main id="dashboard-main" className="flex-1 overflow-auto pb-16 md:pb-0" tabIndex={-1}>
           {children}
         </main>
       </div>
 
       {/* Mobile bottom navigation */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
         aria-label="Main navigation"
       >
         {navItems.map(({ href, label, icon: Icon }) => {
