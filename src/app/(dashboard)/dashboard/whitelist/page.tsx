@@ -19,6 +19,7 @@ type WhitelistEntry = {
   phone_number: string
   pm_name: string | null
   is_active: boolean
+  ops_role: 'viewer' | 'operator' | 'admin'
 }
 
 const PAGE_SIZE = 20
@@ -169,6 +170,25 @@ export default function WhitelistPage() {
       setEntries(prev => prev.map(e =>
         e.phone_number === phone_number ? { ...e, is_active: currentActive } : e
       ))
+    }
+  }
+
+  async function handleRoleChange(phone_number: string, ops_role: WhitelistEntry['ops_role']) {
+    const previous = entries
+    setEntries(prev => prev.map(e =>
+      e.phone_number === phone_number ? { ...e, ops_role } : e
+    ))
+    try {
+      const res = await fetch('/api/whitelist', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number, ops_role }),
+      })
+      if (!res.ok) {
+        setEntries(previous)
+      }
+    } catch {
+      setEntries(previous)
     }
   }
 
@@ -334,6 +354,17 @@ export default function WhitelistPage() {
                     )}
                     <p className="truncate font-mono text-[10px] text-muted-foreground">{formatPhoneDisplay(entry.phone_number)}</p>
                   </div>
+                  <label className="sr-only" htmlFor={`role-${entry.phone_number}`}>Ops role</label>
+                  <select
+                    id={`role-${entry.phone_number}`}
+                    value={entry.ops_role || 'viewer'}
+                    onChange={e => handleRoleChange(entry.phone_number, e.target.value as WhitelistEntry['ops_role'])}
+                    className="h-7 shrink-0 rounded-md border border-input bg-background px-2 text-[10px] text-foreground"
+                  >
+                    <option value="viewer">viewer</option>
+                    <option value="operator">operator</option>
+                    <option value="admin">admin</option>
+                  </select>
 	                  <button
 	                    type="button"
 	                    role="switch"

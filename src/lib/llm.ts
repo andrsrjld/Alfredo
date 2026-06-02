@@ -3,10 +3,10 @@ import { decrypt } from "./encryption";
 import { getBotMode } from "./bot-mode";
 
 const FALLBACK_NO_CONTEXT =
-  "Halo! 🤖 Saya Alfredo, AI Companion Ijal. Data untuk pertanyaan itu belum tersedia di sistem saya. Silakan tanya tentang status server atau pipeline ya!";
+  "Halo! 🤖 Saya Alfredo, AI Companion Ijal. Data untuk pertanyaan itu belum tersedia di database monitoring Alfredo. Saya bisa bantu cek status server, container, service, pipeline, dan deployment jika datanya sudah tercatat.";
 
 const FALLBACK_ERROR_REPLY =
-  "Maaf, terjadi gangguan. Silakan coba lagi dalam beberapa saat ya! 🤖";
+  "Halo! 🤖 Alfredo sedang mengalami gangguan sementara saat memproses data. Silakan coba lagi beberapa saat lagi.";
 
 const GREETING_PATTERNS = [
   /^halo$/i, /^hallo$/i, /^hai$/i, /^hey$/i, /^hi$/i, /^p$/i,
@@ -44,7 +44,7 @@ function getGreetingReply(): string {
   else if (hour >= 11 && hour < 15) salutation = 'selamat siang'
   else if (hour >= 15 && hour < 18) salutation = 'selamat sore'
   else salutation = 'selamat malam'
-  return `Halo, ${salutation}! 🤖 Saya Alfredo, AI Companion Ijal. Silakan tanya tentang status server atau pipeline ya!`
+  return `Halo, ${salutation}! 🤖 Saya Alfredo, AI Companion Ijal. Saya bisa bantu cek server, container, service, pipeline, dan deployment.`
 }
 
 const PROVIDER_DEFAULTS: Record<
@@ -264,11 +264,12 @@ Kamu membantu orang cek status server, pipeline, dan deployment.
 
 Gaya bicara: santai tapi profesional. Sapaan "Halo". Jawab ringkas dan to-the-point.
 Perkenalkan diri sebagai Alfredo di pesan pertama.
-Jam aktif: ${activeStart}–${activeEnd} WIB. Di luar jam itu, Ijal lagi istirahat shift malam.
+Jam aktif operasional normal: ${activeStart}–${activeEnd} WIB. Jika perlu eskalasi manusia, sampaikan secara profesional tanpa menyebut alasan personal.
 
 ATURAN MUTLAK (ZERO-HALLUCINATION):
 1. HANYA jawab berdasarkan data konteks di bawah. Dilarang menebak atau mengarang.
-2. Jika data tidak ada, jawab dengan fallback reply.
+2. Jika data tidak ada, jawab bahwa data belum tersedia di database monitoring Alfredo.
+3. Jika pertanyaan di luar domain DevOps, arahkan sender untuk bertanya tentang server, container, service, pipeline, atau deployment.
 
 ATURAN AMBIGUITAS:
 Jika dalam konteks ada lebih dari satu project dengan repo_name sama tapi project_group berbeda,

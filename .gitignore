@@ -46,6 +46,14 @@ yarn-error.log*
 .vercel
 .envrc
 
+# Android / Capacitor local secrets
+android/app/google-services.json
+android/**/*.jks
+android/**/*.keystore
+android/local.properties
+android/.gradle/
+android/**/build/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { STALE_THRESHOLD_MS } from '@/lib/servers'
+import { sendPushNotification, timeBucketKey } from '@/lib/push'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +45,13 @@ export async function GET(request: NextRequest) {
     const marked = data?.map((s) => s.server_name) ?? []
     if (marked.length > 0) {
       console.log(`[cron/stale-check] Marked offline: ${marked.join(', ')}`)
+      await Promise.all(marked.map(serverName => sendPushNotification({
+        eventType: 'server_offline',
+        target: serverName,
+        dedupeKey: timeBucketKey('server_offline', serverName, 15),
+        title: 'Alfredo: Server offline',
+        body: `${serverName} tidak mengirim ping dalam threshold monitoring.`,
+      })))
     }
 
     return NextResponse.json({ marked_offline: marked }, {

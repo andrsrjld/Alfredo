@@ -16,8 +16,12 @@ import {
 import {
   APP_URL,
   type ContainerRecord,
+  type OpsCommandRecord,
   type ServerRecord,
+  type ServerServiceRecord,
+  type ServerSshMetadata,
   SERVER_NAME_PATTERN,
+  SERVER_PUBLIC_SELECT,
   containerStatusConfig,
   formatWIB,
   generateSetupInstructions,
@@ -181,6 +185,18 @@ export default function ServerDetailDialog({
   const [setupMode, setSetupMode] = useState<'daemon' | 'cron'>('daemon')
   const [showSetup, setShowSetup] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [sshMeta, setSshMeta] = useState<ServerSshMetadata | null>(null)
+  const [sshHost, setSshHost] = useState('')
+  const [sshPort, setSshPort] = useState('22')
+  const [sshUsername, setSshUsername] = useState('')
+  const [sshAuthType, setSshAuthType] = useState<'key' | 'password' | 'key_password'>('key')
+  const [sshPrivateKey, setSshPrivateKey] = useState('')
+  const [sshPassphrase, setSshPassphrase] = useState('')
+  const [sshPassword, setSshPassword] = useState('')
+  const [sshMessage, setSshMessage] = useState('')
+  const [sshBusy, setSshBusy] = useState(false)
+  const [services, setServices] = useState<ServerServiceRecord[]>([])
+  const [opsHistory, setOpsHistory] = useState<OpsCommandRecord[]>([])
 
   useEffect(() => {
     if (!serverId || !open || !initialServer) return
@@ -197,6 +213,7 @@ export default function ServerDetailDialog({
     setExpandedGroups(new Set())
     setExpandedServices(new Set())
     setShowSetup(initialShowSetup && showAdminTools)
+    setSshMessage('')
 
     let active = true
     const supabase = createClient()
@@ -218,7 +235,7 @@ export default function ServerDetailDialog({
     async function fetchServerMetrics() {
       const { data, error } = await supabase
         .from('server_status')
-        .select('*')
+        .select(SERVER_PUBLIC_SELECT)
         .eq('id', serverId!)
         .maybeSingle()
       if (!active || error || !data) return
@@ -230,18 +247,54 @@ export default function ServerDetailDialog({
       }
     }
 
+    async function fetchServices() {
+      const res = await fetch(`/api/ops/services?server_name=${encodeURIComponent(queryNameRef.current)}`)
+      if (!active || !res.ok) return
+      const data = await res.json()
+      setServices(data.services || [])
+    }
+
+    async function fetchHistory() {
+      const res = await fetch(`/api/ops/history?server_name=${encodeURIComponent(queryNameRef.current)}`)
+      if (!active || !res.ok) return
+      const data = await res.json()
+      setOpsHistory(data.commands || [])
+    }
+
+    async function fetchSsh() {
+      const res = await fetch(`/api/servers/ssh?id=${encodeURIComponent(serverId!)}`)
+      if (!active || !res.ok) return
+      const data = await res.json()
+      const ssh = data.ssh as ServerSshMetadata
+      setSshMeta(ssh)
+      setSshHost(ssh.ssh_host || '')
+      setSshPort(String(ssh.ssh_port || 22))
+      setSshUsername(ssh.ssh_username || '')
+      setSshAuthType(ssh.ssh_auth_type || 'key')
+    }
+
     fetchContainers(true)
     fetchServerMetrics()
+    fetchServices()
+    fetchHistory()
+    fetchSsh()
     const metricsInterval = setInterval(fetchServerMetrics, DIALOG_METRICS_INTERVAL_MS)
     const containersInterval = setInterval(() => fetchContainers(false), DIALOG_CONTAINERS_INTERVAL_MS)
+    const servicesInterval = setInterval(fetchServices, DIALOG_CONTAINERS_INTERVAL_MS)
+    const historyInterval = setInterval(fetchHistory, DIALOG_CONTAINERS_INTERVAL_MS)
 
     return () => {
       active = false
       clearInterval(metricsInterval)
       clearInterval(containersInterval)
+      clearInterval(servicesInterval)
+      clearInterval(historyInterval)
       snapshotRef.current = null
       setLiveServer(null)
       setContainers([])
+      setServices([])
+      setOpsHistory([])
+      setSshMeta(null)
       setContainersLoading(false)
       setExpandedGroups(new Set())
       setExpandedServices(new Set())
@@ -368,6 +421,74 @@ export default function ServerDetailDialog({
       }
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function handleServiceAllowed(service: ServerServiceRecord, isAllowed: boolean) {
+    setServices(prev => prev.map(s => s.id === service.id ? { ...s, is_allowed: isAllowed } : s))
+    const res = await fetch('/api/ops/services', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: service.id, is_allowed: isAllowed }),
+    })
+    if (!res.ok) {
+      setServices(prev => prev.map(s => s.id === service.id ? service : s))
+    }
+  }
+
+  async function saveSshSettings() {
+    if (!displayServer.id) return
+    setSshBusy(true)
+    setSshMessage('')
+    try {
+      const res = await fetch('/api/servers/ssh', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: displayServer.id,
+          ssh_host: sshHost,
+          ssh_port: Number(sshPort || 22),
+          ssh_username: sshUsername,
+          ssh_auth_type: sshAuthType,
+          private_key: sshPrivateKey || undefined,
+          passphrase: sshPassphrase || undefined,
+          password: sshPassword || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSshMessage(data.error || 'Failed to save SSH settings')
+        return
+      }
+      setSshMeta(data.ssh)
+      setSshPrivateKey('')
+      setSshPassphrase('')
+      setSshPassword('')
+      setSshMessage('SSH settings saved')
+    } catch {
+      setSshMessage('Network error')
+    } finally {
+      setSshBusy(false)
+    }
+  }
+
+  async function runSshAction(action: 'test' | 'install_daemon') {
+    if (!displayServer.id) return
+    setSshBusy(true)
+    setSshMessage('')
+    try {
+      const res = await fetch('/api/servers/ssh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: displayServer.id, action }),
+      })
+      const data = await res.json()
+      const output = [data.result?.stdout, data.result?.stderr].filter(Boolean).join('\n').trim()
+      setSshMessage(res.ok && data.ok ? `OK\n${output}` : (data.error || output || 'SSH action failed'))
+    } catch {
+      setSshMessage('Network error')
+    } finally {
+      setSshBusy(false)
     }
   }
 
@@ -536,6 +657,104 @@ export default function ServerDetailDialog({
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                 {deleting ? 'Deleting…' : 'Delete server'}
               </Button>
+            </div>
+          )}
+
+          {showAdminTools && (
+            <div className="space-y-3 border-t border-border pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-foreground">SSH setup</span>
+                {sshMeta && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {sshMeta.has_private_key || sshMeta.has_password ? 'credentials saved' : 'no credentials'}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <Input value={sshHost} onChange={e => setSshHost(e.target.value)} placeholder="Host" className="h-8 font-mono text-xs" />
+                <Input value={sshPort} onChange={e => setSshPort(e.target.value)} placeholder="22" inputMode="numeric" className="h-8 font-mono text-xs" />
+                <Input value={sshUsername} onChange={e => setSshUsername(e.target.value)} placeholder="Username" className="h-8 font-mono text-xs" />
+              </div>
+              <select
+                value={sshAuthType}
+                onChange={e => setSshAuthType(e.target.value as 'key' | 'password' | 'key_password')}
+                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
+              >
+                <option value="key">Private key</option>
+                <option value="password">Password</option>
+                <option value="key_password">Private key + password</option>
+              </select>
+              {(sshAuthType === 'key' || sshAuthType === 'key_password') && (
+                <Textarea value={sshPrivateKey} onChange={e => setSshPrivateKey(e.target.value)} placeholder="Paste private key to replace saved key" rows={4} className="font-mono text-xs" />
+              )}
+              {(sshAuthType === 'key' || sshAuthType === 'key_password') && (
+                <Input value={sshPassphrase} onChange={e => setSshPassphrase(e.target.value)} placeholder="Passphrase (optional, leave blank to keep saved)" type="password" className="h-8 text-xs" />
+              )}
+              {(sshAuthType === 'password' || sshAuthType === 'key_password') && (
+                <Input value={sshPassword} onChange={e => setSshPassword(e.target.value)} placeholder="Password (leave blank to keep saved)" type="password" className="h-8 text-xs" />
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={saveSshSettings} disabled={sshBusy}>Save SSH</Button>
+                <Button size="sm" variant="outline" onClick={() => runSshAction('test')} disabled={sshBusy}>Test SSH</Button>
+                <Button size="sm" onClick={() => runSshAction('install_daemon')} disabled={sshBusy}>Install/Update Daemon</Button>
+              </div>
+              {sshMessage && (
+                <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted p-2 font-mono text-[10px] text-muted-foreground">{sshMessage}</pre>
+              )}
+            </div>
+          )}
+
+          {showAdminTools && (
+            <div className="space-y-2 border-t border-border pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-foreground">Allowed services</span>
+                <span className="text-[10px] text-muted-foreground">{services.length} discovered</span>
+              </div>
+              <div className="max-h-40 overflow-y-auto rounded-md border border-border">
+                {services.length === 0 ? (
+                  <p className="p-3 text-xs text-muted-foreground">No services discovered yet. Re-download and restart the latest daemon.</p>
+                ) : services.slice(0, 80).map(service => (
+                  <label key={service.id} className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-xs last:border-b-0">
+                    <span className="min-w-0">
+                      <span className="block truncate font-mono text-foreground">{service.service_name}</span>
+                      <span className="block truncate text-[10px] text-muted-foreground">{service.active_state || '-'} / {service.sub_state || '-'}</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={service.is_allowed}
+                      onChange={e => handleServiceAllowed(service, e.target.checked)}
+                      className="h-4 w-4 shrink-0 accent-primary"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showAdminTools && (
+            <div className="space-y-2 border-t border-border pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-foreground">Ops history</span>
+                <span className="text-[10px] text-muted-foreground">{opsHistory.length} recent</span>
+              </div>
+              <div className="max-h-40 overflow-y-auto rounded-md border border-border">
+                {opsHistory.length === 0 ? (
+                  <p className="p-3 text-xs text-muted-foreground">No ops command history yet.</p>
+                ) : opsHistory.slice(0, 20).map(command => (
+                  <div key={command.id} className="space-y-1 border-b border-border px-3 py-2 text-xs last:border-b-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate font-mono">{command.action} {command.target_type} {command.target_name || '-'}</span>
+                      <Badge variant={command.status === 'succeeded' ? 'success' : command.status === 'failed' ? 'destructive' : 'secondary'}>{command.status}</Badge>
+                    </div>
+                    <div className="truncate text-[10px] text-muted-foreground">
+                      {command.requester_name || command.requester_phone} • {formatWIB(command.requested_at)}
+                    </div>
+                    {(command.output || command.error) && (
+                      <pre className="max-h-20 overflow-auto whitespace-pre-wrap break-all rounded bg-muted px-2 py-1 font-mono text-[10px]">{command.error || command.output}</pre>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

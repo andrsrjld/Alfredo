@@ -12,6 +12,48 @@ export type ServerRecord = {
   last_ping: string
 }
 
+export type ServerServiceRecord = {
+  id: string
+  server_name: string
+  service_name: string
+  description: string | null
+  load_state: string | null
+  active_state: string | null
+  sub_state: string | null
+  is_allowed: boolean
+  last_seen: string
+}
+
+export type OpsCommandRecord = {
+  id: string
+  requester_phone: string
+  requester_name: string | null
+  requester_role: string
+  server_name: string
+  target_type: 'container' | 'service'
+  target_name: string | null
+  action: string
+  status: string
+  output: string | null
+  error: string | null
+  requested_at: string
+  finished_at: string | null
+}
+
+export type ServerSshMetadata = {
+  id: string
+  server_name: string
+  ssh_host: string | null
+  ssh_port: number
+  ssh_username: string | null
+  ssh_auth_type: 'key' | 'password' | 'key_password' | null
+  has_private_key: boolean
+  has_passphrase: boolean
+  has_password: boolean
+}
+
+export const SERVER_PUBLIC_SELECT = 'id, server_name, ip_address, status, notes, ping_secret, cpu_usage, memory_usage, disk_usage, uptime_hours, last_ping'
+
 export type ContainerRecord = {
   id: string
   server_name: string

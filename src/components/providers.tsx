@@ -1,6 +1,7 @@
 'use client'
 
 import { ThemeProvider as NextThemesProvider } from 'next-themes'
+import PushNotificationRegistrar from './push-notifications'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem={false}
       disableTransitionOnChange
     >
+      <PushNotificationRegistrar />
       {children}
     </NextThemesProvider>
   )

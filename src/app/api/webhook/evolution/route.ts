@@ -7,6 +7,7 @@ import { shouldBotReply } from '@/lib/bot-mode'
 import { markdownToWhatsApp } from '@/lib/messaging/whatsapp-format'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSharedWebhookSecret } from '@/lib/api-guards'
+import { handleOpsMessage } from '@/lib/ops/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -103,9 +104,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, ignored: 'contact_inactive' })
     }
 
-    const { reply: shouldReply, mode } = await shouldBotReply()
-
     const replyTarget = isGroup ? groupId! : from
+
+    const ops = await handleOpsMessage(text, {
+      phone_number: from,
+      pm_name: whitelist.pm_name,
+      ops_role: whitelist.ops_role,
+    })
+    if (ops.handled) {
+      if (ops.reply) {
+        const messenger = getMessagingProvider()
+        await messenger.sendMessage(replyTarget, markdownToWhatsApp(ops.reply), { isGroup, mentions: isGroup && participant ? [`${participant}@s.whatsapp.net`] : undefined })
+        await supabase.from('chat_logs').insert({
+          pm_number: from,
+          pm_message: text,
+          bot_reply: ops.reply,
+          is_group: isGroup,
+          group_id: groupId || null,
+        })
+      }
+      return NextResponse.json({ ok: true, replied: !!ops.reply, ops: true })
+    }
+
+    const { reply: shouldReply, mode } = await shouldBotReply()
 
     if (!shouldReply) {
       return NextResponse.json({ ok: true, ignored: mode === 'human' ? 'human_mode' : 'outside_hours' })

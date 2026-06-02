@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import ServerCard from '@/components/servers/ServerCard'
 import ServerDetailDialog from '@/components/servers/ServerDetailDialog'
-import type { ServerRecord } from '@/lib/servers'
+import { SERVER_PUBLIC_SELECT, type ServerRecord } from '@/lib/servers'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const MOBILE_PAGE_SIZE = 4
@@ -41,7 +41,7 @@ export default function RealtimeServerStatus() {
   useEffect(() => {
     const supabase = createClient()
     async function fetchServers() {
-      const { data } = await supabase.from('server_status').select('*').order('server_name', { ascending: true })
+      const { data } = await supabase.from('server_status').select(SERVER_PUBLIC_SELECT).order('server_name', { ascending: true })
       if (data) {
         setServers(prev => {
           const next = data as ServerRecord[]

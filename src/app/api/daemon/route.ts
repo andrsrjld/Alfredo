@@ -31,9 +31,11 @@ export async function GET(request: NextRequest) {
 
   const baseUrl = new URL(request.url).origin
   const pingUrl = `${baseUrl}/api/server-ping`
+  const opsUrl = `${baseUrl}/api/ops/agent`
   const serverName = server.server_name
   const interval = Math.max(10, Number(process.env.SERVER_PING_INTERVAL_SECONDS || 60))
   const containerInterval = Math.max(interval, Number(process.env.CONTAINER_PING_INTERVAL_SECONDS || 300))
+  const serviceInterval = Math.max(containerInterval, Number(process.env.SERVICE_DISCOVERY_INTERVAL_SECONDS || 300))
 
   if (type === 'service') {
     const unit = `[Unit]
@@ -67,11 +69,14 @@ WantedBy=multi-user.target
 # Install: see setup instructions in dashboard
 
 PING_URL="${pingUrl}"
+OPS_URL="${opsUrl}"
 SECRET="${secret}"
 INTERVAL=${interval}
 CONTAINER_INTERVAL=${containerInterval}
+SERVICE_INTERVAL=${serviceInterval}
 
 last_container=-999999
+last_service=-999999
 CPU_STATE_FILE="/tmp/alfredo-cpu-\${SECRET:0:8}.state"
 
 read_cpu() {
@@ -153,6 +158,132 @@ read_containers() {
   rm -f "$tmpfile"
 }
 
+read_services() {
+  if ! command -v systemctl &>/dev/null; then
+    echo '[]'
+    return
+  fi
+  local services
+  services=$(systemctl list-units --type=service --all --no-legend --no-pager 2>/dev/null | awk '{print $1}' | head -n 300)
+  if [ -z "$services" ]; then
+    echo '[]'
+    return
+  fi
+  while IFS= read -r svc; do
+    [ -z "\${svc:-}" ] && continue
+    local description load_state active_state sub_state
+    description=$(systemctl show "$svc" --property=Description --value --no-pager 2>/dev/null | head -c 300)
+    load_state=$(systemctl show "$svc" --property=LoadState --value --no-pager 2>/dev/null | head -c 80)
+    active_state=$(systemctl show "$svc" --property=ActiveState --value --no-pager 2>/dev/null | head -c 80)
+    sub_state=$(systemctl show "$svc" --property=SubState --value --no-pager 2>/dev/null | head -c 80)
+    jq -n \\
+      --arg n "\${svc:-}" \\
+      --arg d "\${description:-}" \\
+      --arg l "\${load_state:-}" \\
+      --arg a "\${active_state:-}" \\
+      --arg s "\${sub_state:-}" \\
+      '{name:$n,description:$d,load_state:$l,active_state:$a,sub_state:$s}'
+  done <<< "$services" | jq -s '.' 2>/dev/null || echo '[]'
+}
+
+send_services() {
+  local services payload
+  services=$(read_services)
+  if [ -z "$services" ] || ! echo "$services" | jq -e 'type == "array" and length > 0' >/dev/null 2>&1; then
+    return
+  fi
+  payload=$(jq -n --argjson services "$services" '{services:$services}' 2>/dev/null) || return
+  curl -s -X POST "\${OPS_URL}?secret=\${SECRET}" -H "Content-Type: application/json" -d "$payload" >/dev/null 2>&1 || true
+}
+
+execute_ops_command() {
+  local action="$1" target_type="$2" target_name="$3" tail_count="$4" timeout_seconds="$5"
+  timeout_seconds="\${timeout_seconds:-30}"
+  tail_count="\${tail_count:-200}"
+
+  if [ "$target_type" = "container" ]; then
+    if ! command -v docker &>/dev/null; then
+      echo "docker command not available"
+      return 127
+    fi
+    case "$action" in
+      list)
+        docker ps -a --format 'table {{.Names}}\\t{{.Image}}\\t{{.Status}}\\t{{.Ports}}'
+        ;;
+      status)
+        [ -n "$target_name" ] || { echo "container name required"; return 2; }
+        docker inspect --format 'Name={{.Name}} Status={{.State.Status}} ExitCode={{.State.ExitCode}} Error={{.State.Error}} StartedAt={{.State.StartedAt}}' "$target_name"
+        ;;
+      logs)
+        [ -n "$target_name" ] || { echo "container name required"; return 2; }
+        timeout "$timeout_seconds" docker logs --tail "$tail_count" "$target_name"
+        ;;
+      start|stop|restart)
+        [ -n "$target_name" ] || { echo "container name required"; return 2; }
+        timeout "$timeout_seconds" docker "$action" "$target_name"
+        ;;
+      *)
+        echo "unsupported container action: $action"
+        return 2
+        ;;
+    esac
+    return $?
+  fi
+
+  if [ "$target_type" = "service" ]; then
+    if ! command -v systemctl &>/dev/null; then
+      echo "systemctl command not available"
+      return 127
+    fi
+    case "$action" in
+      list)
+        systemctl list-units --type=service --all --no-pager
+        ;;
+      status)
+        [ -n "$target_name" ] || { echo "service name required"; return 2; }
+        timeout "$timeout_seconds" systemctl status --no-pager --lines=30 "$target_name"
+        ;;
+      start|stop|restart)
+        [ -n "$target_name" ] || { echo "service name required"; return 2; }
+        timeout "$timeout_seconds" systemctl "$action" "$target_name"
+        ;;
+      *)
+        echo "unsupported service action: $action"
+        return 2
+        ;;
+    esac
+    return $?
+  fi
+
+  echo "unsupported target type: $target_type"
+  return 2
+}
+
+poll_ops_command() {
+  local response command id action target_type target_name tail_count timeout_seconds output exit_code payload
+  response=$(curl -s "\${OPS_URL}?secret=\${SECRET}" 2>/dev/null) || return
+  command=$(echo "$response" | jq -c '.command // empty' 2>/dev/null) || return
+  [ -n "$command" ] && [ "$command" != "null" ] || return
+
+  id=$(echo "$command" | jq -r '.id')
+  action=$(echo "$command" | jq -r '.action')
+  target_type=$(echo "$command" | jq -r '.target_type')
+  target_name=$(echo "$command" | jq -r '.target_name // empty')
+  tail_count=$(echo "$command" | jq -r '.tail // 200')
+  timeout_seconds=$(echo "$command" | jq -r '.timeout_seconds // 30')
+
+  output=$(execute_ops_command "$action" "$target_type" "$target_name" "$tail_count" "$timeout_seconds" 2>&1)
+  exit_code=$?
+
+  if [ "$exit_code" -eq 0 ]; then
+    payload=$(jq -n --arg id "$id" --arg output "$output" '{command_id:$id,ok:true,output:$output}' 2>/dev/null)
+  else
+    payload=$(jq -n --arg id "$id" --arg output "$output" --arg code "$exit_code" '{command_id:$id,ok:false,output:$output,error:("exit_code=" + $code + "\\n" + $output)}' 2>/dev/null)
+  fi
+  [ -n "$payload" ] || return
+  curl -s -X POST "\${OPS_URL}?secret=\${SECRET}" -H "Content-Type: application/json" -d "$payload" >/dev/null 2>&1 || true
+}
+
 build_payload() {
   local cpu="$1" mem="$2" disk="$3" uptime="$4" containers_json="$5"
   local out=""
@@ -198,6 +329,10 @@ send_ping() {
     containers=$(read_containers)
     last_container=$now
   fi
+  if [ $((now - last_service)) -ge $SERVICE_INTERVAL ]; then
+    send_services
+    last_service=$now
+  fi
   read -r cpu_val mem_val disk_val uptime_val <<< "$cpu_mem_disk_uptime"
   payload=$(build_payload "$cpu_val" "$mem_val" "$disk_val" "$uptime_val" "$containers")
   result=$(curl -s -w "\\n%{http_code}" -X POST "\${PING_URL}?secret=\${SECRET}" -H "Content-Type: application/json" -d "$payload" 2>/dev/null)
@@ -213,6 +348,7 @@ send_ping() {
 echo "[alfredo] Starting daemon for ${serverName} (interval=\${INTERVAL}s, containers every \${CONTAINER_INTERVAL}s)"
 while true; do
   send_ping
+  poll_ops_command
   sleep $INTERVAL
 done
 `

@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
+import { sendPushNotification, timeBucketKey } from '@/lib/push'
 
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
@@ -78,8 +79,9 @@ export async function POST(request: NextRequest) {
 
     const { cpu, memory, disk, uptime_hours, containers } = metrics
 
+    const highLoad = [cpu, memory, disk].some(value => typeof value === 'number' && value >= 95)
     const update: Record<string, unknown> = {
-      status: 'online',
+      status: highLoad ? 'high_load' : 'online',
       last_ping: new Date().toISOString(),
     }
     if (typeof cpu === 'number' && !Number.isNaN(cpu)) update.cpu_usage = cpu
@@ -95,6 +97,16 @@ export async function POST(request: NextRequest) {
     if (serverError) {
       console.error('[Server ping] POST server upsert error:', serverError)
       return NextResponse.json({ error: 'Database error' }, { status: 500, ...noStore })
+    }
+
+    if (highLoad) {
+      await sendPushNotification({
+        eventType: 'server_high_load',
+        target: serverName,
+        dedupeKey: timeBucketKey('server_high_load', serverName, 15),
+        title: 'Alfredo: High load',
+        body: `${serverName} melaporkan load tinggi. CPU ${cpu ?? '-'}%, Memory ${memory ?? '-'}%, Disk ${disk ?? '-'}%.`,
+      })
     }
 
     if (containers && Array.isArray(containers) && containers.length > 0) {

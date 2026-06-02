@@ -7,6 +7,7 @@ import { shouldBotReply } from '@/lib/bot-mode'
 import { markdownToWhatsApp } from '@/lib/messaging/whatsapp-format'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireMetaSignatureOrSecret, requireSharedWebhookSecret } from '@/lib/api-guards'
+import { handleOpsMessage } from '@/lib/ops/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -83,6 +84,24 @@ export async function POST(request: NextRequest) {
 
     if (whitelist.is_active === false) {
       return NextResponse.json({ ok: true, ignored: 'contact_inactive' })
+    }
+
+    const ops = await handleOpsMessage(text, {
+      phone_number: from,
+      pm_name: whitelist.pm_name,
+      ops_role: whitelist.ops_role,
+    })
+    if (ops.handled) {
+      if (ops.reply) {
+        const messenger = getMessagingProvider()
+        await messenger.sendMessage(from, markdownToWhatsApp(ops.reply))
+        await supabase.from('chat_logs').insert({
+          pm_number: from,
+          pm_message: text,
+          bot_reply: ops.reply,
+        })
+      }
+      return NextResponse.json({ ok: true, replied: !!ops.reply, ops: true })
     }
 
     const { reply: shouldReply, mode } = await shouldBotReply()

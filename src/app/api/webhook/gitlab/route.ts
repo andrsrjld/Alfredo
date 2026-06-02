@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { getGitLabPAT, fetchFailedJobLog } from '@/lib/gitlab'
 import crypto from 'crypto'
+import { sendPushNotification } from '@/lib/push'
 
 export const dynamic = 'force-dynamic'
 
@@ -167,6 +168,17 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('GitLab webhook upsert error:', error)
       return NextResponse.json({ error: 'Database error', detail: error.message }, { status: 500 })
+    }
+
+    if (status === 'failed') {
+      const target = group ? `${group}/${repoName}` : repoName
+      await sendPushNotification({
+        eventType: 'pipeline_failed',
+        target,
+        dedupeKey: `pipeline_failed:${target}:${pipelineId || eventTime || 'unknown'}`,
+        title: 'Alfredo: Pipeline failed',
+        body: `${target} pipeline ${branch || '-'} gagal.`,
+      })
     }
 
     return NextResponse.json({ ok: true })

@@ -34,16 +34,18 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return auth.response
 
     const body = await request.json()
-    const { phone_number, pm_name, is_active } = body as { phone_number: string; pm_name?: string; is_active?: boolean }
+    const { phone_number, pm_name, is_active, ops_role } = body as { phone_number: string; pm_name?: string; is_active?: boolean; ops_role?: string }
 
     if (!phone_number || !/^\d+$/.test(phone_number)) {
       return NextResponse.json({ error: 'Invalid phone number format. Use international format without + (e.g. 628123456789).' }, { status: 400, ...noStore })
     }
 
+    const role = ['viewer', 'operator', 'admin'].includes(ops_role || '') ? ops_role : 'viewer'
+
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('whitelisted_pms')
-      .upsert({ phone_number, pm_name: pm_name || null, is_active: is_active ?? false }, { onConflict: 'phone_number' })
+      .upsert({ phone_number, pm_name: pm_name || null, is_active: is_active ?? false, ops_role: role }, { onConflict: 'phone_number' })
       .select()
       .single()
 
@@ -63,7 +65,7 @@ export async function PUT(request: NextRequest) {
     if (!auth.ok) return auth.response
 
     const body = await request.json()
-    const { entries } = body as { entries: Array<{ phone: string; name?: string; active?: boolean }> }
+    const { entries } = body as { entries: Array<{ phone: string; name?: string; active?: boolean; role?: string }> }
 
     if (!Array.isArray(entries) || entries.length === 0) {
       return NextResponse.json({ error: 'entries must be a non-empty array of { phone, name?, active? }' }, { status: 400, ...noStore })
@@ -73,7 +75,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Max 500 entries per import' }, { status: 400, ...noStore })
     }
 
-    const rows: Array<{ phone_number: string; pm_name: string | null; is_active: boolean }> = []
+    const rows: Array<{ phone_number: string; pm_name: string | null; is_active: boolean; ops_role: string }> = []
     const errors: Array<{ phone: string; error: string }> = []
     let skipped = 0
 
@@ -85,7 +87,8 @@ export async function PUT(request: NextRequest) {
         errors.push({ phone: raw, error: 'Invalid format' })
         continue
       }
-      rows.push({ phone_number: phone, pm_name: (entry.name || '').trim() || null, is_active: entry.active ?? false })
+      const opsRole = ['viewer', 'operator', 'admin'].includes(entry.role || '') ? entry.role! : 'viewer'
+      rows.push({ phone_number: phone, pm_name: (entry.name || '').trim() || null, is_active: entry.active ?? false, ops_role: opsRole })
     }
 
     if (rows.length === 0) {
@@ -119,16 +122,29 @@ export async function PATCH(request: NextRequest) {
     if (!auth.ok) return auth.response
 
     const body = await request.json()
-    const { phone_number, is_active } = body as { phone_number: string; is_active: boolean }
+    const { phone_number, is_active, ops_role } = body as { phone_number: string; is_active?: boolean; ops_role?: string }
 
-    if (!phone_number || typeof is_active !== 'boolean') {
-      return NextResponse.json({ error: 'phone_number and is_active (boolean) required' }, { status: 400, ...noStore })
+    if (!phone_number) {
+      return NextResponse.json({ error: 'phone_number required' }, { status: 400, ...noStore })
+    }
+
+    const updates: Record<string, unknown> = {}
+    if (typeof is_active === 'boolean') updates.is_active = is_active
+    if (ops_role !== undefined) {
+      if (!['viewer', 'operator', 'admin'].includes(ops_role)) {
+        return NextResponse.json({ error: 'Invalid ops_role' }, { status: 400, ...noStore })
+      }
+      updates.ops_role = ops_role
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400, ...noStore })
     }
 
     const supabase = createAdminClient()
     const { data, error } = await supabase
       .from('whitelisted_pms')
-      .update({ is_active })
+      .update(updates)
       .eq('phone_number', phone_number)
       .select()
       .single()

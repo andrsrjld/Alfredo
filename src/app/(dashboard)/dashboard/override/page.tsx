@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import ServerCard from '@/components/servers/ServerCard'
 import ServerDetailDialog from '@/components/servers/ServerDetailDialog'
 import type { ServerRecord } from '@/lib/servers'
-import { APP_URL } from '@/lib/servers'
+import { APP_URL, SERVER_PUBLIC_SELECT } from '@/lib/servers'
 
 function mergeServersInPlace(prev: ServerRecord[], next: ServerRecord[]): ServerRecord[] {
   if (prev.length === 0) return next
@@ -49,7 +49,7 @@ export default function ServerPage() {
   useEffect(() => {
 	    const supabase = createClient()
 	    async function fetchServers() {
-	      const { data } = await supabase.from('server_status').select('*').order('server_name', { ascending: true })
+	      const { data } = await supabase.from('server_status').select(SERVER_PUBLIC_SELECT).order('server_name', { ascending: true })
 	      if (data) {
 	        setServers(prev => mergeServersInPlace(prev, data as ServerRecord[]))
 	      }
