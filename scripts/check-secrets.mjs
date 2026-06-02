@@ -3,8 +3,8 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 
-const SECRET_KEY_RE = /(SECRET|TOKEN|API[_-]?KEY|SERVICE[_-]?ROLE|PASSWORD|PASSWD|PRIVATE[_-]?KEY|ACCESS[_-]?KEY|PAT|ENCRYPTION[_-]?KEY)/i
-const ASSIGNMENT_RE = /^\s*(?:export\s+)?([A-Z0-9_]*(?:SECRET|TOKEN|API_KEY|SERVICE_ROLE|PASSWORD|PASSWD|PRIVATE_KEY|ACCESS_KEY|PAT|ENCRYPTION_KEY)[A-Z0-9_]*)\s*[:=]\s*(.+?)\s*$/
+const SECRET_KEY_RE = /(?:^|_)(?:SECRET|TOKEN|API_?KEY|SERVICE_?ROLE(?:_?KEY)?|PASSWORD|PASSWD|PRIVATE_?KEY|ACCESS_?KEY|PAT|ENCRYPTION_?KEY)(?:_|$)/i
+const ASSIGNMENT_RE = /^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*[:=]\s*(.+?)\s*$/
 
 const TOKEN_PATTERNS = [
   ['Private key block', /-----BEGIN (?:RSA |OPENSSH |EC |DSA |)?PRIVATE KEY-----/],
@@ -30,7 +30,7 @@ function isSafeAssignment(file, key, rawValue) {
   const value = rawValue.trim().replace(/^['"]|['"]$/g, '')
   if (SAFE_FILES.has(file) && SAFE_VALUE_RE.test(value)) return true
   if (SAFE_VALUE_RE.test(value)) return true
-  if (!SECRET_KEY_RE.test(key)) return true
+  if (!SECRET_KEY_RE.test(key.replace(/-/g, '_'))) return true
   return false
 }
 
