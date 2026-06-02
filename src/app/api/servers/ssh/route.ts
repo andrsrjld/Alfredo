@@ -3,7 +3,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { requireDashboardUser } from '@/lib/api-guards'
 import { decrypt, encrypt } from '@/lib/encryption'
 import { execSsh, type SshCredentials } from '@/lib/ssh'
-import { APP_URL } from '@/lib/servers'
 
 const noStore = { headers: { 'Cache-Control': 'no-store' } }
 
@@ -61,6 +60,15 @@ function credentialsFromRow(row: ServerSshRow): SshCredentials {
     passphrase: row.ssh_passphrase_encrypted ? decrypt(row.ssh_passphrase_encrypted) : null,
     password: row.ssh_password_encrypted ? decrypt(row.ssh_password_encrypted) : null,
   }
+}
+
+function requestOrigin(request: NextRequest): string {
+  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host')
+  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
+  if (forwardedHost) {
+    return `${forwardedProto || 'https'}://${forwardedHost.split(',')[0].trim()}`
+  }
+  return new URL(request.url).origin
 }
 
 export async function GET(request: NextRequest) {
@@ -157,7 +165,7 @@ export async function POST(request: NextRequest) {
       if (!row.ping_secret) {
         return NextResponse.json({ error: 'Server has no ping secret' }, { status: 400, ...noStore })
       }
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || APP_URL
+      const baseUrl = requestOrigin(request)
       const scriptUrl = `${baseUrl}/api/daemon?secret=${row.ping_secret}`
       const serviceUrl = `${baseUrl}/api/daemon?secret=${row.ping_secret}&type=service`
       const command = [
